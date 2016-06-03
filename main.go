@@ -1,22 +1,47 @@
 package main
 
-import "github.com/jung-kurt/gofpdf"
+import (
+	"github.com/jung-kurt/gofpdf"
+	"strings"
+)
 
 type Action int
+
+var example = `
+INT. HOUSE - DAY
+
+MARY
+I can't believe how easy it is to write in Fountain.
+
+TOM
+(typing)
+Look! I just made a parenthetical!
+
+SOMETHING HAPPENS!
+
+(what? I don't know...)
+
+EXT. GARDEN
+
+TOM
+What am I doing here now?
+To be honest, I have absolutely no idea!
+  
+And that means really no idea!
+`
 
 var action = map[string]struct {
 	Left, Width float64
 }{
-	"action":        {1.5, 6},
-	"speaker":       {4.2, 3.3},
-	"dialog":        {2.9, 3.3},
-	"scene":         {1.5, 6},
-	"parenthetical": {3.6, 2},
-	"trans":         {6, 1.5},
-	"note":          {1.5, 6},
-	"allcaps":       {1.5, 6},
-	"parens":        {1.5, 6},
-	"empty":         {1.5, 6},
+	"action":  {1.5, 6},
+	"speaker": {4.2, 3.3},
+	"dialog":  {2.9, 3.3},
+	"scene":   {1.5, 6},
+	"paren":   {3.6, 2},
+	"trans":   {6, 1.5},
+	"note":    {1.5, 6},
+	"allcaps": {1.5, 6},
+	"empty":   {1.5, 6},
 }
 
 var tr func(string) string
@@ -44,6 +69,34 @@ func line(pdf *gofpdf.Fpdf, jump, width float64, text string) {
 	pdf.MultiCell(width, 0.19, tr(text), "", "aligned", false)
 }
 
+func (t *Tree) ParseString(play string) {
+	toParse := strings.Split(play, "\n")
+	for i, row := range toParse {
+		action := "action"
+		if row == strings.ToUpper(row) {
+			action = "allcaps"
+		}
+		if row == "" {
+			action = "empty"
+		} else {
+			if i > 0 {
+				switch t.F[i-1].Format {
+				case "allcaps":
+					t.F[i-1].Format = "speaker"
+					if row[0] == '(' && row[len(row)-1] == ')' {
+						action = "paren"
+					} else {
+						action = "dialog"
+					}
+				case "paren", "dialog":
+					action = "dialog"
+				}
+			}
+		}
+		t.F = append(t.F, struct{ Format, Text string }{action, row})
+	}
+}
+
 func main() {
 	pdf := gofpdf.New("P", "in", "Letter", "")
 	tr = pdf.UnicodeTranslatorFromDescriptor("")
@@ -52,16 +105,7 @@ func main() {
 	pdf.SetMargins(1, 1, 1)
 	pdf.SetXY(1, 1)
 	f := Tree{PDF: pdf}
-	f.F = []struct{ Format, Text string }{
-		{"scene", "INT. HOUSE - DAY"},
-		{"empty", ""},
-		{"speaker", "MARY"},
-		{"dialog", "I can't believe how easy it is to write in Fountain."},
-		{"empty", ""},
-		{"speaker", "TOM"},
-		{"parenthetical", "(typing)"},
-		{"dialog", "Look! I just made a parenthetical!"},
-	}
+	f.ParseString(example)
 	f.Render()
 	err := pdf.OutputFileAndClose("fountain.pdf")
 	if err != nil {
