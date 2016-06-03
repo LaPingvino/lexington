@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/jung-kurt/gofpdf"
+	"io/ioutil"
+	"os"
 	"strings"
 )
 
@@ -105,9 +107,13 @@ func main() {
 	pdf.SetMargins(1, 1, 1)
 	pdf.SetXY(1, 1)
 	f := Tree{PDF: pdf}
-	f.ParseString(example)
+	input, err := ioutil.ReadAll(os.Stdin)
+	if err != nil {
+		panic(err)
+	}
+	f.ParseString(string(input))
 	f.Render()
-	err := pdf.OutputFileAndClose("fountain.pdf")
+	err = pdf.OutputFileAndClose("fountain.pdf")
 	if err != nil {
 		panic(err)
 	}
