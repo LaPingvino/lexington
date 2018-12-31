@@ -41,6 +41,7 @@ func Create(file string, format rules.Set, contents lex.Screenplay) {
 	pdf.SetMargins(1, 1, 1)
 	pdf.SetXY(1, 1)
 	f := Tree{
+		PDF: pdf,
 		Rules: format,
 		F: contents,
 	}

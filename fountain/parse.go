@@ -1,12 +1,23 @@
-package parse
+package fountain
 
 import (
+	"github.com/lapingvino/lexington/lex"
 	"strings"
+	"bufio"
+	"io"
 )
 
-func (t *Tree) ParseString(play string) {
-	toParse := strings.Split(play, "\n")
+func Parse(file io.Reader) (out lex.Screenplay) {
+	var err error
+	var s string
+	var toParse []string
+	f := bufio.NewReader(file)
+	for err == nil {
+		s, err = f.ReadString('\n')
+		toParse = append(toParse, s)
+	}
 	for i, row := range toParse {
+		row = strings.TrimSpace(row)
 		action := "action"
 		if row == strings.ToUpper(row) {
 			action = "allcaps"
@@ -15,9 +26,9 @@ func (t *Tree) ParseString(play string) {
 			action = "empty"
 		} else {
 			if i > 0 {
-				switch t.F[i-1].Format {
+				switch out[i-1].Type {
 				case "allcaps":
-					t.F[i-1].Format = "speaker"
+					out[i-1].Type = "speaker"
 					if row[0] == '(' && row[len(row)-1] == ')' {
 						action = "paren"
 					} else {
@@ -28,6 +39,7 @@ func (t *Tree) ParseString(play string) {
 				}
 			}
 		}
-		t.F = append(t.F, struct{ Format, Text string }{action, row})
+		out = append(out, lex.Line{action, row})
 	}
+	return out
 }

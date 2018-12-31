@@ -1,5 +1,0 @@
-package lex
-
-var Example = `
-
-`

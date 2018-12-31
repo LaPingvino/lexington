@@ -46,7 +46,7 @@ var Default = Set{
 	},
 	"paren":   {
 		Left: 3.6,
-		Width: 2,
+		Width: 4,
 	},
 	"trans":   {
 		Left: 6,
@@ -57,6 +57,10 @@ var Default = Set{
 		Width: 6,
 	},
 	"allcaps": {
+		Left: 1.5,
+		Width: 6,
+	},
+	"empty": {
 		Left: 1.5,
 		Width: 6,
 	},
