@@ -1,3 +1,4 @@
+// The lex format is basically a parse tree for screenplays, which enables quick debugging.
 package lex
 
 type Screenplay []Line

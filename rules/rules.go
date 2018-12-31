@@ -53,8 +53,9 @@ var Default = Set{
 		Width: 4,
 	},
 	"trans":   {
-		Left: 6,
-		Width: 1.5,
+		Left: 1.5,
+		Width: 6,
+		Align: "R",
 	},
 	"note":    {
 		Left: 1.5,
