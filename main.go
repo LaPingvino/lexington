@@ -1,3 +1,5 @@
+// Lexington is a command line tool to convert between several formats used for screenwriting.
+// The tool uses an internal format called lex which can be used to tweak the output.
 package main
 
 import (
