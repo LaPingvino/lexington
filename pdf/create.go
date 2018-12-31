@@ -40,7 +40,7 @@ func (t Tree) Render() {
 func line(pdf *gofpdf.Fpdf, format rules.Format, text string) {
 	pdf.SetFont(format.Font, format.Style, format.Size)
 	pdf.SetX(format.Left)
-	pdf.MultiCell(format.Width, 0.19, tr(text), "", "aligned", false)
+	pdf.MultiCell(format.Width, 0.19, tr(text), "", format.Align, false)
 }
 
 func Create(file string, format rules.Set, contents lex.Screenplay) {

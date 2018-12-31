@@ -7,6 +7,7 @@ type Format struct{
 	Style string
 	Size float64
 	Hide bool
+	Align string
 }
 
 type Set map[string]Format
@@ -22,6 +23,9 @@ func (s Set) Get(action string) (f Format) {
 	}
 	if f.Size == 0 {
 		f.Size = 12
+	}
+	if f.Align == "" {
+		f.Align = "L"
 	}
 	return f
 }
@@ -65,8 +69,9 @@ var Default = Set{
 		Width: 6,
 	},
 	"title": {
-		Left: 3.6,
-		Width: 4,
+		Left: 1.5,
+		Width: 6,
+		Align: "C",
 	},
 	"meta": {
 		Left: 1.5,

@@ -24,20 +24,21 @@ func Parse(file io.Reader) (out lex.Screenplay) {
 		}
 		if row == "" {
 			action = "empty"
-		} else {
-			if i > 0 {
-				switch out[i-1].Type {
-				case "allcaps":
-					out[i-1].Type = "speaker"
-					if row[0] == '(' && row[len(row)-1] == ')' {
-						action = "paren"
-					} else {
-						action = "dialog"
-					}
-				case "paren", "dialog":
-					action = "dialog"
-				}
+			continue
+		}
+		if i <= 0 {
+			continue
+		}
+		switch out[i-1].Type {
+		case "allcaps":
+			out[i-1].Type = "speaker"
+			if row[0] == '(' && row[len(row)-1] == ')' {
+				action = "paren"
+			} else {
+				action = "dialog"
 			}
+		case "paren", "dialog":
+			action = "dialog"
 		}
 		out = append(out, lex.Line{action, row})
 	}
