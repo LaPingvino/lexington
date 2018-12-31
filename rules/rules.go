@@ -64,4 +64,12 @@ var Default = Set{
 		Left: 1.5,
 		Width: 6,
 	},
+	"title": {
+		Left: 3.6,
+		Width: 4,
+	},
+	"meta": {
+		Left: 1.5,
+		Width: 3,
+	},
 }

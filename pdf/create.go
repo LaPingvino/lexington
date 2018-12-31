@@ -21,6 +21,15 @@ func (t Tree) pr(a string, text string) {
 
 func (t Tree) Render() {
 	for _, row := range t.F {
+		switch row.Type {
+		case "newpage":
+			t.PDF.AddPage()
+			continue
+		case "titlepage":
+			t.PDF.SetY(4)
+		case "metasection":
+			t.PDF.SetY(-2)
+		}
 		if t.Rules.Get(row.Type).Hide {
 			continue
 		}
