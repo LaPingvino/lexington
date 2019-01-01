@@ -78,4 +78,9 @@ var Default = Set{
 		Left:  1.5,
 		Width: 3,
 	},
+	"center": {
+		Left: 1.5,
+		Width: 3,
+		Align: "C",
+	},
 }

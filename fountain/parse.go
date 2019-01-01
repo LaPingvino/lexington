@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-var Scene = []string{"INT", "EXT", "EST", "INT./EXT", "INT/EXT", "I/E"}
+var Scene = []string{"INT", "EXT", "EST", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"}
 
 func CheckScene(row string) (bool, string, string) {
 	var scene bool
@@ -20,24 +20,38 @@ func CheckScene(row string) (bool, string, string) {
 			scene = true
 		}
 	}
+	if strings.HasPrefix(row, ".") {
+		row = row[1:]
+		scene = true
+	}
 	return scene, "scene", row
 }
 
-func CheckTransition(row string) (bool, string, string) {
-	var trans bool
+func CheckCrow(row string) (bool, string, string) {
+	var crow bool
+	var el string
 	row = strings.ToUpper(row)
 	if strings.HasPrefix(row, ">") || strings.HasSuffix(row, " TO:") {
-		trans = true
+		crow = true
+		el = "trans"
 	}
-	return trans, "trans", strings.Trim(row, ">< ")
+	if strings.HasPrefix(row, ">") && strings.HasSuffix(row, "<") {
+		el = "center"
+	}
+	return crow, el, strings.Trim(row, ">< ")
 }
 
-func CheckSynopse(row string) (bool, string, string) {
-	var synopse bool
+func CheckEqual(row string) (bool, string, string) {
+	var equal bool
+	var el string
 	if strings.HasPrefix(row, "=") {
-		synopse = true
+		equal = true
+		el = "synopse"
 	}
-	return synopse, "synopse", strings.TrimLeft(row, "= ")
+	if len(row) >= 3 && strings.Trim(row, "=") == "" {
+		el = "newpage"
+	}
+	return equal, el, strings.TrimLeft(row, "= ")
 }
 
 func CheckSection(row string) (bool, string, string) {
@@ -75,8 +89,8 @@ func Parse(file io.Reader) (out lex.Screenplay) {
 			// Backtracking for elements that need a following empty line
 			checkfuncs := []func(string) (bool, string, string){
 				CheckScene,
-				CheckTransition,
-				CheckSynopse,
+				CheckCrow,
+				CheckEqual,
 				CheckSection,
 			}
 			for _, checkfunc := range checkfuncs {
