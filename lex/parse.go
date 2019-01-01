@@ -1,8 +1,8 @@
 package lex
 
 import (
-	"io"
 	"bufio"
+	"io"
 	"strings"
 )
 
@@ -18,9 +18,9 @@ func Parse(file io.Reader) (out Screenplay) {
 		var line Line
 		s, err = f.ReadString('\n')
 		split := strings.SplitN(s, ":", 2)
-		switch len(split){
-		case 0,1:
-			line.Type = strings.Trim(s,": \n\r")
+		switch len(split) {
+		case 0, 1:
+			line.Type = strings.Trim(s, ": \n\r")
 		case 2:
 			line.Type = split[0]
 			line.Contents = strings.TrimSpace(split[1])

@@ -10,9 +10,9 @@ import (
 var tr func(string) string
 
 type Tree struct {
-	PDF *gofpdf.Fpdf
+	PDF   *gofpdf.Fpdf
 	Rules rules.Set
-	F   lex.Screenplay
+	F     lex.Screenplay
 }
 
 func (t Tree) pr(a string, text string) {
@@ -50,9 +50,9 @@ func Create(file string, format rules.Set, contents lex.Screenplay) {
 	pdf.SetMargins(1, 1, 1)
 	pdf.SetXY(1, 1)
 	f := Tree{
-		PDF: pdf,
+		PDF:   pdf,
 		Rules: format,
-		F: contents,
+		F:     contents,
 	}
 	f.Render()
 	err := pdf.OutputFileAndClose(file)

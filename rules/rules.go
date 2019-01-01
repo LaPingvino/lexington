@@ -1,12 +1,12 @@
 package rules
 
-type Format struct{
+type Format struct {
 	Width float64
-	Left float64
-	Font string
+	Left  float64
+	Font  string
 	Style string
-	Size float64
-	Hide bool
+	Size  float64
+	Hide  bool
 	Align string
 }
 
@@ -31,51 +31,51 @@ func (s Set) Get(action string) (f Format) {
 }
 
 var Default = Set{
-	"action":  {
-		Left: 1.5,
+	"action": {
+		Left:  1.5,
 		Width: 6,
 	},
 	"speaker": {
-		Left: 4.2,
+		Left:  4.2,
 		Width: 3.3,
 	},
-	"dialog":  {
-		Left: 2.9,
+	"dialog": {
+		Left:  2.9,
 		Width: 3.3,
 	},
-	"scene":   {
-		Left: 1.5,
+	"scene": {
+		Left:  1.5,
 		Width: 6,
 		Style: "b",
 	},
-	"paren":   {
-		Left: 3.6,
+	"paren": {
+		Left:  3.6,
 		Width: 4,
 	},
-	"trans":   {
-		Left: 1.5,
+	"trans": {
+		Left:  1.5,
 		Width: 6,
 		Align: "R",
 	},
-	"note":    {
-		Left: 1.5,
+	"note": {
+		Left:  1.5,
 		Width: 6,
 	},
 	"allcaps": {
-		Left: 1.5,
+		Left:  1.5,
 		Width: 6,
 	},
 	"empty": {
-		Left: 1.5,
+		Left:  1.5,
 		Width: 6,
 	},
 	"title": {
-		Left: 1.5,
+		Left:  1.5,
 		Width: 6,
 		Align: "C",
 	},
 	"meta": {
-		Left: 1.5,
+		Left:  1.5,
 		Width: 3,
 	},
 }

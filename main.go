@@ -3,15 +3,15 @@
 package main
 
 import (
-	"github.com/lapingvino/lexington/lex"
 	"github.com/lapingvino/lexington/fountain"
+	"github.com/lapingvino/lexington/lex"
 	"github.com/lapingvino/lexington/pdf"
 	"github.com/lapingvino/lexington/rules"
 
 	"flag"
+	"io"
 	"log"
 	"os"
-	"io"
 )
 
 func main() {
@@ -54,7 +54,6 @@ func main() {
 			return
 		}
 	}
-
 
 	log.Println("Input type is ", *from)
 	switch *from {

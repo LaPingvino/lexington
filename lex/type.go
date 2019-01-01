@@ -3,8 +3,7 @@ package lex
 
 type Screenplay []Line
 
-type Line struct{
-	Type string
+type Line struct {
+	Type     string
 	Contents string
 }
-
