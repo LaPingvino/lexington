@@ -11,6 +11,15 @@ import (
 
 var Scene = []string{"INT", "EXT", "EST", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"}
 
+func last(out *lex.Screenplay, i int) *lex.Line {
+	if len(*out) >= i {
+		return &(*out)[len(*out)-i]
+	} else {
+		line := lex.Line{Type: "empty"}
+		return &line
+	}
+}
+
 func CheckScene(row string) (bool, string, string) {
 	var scene bool
 	row = strings.ToUpper(row)
@@ -67,7 +76,8 @@ func CheckSection(row string) (bool, string, string) {
 // Over time more and more parts should be configurable here, e.g. INT/EXT translatable to other languages.
 func Parse(file io.Reader) (out lex.Screenplay) {
 	var err error
-	var s string
+	var titlepage, dialog bool = true, false
+	var s, titletag string
 	var toParse []string // Fill with two to avoid out of bounds when backtracking
 	f := bufio.NewReader(file)
 	for err == nil {
@@ -75,16 +85,15 @@ func Parse(file io.Reader) (out lex.Screenplay) {
 		toParse = append(toParse, s)
 	}
 	toParse = append(toParse, "") // Trigger the backtracking also for the last line
-	out = make(lex.Screenplay, 2, len(toParse))
-	for i, row := range toParse {
-		i += 2
+	for _, row := range toParse {
 		row = strings.TrimRight(row, "\n\r")
 		action := "action"
-		if row == strings.ToUpper(row) {
-			action = "allcaps"
-		}
 		if row == "" {
 			action = "empty"
+			if titlepage {
+				titlepage = false
+				action = "newpage"
+			}
 
 			// Backtracking for elements that need a following empty line
 			checkfuncs := []func(string) (bool, string, string){
@@ -94,25 +103,27 @@ func Parse(file io.Reader) (out lex.Screenplay) {
 				CheckSection,
 			}
 			for _, checkfunc := range checkfuncs {
-				check, element, contents := checkfunc(out[i-1].Contents)
-				if check && out[i-2].Contents == "" {
-					out[i-1].Type = element
-					out[i-1].Contents = contents
+				check, element, contents := checkfunc(last(&out, 1).Contents)
+				if check && last(&out, 2).Contents == "" {
+					last(&out, 1).Type = element
+					last(&out, 1).Contents = contents
 					break
 				}
 			}
 		}
-		if out[i-1].Type != "action" {
-			out[i-1].Contents = strings.TrimSpace(out[i-1].Contents)
+		if last(&out, 1).Type != "action" {
+			last(&out, 1).Contents = strings.TrimSpace(last(&out, 1).Contents)
 		}
 
 		// Backtracking to check for dialog sequence
-		if row != "" {
-			switch out[i-1].Type {
-			case "allcaps":
-				out[i-1].Type = "speaker"
-				fallthrough
-			case "paren", "dialog":
+		if dialog {
+			if row == "" {
+				dialog = false
+				action = "empty"
+				if last(&out, 1).Type == "speaker" {
+					last(&out, 1).Type = "action"
+				}
+			} else {
 				if row[0] == '(' && row[len(row)-1] == ')' {
 					action = "paren"
 				} else {
@@ -120,7 +131,42 @@ func Parse(file io.Reader) (out lex.Screenplay) {
 				}
 			}
 		}
+		if row == strings.ToUpper(row) && action == "action" {
+			action = "speaker"
+			dialog = true
+		}
+
+		if titlepage {
+			if titletag == "" {
+				out = append(out, lex.Line{Type: "titlepage"})
+			}
+			split := strings.SplitN(row, ":", 2)
+			if len(split) == 2 {
+				action = strings.ToLower(split[0])
+				switch action {
+				case "title", "credit", "author", "authors":
+					action = "title"
+				default:
+					if titletag == "title" {
+						out = append(out, lex.Line{Type: "metasection"})
+					}
+					action = "meta"
+				}
+				row = strings.TrimSpace(split[1])
+				if row == "" {
+					continue
+				}
+				titletag = action
+			} else {
+				action = titletag
+				row = strings.TrimSpace(row)
+			}
+		}
+		if titlepage && titletag == "" {
+			titlepage = false
+			action = "newpage"
+		}
 		out = append(out, lex.Line{action, row})
 	}
-	return out[2:] // Remove the safety empty rows
+	return out
 }
