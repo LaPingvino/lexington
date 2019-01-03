@@ -1,5 +1,7 @@
 // Lexington is a command line tool to convert between several formats used for screenwriting.
+// When you write a screenplay in Fountain, you can use this tool to convert it into other formats.
 // The tool uses an internal format called lex which can be used to tweak the output.
+// Run the compiled tool with --help to get information about usage. 
 package main
 
 import (
@@ -15,8 +17,8 @@ import (
 )
 
 func main() {
-	input := flag.String("i", "-", "Input from provided filename")
-	output := flag.String("o", "-", "Output to provided filename")
+	input := flag.String("i", "-", "Input from provided filename. - means standard input.")
+	output := flag.String("o", "-", "Output to provided filename. - means standard output.")
 	from := flag.String("from", "fountain", "Input file type. Choose from fountain, lex [, fdx]. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
 	to := flag.String("to", "lex", "Output file type. Choose from pdf (built-in, doesn't support inline markup), lex (helpful for troubleshooting and correcting fountain parsing), [html, epub*, mobi*, docx*, odt*, fountain, fdx]. Formats marked with a little star need an additional external tool to work. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
 	help := flag.Bool("help", false, "Show this help message")
