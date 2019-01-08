@@ -74,6 +74,7 @@ func main() {
 			log.Println("Cannot write PDF to standard output")
 			return
 		}
+		log.Println("While the PDF output of this tool is acceptable for most purposes, I would recommend against it for sending in your screenplay. For command line usage, the Afterwriting commandline tools and e.g. the latex export of emacs fountain-mode look really good.")
 		pdf.Create(*output, rules.Default, i)
 	case "lex":
 		lex.Write(i, outfile)
