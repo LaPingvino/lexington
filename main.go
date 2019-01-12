@@ -24,8 +24,8 @@ func main() {
 	elements := flag.String("e", "default", "Element settings from settings file to use.")
 	input := flag.String("i", "-", "Input from provided filename. - means standard input.")
 	output := flag.String("o", "-", "Output to provided filename. - means standard output.")
-	from := flag.String("from", "fountain", "Input file type. Choose from fountain, lex [, fdx]. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
-	to := flag.String("to", "lex", "Output file type. Choose from pdf (built-in, doesn't support inline markup), lex (helpful for troubleshooting and correcting fountain parsing), [html, epub*, mobi*, docx*, odt*, fountain, fdx]. Formats marked with a little star need an additional external tool to work. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
+	from := flag.String("from", "", "Input file type. Choose from fountain, lex [, fdx]. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
+	to := flag.String("to", "", "Output file type. Choose from pdf (built-in, doesn't support inline markup), lex (helpful for troubleshooting and correcting fountain parsing), fountain, [html, epub*, mobi*, docx*, odt*, fdx]. Formats marked with a little star need an additional external tool to work. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
 	help := flag.Bool("help", false, "Show this help message")
 	flag.Parse()
 
@@ -46,6 +46,8 @@ func main() {
 	var infile io.Reader
 	var outfile io.Writer
 	var i lex.Screenplay
+
+	conf := rules.GetConf(*config)
 
 	if *input == "-" {
 		infile = os.Stdin
@@ -76,7 +78,7 @@ func main() {
 	case "lex":
 		i = lex.Parse(infile)
 	case "fountain":
-		i = fountain.Parse(infile)
+		i = fountain.Parse(conf.Scenes[*scenein], infile)
 	default:
 		log.Printf("%s is not a valid input type", *from)
 	}
@@ -89,9 +91,11 @@ func main() {
 			return
 		}
 		log.Println("While the PDF output of this tool is acceptable for most purposes, I would recommend against it for sending in your screenplay. For command line usage, the Afterwriting commandline tools and e.g. the latex export of emacs fountain-mode look really good.")
-		pdf.Create(*output, rules.Default, i)
+		pdf.Create(*output, conf.Elements[*elements], i)
 	case "lex":
 		lex.Write(i, outfile)
+	case "fountain":
+		fountain.Write(outfile, conf.Scenes[*sceneout], i)
 	default:
 		log.Printf("%s is not a valid output type", *to)
 	}

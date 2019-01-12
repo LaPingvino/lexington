@@ -3,6 +3,7 @@ package rules
 import (
 	"github.com/BurntSushi/toml"
 	"os"
+	"log"
 )
 
 type TOMLConf struct{
@@ -18,11 +19,13 @@ func ReadFile(file string) (TOMLConf, error) {
 	return r, err
 }
 
-func MustReadFile(file string) TOMLConf {
+func GetConf(file string) TOMLConf {
 	c, err := ReadFile(file)
 	if err != nil {
-		panic(err)
+		log.Println("Error loading file, loading default configuration: ", err)
+		c = DefaultConf()
 	}
+	log.Println("Configuration set")
 	return c
 }
 

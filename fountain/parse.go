@@ -96,7 +96,8 @@ func CheckForce(row string) (bool, string, string) {
 // This is a Fountain parser, trying to be as close as possible to the description
 // found at https://fountain.io/syntax but it can be incomplete.
 // Over time more and more parts should be configurable here, e.g. INT/EXT translatable to other languages.
-func Parse(file io.Reader) (out lex.Screenplay) {
+func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
+	Scene = scenes
 	var err error
 	var titlepage, dialog bool = true, false
 	var s, titletag string
