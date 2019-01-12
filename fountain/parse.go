@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+// Scene contains all the prefixes the scene detection looks for.
+// This can be changed with the toml configuration in the rules package.
 var Scene = []string{"INT", "EXT", "EST", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"}
 
 func last(out *lex.Screenplay, i int) *lex.Line {
