@@ -17,6 +17,11 @@ import (
 )
 
 func main() {
+	config := flag.String("config", "lexington.toml", "Configuration file to use.")
+	dump := flag.Bool("dumpconfig", false, "Dump the default configuration to the location of --config to be adapted manually.")
+	scenein := flag.String("scenein", "en", "Configuration to use for scene header detection on input.")
+	sceneout := flag.String("sceneout", "en", "Configuration to use for scene header detection on output.")
+	elements := flag.String("e", "default", "Element settings from settings file to use.")
 	input := flag.String("i", "-", "Input from provided filename. - means standard input.")
 	output := flag.String("o", "-", "Output to provided filename. - means standard output.")
 	from := flag.String("from", "fountain", "Input file type. Choose from fountain, lex [, fdx]. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
@@ -26,6 +31,15 @@ func main() {
 
 	if *help {
 		flag.PrintDefaults()
+		return
+	}
+
+	if *dump {
+		err := rules.Dump(*config)
+		if err != nil {
+			log.Println("Error dumping configuration: ", err)
+		}
+		log.Println("Configuration dumped to ", *config)
 		return
 	}
 
