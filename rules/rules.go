@@ -76,11 +76,17 @@ var Default = Set{
 	},
 	"meta": {
 		Left:  1.5,
-		Width: 3,
+		Width: 6,
 	},
 	"center": {
 		Left: 1.5,
-		Width: 3,
+		Width: 6,
 		Align: "C",
+	},
+	"lyrics": {
+		Left: 2,
+		Width: 5,
+		Style: "i",
+		Font: "Helvetica",
 	},
 }

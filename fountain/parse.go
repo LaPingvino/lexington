@@ -71,6 +71,28 @@ func CheckSection(row string) (bool, string, string) {
 	return section, "section", row
 }
 
+func CheckForce(row string) (bool, string, string) {
+	var force = true
+	var ftype string
+	if len(row) < 1 {
+		return false, "", ""
+	}
+	switch row[0] {
+	case '@':
+		ftype = "speaker"
+	case '~':
+		ftype = "lyrics"
+	case '!':
+		ftype = "action"
+	default:
+		force = false
+	}
+	if force {
+		row = row[1:]
+	}
+	return force, ftype, row
+}
+
 // This is a Fountain parser, trying to be as close as possible to the description
 // found at https://fountain.io/syntax but it can be incomplete.
 // Over time more and more parts should be configurable here, e.g. INT/EXT translatable to other languages.
@@ -93,22 +115,6 @@ func Parse(file io.Reader) (out lex.Screenplay) {
 			if titlepage {
 				titlepage = false
 				action = "newpage"
-			}
-
-			// Backtracking for elements that need a following empty line
-			checkfuncs := []func(string) (bool, string, string){
-				CheckScene,
-				CheckCrow,
-				CheckEqual,
-				CheckSection,
-			}
-			for _, checkfunc := range checkfuncs {
-				check, element, contents := checkfunc(last(&out, 1).Contents)
-				if check && last(&out, 2).Contents == "" {
-					last(&out, 1).Type = element
-					last(&out, 1).Contents = contents
-					break
-				}
 			}
 		}
 		if last(&out, 1).Type != "action" {
@@ -135,6 +141,25 @@ func Parse(file io.Reader) (out lex.Screenplay) {
 			action = "speaker"
 			dialog = true
 		}
+
+			checkfuncs := []func(string) (bool, string, string){
+				CheckScene, // should actually check for empty lines, but doing that creates more problems than it solves
+				CheckCrow,
+				CheckEqual,
+				CheckSection,
+				CheckForce,
+			}
+			for _, checkfunc := range checkfuncs {
+				check, element, contents := checkfunc(row)
+				if check {
+					action = element
+					row = contents
+					if action == "speaker" {
+						dialog = true
+					}
+					break
+				}
+			}
 
 		if titlepage {
 			if titletag == "" {
