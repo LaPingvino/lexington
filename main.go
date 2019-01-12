@@ -14,6 +14,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -43,6 +44,21 @@ func main() {
 		return
 	}
 
+	ins := strings.SplitN(*input, ".", 2)
+	if len(ins)==2 && *from == "" {
+		*from = ins[1]
+	}
+	outs := strings.SplitN(*output, ".", 2)
+	if len(outs)==2 && *to == "" {
+		*to = outs[1]
+	}
+	if *from == "" {
+		*from = "fountain"
+	}
+	if *to == "" && *output == "-" {
+		*to = "lex"
+	}
+
 	var infile io.Reader
 	var outfile io.Writer
 	var i lex.Screenplay
@@ -65,6 +81,9 @@ func main() {
 		outfile = os.Stdout
 		log.Println("Writing to Stdout")
 	} else {
+		if *output == "" && len(ins) > 0 && ins[0] != "" {
+			*output = ins[0] + "." + *to
+		}
 		var err error
 		outfile, err = os.Create(*output)
 		if err != nil {
@@ -86,11 +105,16 @@ func main() {
 	log.Println("Output type is ", *to)
 	switch *to {
 	case "pdf":
+		if *output == "-" && len(ins) > 0 && ins[0] != "" {
+			*output = ins[0] + ".pdf"
+		}
 		if *output == "-" {
 			log.Println("Cannot write PDF to standard output")
 			return
 		}
-		log.Println("While the PDF output of this tool is acceptable for most purposes, I would recommend against it for sending in your screenplay. For command line usage, the Afterwriting commandline tools and e.g. the latex export of emacs fountain-mode look really good.")
+		log.Println("No external PDF tool found, using built-in PDF output.")
+		log.Println("Disadvantages of built-in PDF: non-English not truly supported, no inline markup.")
+		log.Println("Advantages of built-in PDF: very fast (perfect for drafts) and reasonable configurability.")
 		pdf.Create(*output, conf.Elements[*elements], i)
 	case "lex":
 		lex.Write(i, outfile)
