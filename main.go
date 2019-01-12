@@ -1,7 +1,7 @@
 // Lexington is a command line tool to convert between several formats used for screenwriting.
 // When you write a screenplay in Fountain, you can use this tool to convert it into other formats.
 // The tool uses an internal format called lex which can be used to tweak the output.
-// Run the compiled tool with --help to get information about usage. 
+// Run the compiled tool with --help to get information about usage.
 package main
 
 import (

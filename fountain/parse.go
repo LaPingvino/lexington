@@ -142,24 +142,24 @@ func Parse(file io.Reader) (out lex.Screenplay) {
 			dialog = true
 		}
 
-			checkfuncs := []func(string) (bool, string, string){
-				CheckScene, // should actually check for empty lines, but doing that creates more problems than it solves
-				CheckCrow,
-				CheckEqual,
-				CheckSection,
-				CheckForce,
-			}
-			for _, checkfunc := range checkfuncs {
-				check, element, contents := checkfunc(row)
-				if check {
-					action = element
-					row = contents
-					if action == "speaker" {
-						dialog = true
-					}
-					break
+		checkfuncs := []func(string) (bool, string, string){
+			CheckScene, // should actually check for empty lines, but doing that creates more problems than it solves
+			CheckCrow,
+			CheckEqual,
+			CheckSection,
+			CheckForce,
+		}
+		for _, checkfunc := range checkfuncs {
+			check, element, contents := checkfunc(row)
+			if check {
+				action = element
+				row = contents
+				if action == "speaker" {
+					dialog = true
 				}
+				break
 			}
+		}
 
 		if titlepage {
 			if titletag == "" {
@@ -167,21 +167,20 @@ func Parse(file io.Reader) (out lex.Screenplay) {
 			}
 			split := strings.SplitN(row, ":", 2)
 			if len(split) == 2 {
-				action = strings.ToLower(split[0])
-				switch action {
+				action = split[0]
+				switch strings.ToLower(action) {
 				case "title", "credit", "author", "authors":
-					action = "title"
+					titletag = "title"
 				default:
 					if titletag == "title" {
 						out = append(out, lex.Line{Type: "metasection"})
 					}
-					action = "meta"
+					titletag = action
 				}
 				row = strings.TrimSpace(split[1])
 				if row == "" {
 					continue
 				}
-				titletag = action
 			} else {
 				action = titletag
 				row = strings.TrimSpace(row)

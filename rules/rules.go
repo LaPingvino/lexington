@@ -1,13 +1,15 @@
 package rules
 
 type Format struct {
-	Width float64
-	Left  float64
-	Font  string
-	Style string
-	Size  float64
-	Hide  bool
-	Align string
+	Width   float64
+	Left    float64
+	Font    string
+	Style   string
+	Size    float64
+	Hide    bool
+	Align   string
+	Prefix  string
+	Postfix string
 }
 
 type Set map[string]Format
@@ -79,14 +81,14 @@ var Default = Set{
 		Width: 6,
 	},
 	"center": {
-		Left: 1.5,
+		Left:  1.5,
 		Width: 6,
 		Align: "C",
 	},
 	"lyrics": {
-		Left: 2,
+		Left:  2,
 		Width: 5,
 		Style: "i",
-		Font: "Helvetica",
+		Font:  "Helvetica",
 	},
 }

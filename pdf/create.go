@@ -16,22 +16,29 @@ type Tree struct {
 }
 
 func (t Tree) pr(a string, text string) {
-	line(t.PDF, t.Rules.Get(a), text)
+	line(t.PDF, t.Rules.Get(a), t.Rules.Get(a).Prefix+text+t.Rules.Get(a).Postfix)
 }
 
 func (t Tree) Render() {
+	var block string
 	for _, row := range t.F {
 		switch row.Type {
 		case "newpage":
+			block = ""
 			t.PDF.AddPage()
 			continue
 		case "titlepage":
+			block = "title"
 			t.PDF.SetY(4)
 		case "metasection":
+			block = "meta"
 			t.PDF.SetY(-2)
 		}
-		if t.Rules.Get(row.Type).Hide {
+		if t.Rules.Get(row.Type).Hide && block == "" {
 			continue
+		}
+		if block != "" {
+			row.Type = block
 		}
 		t.pr(row.Type, row.Contents)
 	}
