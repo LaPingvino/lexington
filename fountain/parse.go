@@ -103,7 +103,7 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 	var err error
 	var titlepage, dialog bool = true, false
 	var s, titletag string
-	var toParse []string // Fill with two to avoid out of bounds when backtracking
+	var toParse []string
 	f := bufio.NewReader(file)
 	for err == nil {
 		s, err = f.ReadString('\n')
