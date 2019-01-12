@@ -114,7 +114,8 @@ func Parse(file io.Reader) (out lex.Screenplay) {
 			action = "empty"
 			if titlepage {
 				titlepage = false
-				action = "newpage"
+				out = append(out, lex.Line{Type: "newpage"})
+				continue
 			}
 		}
 		if last(&out, 1).Type != "action" {
@@ -185,10 +186,6 @@ func Parse(file io.Reader) (out lex.Screenplay) {
 				action = titletag
 				row = strings.TrimSpace(row)
 			}
-		}
-		if titlepage && titletag == "" {
-			titlepage = false
-			action = "newpage"
 		}
 		out = append(out, lex.Line{action, row})
 	}
