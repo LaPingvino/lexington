@@ -20,8 +20,8 @@ import (
 func main() {
 	config := flag.String("config", "lexington.toml", "Configuration file to use.")
 	dump := flag.Bool("dumpconfig", false, "Dump the default configuration to the location of --config to be adapted manually.")
-	scenein := flag.String("scenein", "en", "Configuration to use for scene header detection on input.")
-	sceneout := flag.String("sceneout", "en", "Configuration to use for scene header detection on output.")
+	scenein := flag.String("scenein", "", "Configuration to use for scene header detection on input.")
+	sceneout := flag.String("sceneout", "", "Configuration to use for scene header detection on output.")
 	elements := flag.String("e", "default", "Element settings from settings file to use.")
 	input := flag.String("i", "-", "Input from provided filename. - means standard input.")
 	output := flag.String("o", "-", "Output to provided filename. - means standard output.")
@@ -44,20 +44,36 @@ func main() {
 		return
 	}
 
-	ins := strings.SplitN(*input, ".", 2)
-	if len(ins)==2 && *from == "" {
-		*from = ins[1]
+	ins := strings.Split(*input, ".")
+	if len(ins)>1 && *from == "" {
+		*from = ins[len(ins)-1]
 	}
-	outs := strings.SplitN(*output, ".", 2)
-	if len(outs)==2 && *to == "" {
-		*to = outs[1]
+	if len(ins)>2 && *scenein == "" {
+		*scenein = ins[len(ins)-2]
 	}
+
+	outs := strings.Split(*output, ".")
+	if len(outs)>1 && *to == "" {
+		*to = outs[len(ins)-1]
+	}
+	if len(outs)>2 && *sceneout == "" {
+		*sceneout = outs[len(outs)-2]
+	}
+
 	if *from == "" {
 		*from = "fountain"
 	}
 	if *to == "" && *output == "-" {
 		*to = "lex"
 	}
+	if *scenein == "" {
+		*scenein = "en"
+	}
+	if *sceneout == "" {
+		*sceneout = "en"
+	}
+
+	log.Printf("Scenein: %s ; Sceneout: %s ;\n", *scenein, *sceneout)
 
 	var infile io.Reader
 	var outfile io.Writer
