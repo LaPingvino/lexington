@@ -31,7 +31,7 @@ func CheckScene(row string) (bool, string, string) {
 			scene = true
 		}
 	}
-	if strings.HasPrefix(row, ".") {
+	if strings.HasPrefix(row, ".") && !strings.HasPrefix(row, "..") {
 		row = row[1:]
 		scene = true
 	}
