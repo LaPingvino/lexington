@@ -52,10 +52,10 @@ func line(pdf *gofpdf.Fpdf, format rules.Format, text string) {
 
 func Create(file string, format rules.Set, contents lex.Screenplay) {
 	pdf := gofpdf.New("P", "in", "Letter", "")
-	pdf.AddUTF8FontFromBytes("CourierPrime", "", font.MustAsset("CourierPrime-Regular.ttf"))
-	pdf.AddUTF8FontFromBytes("CourierPrime", "B", font.MustAsset("CourierPrime-Bold.ttf"))
-	pdf.AddUTF8FontFromBytes("CourierPrime", "I", font.MustAsset("CourierPrime-Italic.ttf"))
-	pdf.AddUTF8FontFromBytes("CourierPrime", "BI", font.MustAsset("CourierPrime-BoldItalic.ttf"))
+	pdf.AddUTF8FontFromBytes("CourierPrime", "", font.MustAsset("Courier-Prime.ttf"))
+	pdf.AddUTF8FontFromBytes("CourierPrime", "B", font.MustAsset("Courier-Prime-Bold.ttf"))
+	pdf.AddUTF8FontFromBytes("CourierPrime", "I", font.MustAsset("Courier-Prime-Italic.ttf"))
+	pdf.AddUTF8FontFromBytes("CourierPrime", "BI", font.MustAsset("Courier-Prime-Bold-Italic.ttf"))
 	pdf.AddPage()
 	pdf.SetMargins(1, 1, 1)
 	pdf.SetXY(1, 1)
