@@ -4,11 +4,10 @@ package pdf
 import (
 	"github.com/lapingvino/lexington/lex"
 	"github.com/lapingvino/lexington/rules"
+	"github.com/lapingvino/lexington/font"
 
-	"github.com/jung-kurt/gofpdf"
+	"github.com/phpdave11/gofpdf"
 )
-
-var tr func(string) string
 
 type Tree struct {
 	PDF   *gofpdf.Fpdf
@@ -48,12 +47,15 @@ func (t Tree) Render() {
 func line(pdf *gofpdf.Fpdf, format rules.Format, text string) {
 	pdf.SetFont(format.Font, format.Style, format.Size)
 	pdf.SetX(format.Left)
-	pdf.MultiCell(format.Width, 0.19, tr(text), "", format.Align, false)
+	pdf.MultiCell(format.Width, 0.19, text, "", format.Align, false)
 }
 
 func Create(file string, format rules.Set, contents lex.Screenplay) {
 	pdf := gofpdf.New("P", "in", "Letter", "")
-	tr = pdf.UnicodeTranslatorFromDescriptor("")
+	pdf.AddUTF8FontFromBytes("CourierPrime", "", font.MustAsset("CourierPrime-Regular.ttf"))
+	pdf.AddUTF8FontFromBytes("CourierPrime", "B", font.MustAsset("CourierPrime-Bold.ttf"))
+	pdf.AddUTF8FontFromBytes("CourierPrime", "I", font.MustAsset("CourierPrime-Italic.ttf"))
+	pdf.AddUTF8FontFromBytes("CourierPrime", "BI", font.MustAsset("CourierPrime-BoldItalic.ttf"))
 	pdf.AddPage()
 	pdf.SetMargins(1, 1, 1)
 	pdf.SetXY(1, 1)

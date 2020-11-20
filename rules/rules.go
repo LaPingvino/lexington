@@ -22,7 +22,7 @@ func (s Set) Get(action string) (f Format) {
 		f.Hide = true
 	}
 	if f.Font == "" {
-		f.Font = "courier"
+		f.Font = "CourierPrime"
 	}
 	if f.Size == 0 {
 		f.Size = 12
