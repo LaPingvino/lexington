@@ -36,6 +36,7 @@ func DefaultConf() TOMLConf {
 		},
 		Scenes: map[string][]string{
 			"en": []string{"INT", "EXT", "EST", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"},
+			"it": []string{"INT", "EST", , "INT./EST", "INT/EST", "EST/INT", "EST./INT", "I/E"},
 			"nl": []string{"BIN", "BUI", "BI", "BU", "OPEN", "BIN./BUI", "BUI./BIN", "BIN/BUI", "BI/BU"},
 			"de": []string{"INT", "EXT", "ETABL", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"},
 			"fr": []string{"INT", "EXT", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"},
