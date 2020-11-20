@@ -39,11 +39,11 @@ var Default = Set{
 		Width: 6,
 	},
 	"speaker": {
-		Left:  4.2,
+		Left:  3.7,
 		Width: 3.3,
 	},
 	"dialog": {
-		Left:  2.9,
+		Left:  3.1,
 		Width: 3.3,
 	},
 	"scene": {
