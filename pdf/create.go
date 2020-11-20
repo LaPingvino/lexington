@@ -7,6 +7,7 @@ import (
 	"github.com/lapingvino/lexington/font"
 
 	"strconv"
+	"strings"
 	"github.com/phpdave11/gofpdf"
 )
 
@@ -27,6 +28,7 @@ func pagenumber() {
 func (t Tree) Render() {
 	var block string
 	var ln int
+	var lastsection int
 	for _, row := range t.F {
 		switch row.Type {
 		case "newpage":
@@ -46,6 +48,22 @@ func (t Tree) Render() {
 			block = "meta"
 			t.PDF.SetY(-2)
 		}
+
+		var contents string
+		var level int
+		if row.Type == "section" {
+			contents = strings.TrimLeft(row.Contents, "#")
+			level = len(row.Contents) - len(contents)
+			contents = strings.TrimLeft(contents, " ")
+			lastsection = level
+		} else if row.Type == "scene" {
+			level = lastsection + 1
+			contents = row.Contents
+		}
+		if contents != "" {
+			t.PDF.Bookmark(contents, level, -1)
+		}
+
 		if t.Rules.Get(row.Type).Hide && block == "" {
 			continue
 		}
@@ -65,6 +83,7 @@ func line(pdf *gofpdf.Fpdf, format rules.Format, text string) {
 	pdf.SetFont(format.Font, format.Style, format.Size)
 	pdf.SetX(format.Left)
 	pdf.MultiCell(format.Width, 0.16, text, "", format.Align, false)
+	// TODO: create liner to do away with multicell and add inline markup support
 }
 
 func Create(file string, format rules.Set, contents lex.Screenplay) {
