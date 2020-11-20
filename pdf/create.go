@@ -26,11 +26,13 @@ func pagenumber() {
 
 func (t Tree) Render() {
 	var block string
+	var ln int
 	for _, row := range t.F {
 		switch row.Type {
 		case "newpage":
 			block = ""
 			t.PDF.SetHeaderFuncMode(func() {
+				ln = 0
 				t.PDF.SetY(0.5)
 				t.PDF.SetX(-1)
 				t.PDF.Cell(0, 0, strconv.Itoa(t.PDF.PageNo())+".")
@@ -51,13 +53,18 @@ func (t Tree) Render() {
 			row.Type = block
 		}
 		t.pr(row.Type, row.Contents)
+		ln++
+		if ln == 55 {
+			t.PDF.AddPage()
+			ln = 0
+		}
 	}
 }
 
 func line(pdf *gofpdf.Fpdf, format rules.Format, text string) {
 	pdf.SetFont(format.Font, format.Style, format.Size)
 	pdf.SetX(format.Left)
-	pdf.MultiCell(format.Width, 0.19, text, "", format.Align, false)
+	pdf.MultiCell(format.Width, 0.16, text, "", format.Align, false)
 }
 
 func Create(file string, format rules.Set, contents lex.Screenplay) {
