@@ -97,7 +97,6 @@ func CheckForce(row string) (bool, string, string) {
 
 // This is a Fountain parser, trying to be as close as possible to the description
 // found at https://fountain.io/syntax but it can be incomplete.
-// Over time more and more parts should be configurable here, e.g. INT/EXT translatable to other languages.
 func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 	Scene = scenes
 	var err error
@@ -141,7 +140,8 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 				}
 			}
 		}
-		if row == strings.ToUpper(row) && action == "action" {
+		charcheck := strings.Split(row, "(")
+		if charcheck[0] == strings.ToUpper(charcheck[0]) && action == "action" {
 			action = "speaker"
 			dialog = true
 		}
