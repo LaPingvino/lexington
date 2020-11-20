@@ -170,7 +170,7 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 				out = append(out, lex.Line{Type: "titlepage"})
 			}
 			split := strings.SplitN(row, ":", 2)
-			if len(split) == 2 {
+			if len(split) == 2 && !strings.HasPrefix(row, "   ") {
 				action = split[0]
 				switch strings.ToLower(action) {
 				case "title", "credit", "author", "authors":
