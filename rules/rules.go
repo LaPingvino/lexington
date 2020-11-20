@@ -43,7 +43,7 @@ var Default = Set{
 		Width: 3.3,
 	},
 	"dialog": {
-		Left:  3.1,
+		Left:  2.5,
 		Width: 3.3,
 	},
 	"scene": {
@@ -52,7 +52,7 @@ var Default = Set{
 		Style: "b",
 	},
 	"paren": {
-		Left:  3.6,
+		Left:  3.1,
 		Width: 4,
 	},
 	"trans": {
