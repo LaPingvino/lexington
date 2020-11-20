@@ -40,11 +40,11 @@ var Default = Set{
 	},
 	"speaker": {
 		Left:  3.7,
-		Width: 3.3,
+		Width: 6.5-3.7,
 	},
 	"dialog": {
 		Left:  2.5,
-		Width: 3.3,
+		Width: 6.5-2.5,
 	},
 	"scene": {
 		Left:  1.5,
@@ -53,7 +53,7 @@ var Default = Set{
 	},
 	"paren": {
 		Left:  3.1,
-		Width: 4,
+		Width: 6.5-3.1,
 	},
 	"trans": {
 		Left:  1.5,
