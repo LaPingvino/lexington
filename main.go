@@ -54,7 +54,7 @@ func main() {
 
 	outs := strings.Split(*output, ".")
 	if len(outs)>1 && *to == "" {
-		*to = outs[len(ins)-1]
+		*to = outs[len(outs)-1]
 	}
 	if len(outs)>2 && *sceneout == "" {
 		*sceneout = outs[len(outs)-2]
@@ -129,7 +129,7 @@ func main() {
 			return
 		}
 		log.Println("No external PDF tool found, using built-in PDF output.")
-		log.Println("Disadvantages of built-in PDF: non-English not truly supported, no inline markup.")
+		log.Println("Disadvantages of built-in PDF: no inline markup, no dual dialog.")
 		log.Println("Advantages of built-in PDF: very fast (perfect for drafts) and reasonable configurability.")
 		pdf.Create(*output, conf.Elements[*elements], i)
 	case "lex":
