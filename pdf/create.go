@@ -31,13 +31,13 @@ func (t Tree) Render() {
 		switch row.Type {
 		case "newpage":
 			block = ""
+			t.PDF.AddPage()
 			t.PDF.SetHeaderFuncMode(func() {
 				ln = 0
 				t.PDF.SetY(0.5)
 				t.PDF.SetX(-1)
-				t.PDF.Cell(0, 0, strconv.Itoa(t.PDF.PageNo())+".")
+				t.PDF.Cell(0, 0, strconv.Itoa(t.PDF.PageNo()-1)+".")
 			}, true)
-			t.PDF.AddPage()
 			continue
 		case "titlepage":
 			block = "title"
