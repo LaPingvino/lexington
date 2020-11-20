@@ -110,6 +110,12 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 	}
 	toParse = append(toParse, "") // Trigger the backtracking also for the last line
 	for _, row := range toParse {
+		if titlepage && !strings.Contains(toParse[0], ":") {
+			out = append(out, lex.Line{Type: "titlepage"})
+			out = append(out, lex.Line{Type: "Title", Contents: "Untitled"})
+			out = append(out, lex.Line{Type: "newpage"})
+			titlepage = false
+		}
 		row = strings.TrimRight(row, "\n\r")
 		action := "action"
 		if row == "" {
