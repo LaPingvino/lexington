@@ -6,6 +6,7 @@ import (
 	"github.com/lapingvino/lexington/rules"
 	"github.com/lapingvino/lexington/font"
 
+	"strconv"
 	"github.com/phpdave11/gofpdf"
 )
 
@@ -19,12 +20,21 @@ func (t Tree) pr(a string, text string) {
 	line(t.PDF, t.Rules.Get(a), t.Rules.Get(a).Prefix+text+t.Rules.Get(a).Postfix)
 }
 
+func pagenumber() {
+
+}
+
 func (t Tree) Render() {
 	var block string
 	for _, row := range t.F {
 		switch row.Type {
 		case "newpage":
 			block = ""
+			t.PDF.SetHeaderFuncMode(func() {
+				t.PDF.SetY(0.5)
+				t.PDF.SetX(-1)
+				t.PDF.Cell(0, 0, strconv.Itoa(t.PDF.PageNo())+".")
+			}, true)
 			t.PDF.AddPage()
 			continue
 		case "titlepage":
