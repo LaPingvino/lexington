@@ -44,6 +44,8 @@ func (t Tree) Render() {
 		case "titlepage":
 			block = "title"
 			t.PDF.SetY(4)
+		case "title", "Title":
+			t.PDF.SetTitle(row.Contents, true)
 		case "metasection":
 			block = "meta"
 			t.PDF.SetY(-2)
