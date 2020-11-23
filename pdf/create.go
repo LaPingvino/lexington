@@ -27,7 +27,6 @@ func pagenumber() {
 
 func (t Tree) Render() {
 	var block string
-	var ln int
 	var lastsection int
 	for _, row := range t.F {
 		switch row.Type {
@@ -35,7 +34,6 @@ func (t Tree) Render() {
 			block = ""
 			t.PDF.AddPage()
 			t.PDF.SetHeaderFuncMode(func() {
-				ln = 0
 				t.PDF.SetY(0.5)
 				t.PDF.SetX(-1)
 				t.PDF.Cell(0, 0, strconv.Itoa(t.PDF.PageNo()-1)+".")
@@ -73,18 +71,13 @@ func (t Tree) Render() {
 			row.Type = block
 		}
 		t.pr(row.Type, row.Contents)
-		ln++
-		if ln == 55 {
-			t.PDF.AddPage()
-			ln = 0
-		}
 	}
 }
 
 func line(pdf *gofpdf.Fpdf, format rules.Format, text string) {
 	pdf.SetFont(format.Font, format.Style, format.Size)
 	pdf.SetX(format.Left)
-	pdf.MultiCell(format.Width, 0.16, text, "", format.Align, false)
+	pdf.MultiCell(format.Width, 0.165, text, "", format.Align, false)
 	// TODO: create liner to do away with multicell and add inline markup support
 }
 
