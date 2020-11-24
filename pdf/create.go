@@ -8,6 +8,7 @@ import (
 
 	"strconv"
 	"strings"
+	"regexp"
 	"github.com/phpdave11/gofpdf"
 )
 
@@ -21,10 +22,6 @@ func (t Tree) pr(a string, text string) {
 	line(t.PDF, t.Rules.Get(a), t.Rules.Get(a).Prefix+text+t.Rules.Get(a).Postfix)
 }
 
-func pagenumber() {
-
-}
-
 func (t Tree) Render() {
 	var block string
 	var lastsection int
@@ -34,8 +31,8 @@ func (t Tree) Render() {
 			block = ""
 			t.PDF.AddPage()
 			t.PDF.SetHeaderFuncMode(func() {
-				t.PDF.SetY(0.5)
-				t.PDF.SetX(-1)
+				t.PDF.SetFont("CourierPrime", "", 12)
+				t.PDF.SetXY(-1, 0.5)
 				t.PDF.Cell(0, 0, strconv.Itoa(t.PDF.PageNo()-1)+".")
 			}, true)
 			continue
@@ -74,11 +71,30 @@ func (t Tree) Render() {
 	}
 }
 
+var (
+	bolditalic = regexp.MustCompile("\\*{3}([^\\*\n]+)\\*{3}")
+	bold = regexp.MustCompile("\\*{2}([^\\*\n]+)\\*{2}")
+	italic = regexp.MustCompile("\\*{1}([^\\*\n]+)\\*{1}")
+	underline = regexp.MustCompile("_{1}([^\\*\n]+)_{1}")
+)
+
 func line(pdf *gofpdf.Fpdf, format rules.Format, text string) {
+	if format.Align == "C" {
+		text = "<center>"+text+"</center>"
+	}
 	pdf.SetFont(format.Font, format.Style, format.Size)
-	pdf.SetX(format.Left)
-	pdf.MultiCell(format.Width, 0.165, text, "", format.Align, false)
-	// TODO: create liner to do away with multicell and add inline markup support
+	pdf.SetX(0)
+	pdf.SetLeftMargin(format.Left)
+	pdf.SetRightMargin(format.Right)
+
+	text = bolditalic.ReplaceAllString(text, "<b><i>$1</i></b>")
+	text = bold.ReplaceAllString(text, "<b>$1</b>")
+	text = italic.ReplaceAllString(text, "<i>$1</i>")
+	text = underline.ReplaceAllString(text, "<u>$1</u>")
+
+	html := pdf.HTMLBasicNew()
+	html.Write(0.165, text)
+	pdf.SetY(pdf.GetY()+0.165)
 }
 
 func Create(file string, format rules.Set, contents lex.Screenplay) {
