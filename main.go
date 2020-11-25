@@ -15,9 +15,14 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 )
 
 func main() {
+	start := time.Now()
+	defer func () {
+		log.Printf("Conversion took %v", time.Since(start))
+	}()
 	config := flag.String("config", "lexington.toml", "Configuration file to use.")
 	dump := flag.Bool("dumpconfig", false, "Dump the default configuration to the location of --config to be adapted manually.")
 	scenein := flag.String("scenein", "", "Configuration to use for scene header detection on input.")
