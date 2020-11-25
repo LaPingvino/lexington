@@ -128,9 +128,6 @@ func main() {
 			log.Println("Cannot write PDF to standard output")
 			return
 		}
-		log.Println("No external PDF tool found, using built-in PDF output.")
-		log.Println("Disadvantages of built-in PDF: no inline markup, no dual dialog.")
-		log.Println("Advantages of built-in PDF: very fast (perfect for drafts) and reasonable configurability.")
 		pdf.Create(*output, conf.Elements[*elements], i)
 	case "lex":
 		lex.Write(i, outfile)
