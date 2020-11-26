@@ -16,11 +16,12 @@ import (
 	"os"
 	"strings"
 	"time"
+
 )
 
 func main() {
 	start := time.Now()
-	defer func () {
+	defer func() {
 		log.Printf("Conversion took %v", time.Since(start))
 	}()
 	config := flag.String("config", "lexington.toml", "Configuration file to use.")
@@ -50,18 +51,18 @@ func main() {
 	}
 
 	ins := strings.Split(*input, ".")
-	if len(ins)>1 && *from == "" {
+	if len(ins) > 1 && *from == "" {
 		*from = ins[len(ins)-1]
 	}
-	if len(ins)>2 && *scenein == "" {
+	if len(ins) > 2 && *scenein == "" {
 		*scenein = ins[len(ins)-2]
 	}
 
 	outs := strings.Split(*output, ".")
-	if len(outs)>1 && *to == "" {
+	if len(outs) > 1 && *to == "" {
 		*to = outs[len(outs)-1]
 	}
-	if len(outs)>2 && *sceneout == "" {
+	if len(outs) > 2 && *sceneout == "" {
 		*sceneout = outs[len(outs)-2]
 	}
 

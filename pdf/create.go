@@ -16,10 +16,11 @@ type Tree struct {
 	PDF   *gofpdf.Fpdf
 	Rules rules.Set
 	F     lex.Screenplay
+	HTML  gofpdf.HTMLBasicType
 }
 
 func (t Tree) pr(a string, text string) {
-	line(t.PDF, t.Rules.Get(a), t.Rules.Get(a).Prefix+text+t.Rules.Get(a).Postfix)
+	line(t.PDF, t.Rules.Get(a), t.HTML, t.Rules.Get(a).Prefix+text+t.Rules.Get(a).Postfix)
 }
 
 func (t Tree) Render() {
@@ -78,23 +79,29 @@ var (
 	underline = regexp.MustCompile("_{1}([^\\*\n]+)_{1}")
 )
 
-func line(pdf *gofpdf.Fpdf, format rules.Format, text string) {
-	if format.Align == "C" {
-		text = "<center>"+text+"</center>"
-	}
+func line(pdf *gofpdf.Fpdf, format rules.Format, html gofpdf.HTMLBasicType, text string) {
 	pdf.SetFont(format.Font, format.Style, format.Size)
 	pdf.SetX(0)
 	pdf.SetLeftMargin(format.Left)
 	pdf.SetRightMargin(format.Right)
 
-	text = bolditalic.ReplaceAllString(text, "<b><i>$1</i></b>")
-	text = bold.ReplaceAllString(text, "<b>$1</b>")
-	text = italic.ReplaceAllString(text, "<i>$1</i>")
-	text = underline.ReplaceAllString(text, "<u>$1</u>")
+	text = strings.TrimRight(text, "\r\n")
 
-	html := pdf.HTMLBasicNew()
-	html.Write(0.165, text)
-	pdf.SetY(pdf.GetY()+0.165)
+	if strings.ContainsAny(text, "*_") {
+		text = bolditalic.ReplaceAllString(text, "<b><i>$1</i></b>")
+		text = bold.ReplaceAllString(text, "<b>$1</b>")
+		text = italic.ReplaceAllString(text, "<i>$1</i>")
+		text = underline.ReplaceAllString(text, "<u>$1</u>")
+
+		if format.Align == "C" {
+			text = "<center>"+text+"</center>"
+		}
+		html.Write(0.165, text)
+		pdf.SetY(pdf.GetY()+0.165)
+		return
+	}
+
+	pdf.MultiCell(0, 0.165, text, "", format.Align, false)
 }
 
 func Create(file string, format rules.Set, contents lex.Screenplay) {
@@ -110,6 +117,7 @@ func Create(file string, format rules.Set, contents lex.Screenplay) {
 		PDF:   pdf,
 		Rules: format,
 		F:     contents,
+		HTML:  pdf.HTMLBasicNew(),
 	}
 	f.Render()
 	err := pdf.OutputFileAndClose(file)
