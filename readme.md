@@ -7,7 +7,7 @@ At the moment the Fountain parser should be pretty decent, although still lackin
 
 To run the tool, make sure to have Go installed first and then run
 
-`go get github.com/lapingvino/lexington`
+`go install github.com/lapingvino/lexington@latest`
 
 to install Lexington to your go/bin directory. If this directory is in your execution path, you can then run it like
 
