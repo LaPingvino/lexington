@@ -1,6 +1,8 @@
 Lexington commandline tool for screenwriters
 ============================================
 
+[![Go](https://github.com/LaPingvino/lexington/actions/workflows/go.yml/badge.svg)](https://github.com/LaPingvino/lexington/actions/workflows/go.yml)
+
 Lexington helps you convert between Final Draft, Fountain and its own lex file formats, and output to PDF, HTML and ebook formats.
 
 At the moment the Fountain parser should be pretty decent, although still lacking features like simultaneous dialog, and inline markup is not yet supported and might never be. Also the PDF output doesn't do anything to keep pieces from your screenplay together. Feel free to contribute and help me out in knowing how best to handle this!
