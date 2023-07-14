@@ -32,7 +32,7 @@ func (t Tree) Render() {
 			block = ""
 			t.PDF.AddPage()
 			t.PDF.SetHeaderFuncMode(func() {
-				t.PDF.SetFont("CourierPrime", "", 12)
+				t.PDF.SetFont("CourierBadi", "", 12)
 				t.PDF.SetXY(-1, 0.5)
 				t.PDF.Cell(0, 0, strconv.Itoa(t.PDF.PageNo()-1)+".")
 			}, true)
@@ -106,10 +106,10 @@ func line(pdf *gofpdf.Fpdf, format rules.Format, html gofpdf.HTMLBasicType, text
 
 func Create(file string, format rules.Set, contents lex.Screenplay) {
 	pdf := gofpdf.New("P", "in", "Letter", "")
-	pdf.AddUTF8FontFromBytes("CourierPrime", "", font.MustAsset("Courier-Prime.ttf"))
-	pdf.AddUTF8FontFromBytes("CourierPrime", "B", font.MustAsset("Courier-Prime-Bold.ttf"))
-	pdf.AddUTF8FontFromBytes("CourierPrime", "I", font.MustAsset("Courier-Prime-Italic.ttf"))
-	pdf.AddUTF8FontFromBytes("CourierPrime", "BI", font.MustAsset("Courier-Prime-Bold-Italic.ttf"))
+	pdf.AddUTF8FontFromBytes("CourierPrime", "", font.MustAsset("CourierBadi-Regular.ttf"))
+	pdf.AddUTF8FontFromBytes("CourierPrime", "B", font.MustAsset("CourierBadi-Regular.ttf"))
+	pdf.AddUTF8FontFromBytes("CourierPrime", "I", font.MustAsset("CourierBadi-Italic.ttf"))
+	pdf.AddUTF8FontFromBytes("CourierPrime", "BI", font.MustAsset("CourierBadi-Italic.ttf"))
 	pdf.AddPage()
 	pdf.SetMargins(1, 1, 1)
 	pdf.SetXY(1, 1)
