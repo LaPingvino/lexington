@@ -12,13 +12,26 @@ import (
 	"github.com/lapingvino/lexington/pdf"
 	"github.com/lapingvino/lexington/rules"
 
+	"bytes"
 	"flag"
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
+
+// pandocFormats lists the formats that are delegated to the pandoc command.
+var pandocFormats = map[string]bool{
+	"epub":  true,
+	"mobi":  true,
+	"docx":  true,
+	"odt":   true,
+	"rtf":   true,
+	"md":    true,
+	"latex": true,
+}
 
 func main() {
 	start := time.Now()
@@ -33,7 +46,7 @@ func main() {
 	input := flag.String("i", "-", "Input from provided filename. - means standard input.")
 	output := flag.String("o", "-", "Output to provided filename. - means standard output.")
 	from := flag.String("from", "", "Input file type. Choose from fountain, lex, fdx. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
-	to := flag.String("to", "", "Output file type. Choose from pdf, lex (helpful for troubleshooting and correcting fountain parsing), fountain, fdx, html, [epub*, mobi*, docx*, odt*]. Formats marked with a little star need an additional external tool to work. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
+	to := flag.String("to", "", "Output file type. Choose from pdf, lex, fountain, fdx, html, or external formats requiring pandoc: epub, mobi, docx, odt, rtf, md, latex.")
 	help := flag.Bool("help", false, "Show this help message")
 	flag.Parse()
 
@@ -154,6 +167,30 @@ func main() {
 			log.Println("Error writing HTML file: ", err)
 		}
 	default:
-		log.Printf("%s is not a valid output type", *to)
+		// Check if the format is one that should be handled by pandoc.
+		if pandocFormats[*to] {
+			pandoc, err := exec.LookPath("pandoc")
+			if err != nil {
+				log.Printf("Error: '%s' output requires pandoc, but it could not be found in your system's PATH.", *to)
+				return
+			}
+
+			// Convert the screenplay to Fountain format in memory.
+			var fountainBuffer bytes.Buffer
+			fountain.Write(&fountainBuffer, conf.Scenes[*sceneout], i)
+
+			// Prepare and run the pandoc command.
+			cmd := exec.Command(pandoc, "--from=fountain", "--to="+*to, "-o", *output)
+			cmd.Stdin = &fountainBuffer
+			cmd.Stderr = os.Stderr // Pipe pandoc's errors to our stderr.
+
+			log.Printf("Running pandoc to create %s...", *output)
+			err = cmd.Run()
+			if err != nil {
+				log.Printf("Error executing pandoc command: %v", err)
+			}
+		} else {
+			log.Printf("%s is not a valid output type", *to)
+		}
 	}
 }
