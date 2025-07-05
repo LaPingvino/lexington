@@ -5,6 +5,7 @@
 package main
 
 import (
+	"github.com/lapingvino/lexington/fdx"
 	"github.com/lapingvino/lexington/fountain"
 	"github.com/lapingvino/lexington/lex"
 	"github.com/lapingvino/lexington/pdf"
@@ -30,8 +31,8 @@ func main() {
 	elements := flag.String("e", "default", "Element settings from settings file to use.")
 	input := flag.String("i", "-", "Input from provided filename. - means standard input.")
 	output := flag.String("o", "-", "Output to provided filename. - means standard output.")
-	from := flag.String("from", "", "Input file type. Choose from fountain, lex [, fdx]. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
-	to := flag.String("to", "", "Output file type. Choose from pdf (built-in, doesn't support inline markup), lex (helpful for troubleshooting and correcting fountain parsing), fountain, [html, epub*, mobi*, docx*, odt*, fdx]. Formats marked with a little star need an additional external tool to work. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
+	from := flag.String("from", "", "Input file type. Choose from fountain, lex, fdx. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
+	to := flag.String("to", "", "Output file type. Choose from pdf (built-in, doesn't support inline markup), lex (helpful for troubleshooting and correcting fountain parsing), fountain, fdx, [html, epub*, mobi*, docx*, odt*]. Formats marked with a little star need an additional external tool to work. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
 	help := flag.Bool("help", false, "Show this help message")
 	flag.Parse()
 
@@ -123,6 +124,8 @@ func main() {
 		i = lex.Parse(infile)
 	case "fountain":
 		i = fountain.Parse(conf.Scenes[*scenein], infile)
+	case "fdx":
+		i = fdx.Parse(infile)
 	default:
 		log.Printf("%s is not a valid input type", *from)
 	}
@@ -142,6 +145,8 @@ func main() {
 		lex.Write(i, outfile)
 	case "fountain":
 		fountain.Write(outfile, conf.Scenes[*sceneout], i)
+	case "fdx":
+		fdx.Write(outfile, i)
 	default:
 		log.Printf("%s is not a valid output type", *to)
 	}

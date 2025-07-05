@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<FinalDraft DocumentType="Script" Template="No" Version="1">
+
+  <Content>
+    <Paragraph Type="Scene Heading">
+      <Text>INT. HOUSE - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>MARY</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>I can't believe how easy it is to write in Fountain.</Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>TOM</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical">
+      <Text>(typing)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>Look! I just made a parenthetical!</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text>SOMETHING HAPPENS!</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text>(what? I don't know...)</Text>
+    </Paragraph>
+    <Paragraph Type="Scene Heading">
+      <Text>EXT. GARDEN</Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>TOM</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>What am I doing here now?</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>To be honest, I have absolutely no idea!</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+        <Text></Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text>And that means really no idea!</Text>
+    </Paragraph>
+  </Content>
+
+  <ElementSettings Type="Scene Heading">
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier" RevisionID="0" Size="12" Style="AllCaps"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.50" RightIndent="7.50" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Action">
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier" RevisionID="0" Size="12" Style=""/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.50" RightIndent="7.50" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Character">
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier" RevisionID="0" Size="12" Style="AllCaps"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="3.38" RightIndent="6.25" SpaceBefore="12" Spacing="1" StartsNewPage="No"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Parenthetical">
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier" RevisionID="0" Size="12" Style=""/>
+    <ParagraphSpec Alignment="Left" FirstIndent="-0.10" Leading="Regular" LeftIndent="2.88" RightIndent="5.75" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Dialogue">
+    <FontSpec AdornmentStyle="0" Background="#FFFFFFFFFFFF" Color="#000000000000" Font="Courier" RevisionID="0" Size="12" Style=""/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="2.38" RightIndent="6.25" SpaceBefore="0" Spacing="1" StartsNewPage="No"/>
+  </ElementSettings>
+
+</FinalDraft>
