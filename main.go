@@ -16,7 +16,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
 )
 
 func main() {
@@ -92,11 +91,13 @@ func main() {
 		log.Println("Reading from Stdin")
 	} else {
 		var err error
-		infile, err = os.Open(*input)
+		file, err := os.Open(*input)
 		if err != nil {
 			log.Println("Error opening file: ", err)
 			return
 		}
+		defer file.Close()
+		infile = file
 	}
 
 	if *output == "-" {
@@ -107,11 +108,13 @@ func main() {
 			*output = ins[0] + "." + *to
 		}
 		var err error
-		outfile, err = os.Create(*output)
+		outputFile, err := os.Create(*output)
 		if err != nil {
 			log.Println("Error creating output file: ", err)
 			return
 		}
+		defer outputFile.Close()
+		outfile = outputFile
 	}
 
 	log.Println("Input type is ", *from)
