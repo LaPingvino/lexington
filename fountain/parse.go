@@ -4,9 +4,10 @@ package fountain
 
 import (
 	"bufio"
-	"github.com/lapingvino/lexington/lex"
 	"io"
 	"strings"
+
+	"github.com/lapingvino/lexington/lex"
 )
 
 // Scene contains all the prefixes the scene detection looks for.
@@ -106,20 +107,20 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 	f := bufio.NewReader(file)
 	for err == nil {
 		s, err = f.ReadString('\n')
-		toParse = append(toParse, s)
+		if err != io.EOF || len(s) > 0 {
+			toParse = append(toParse, s)
+		}
 	}
 	toParse = append(toParse, "") // Trigger the backtracking also for the last line
 	for _, row := range toParse {
-		if titlepage && !strings.Contains(toParse[0], ":") {
-			out = append(out, lex.Line{Type: "titlepage"})
-			out = append(out, lex.Line{Type: "Title", Contents: "Untitled"})
-			out = append(out, lex.Line{Type: "newpage"})
+		if titlepage && len(out) == 0 && !strings.Contains(row, ":") {
 			titlepage = false
 		}
 		row = strings.TrimRight(row, "\n\r")
 		action := "action"
-		if row == "" {
+		if strings.TrimSpace(row) == "" {
 			action = "empty"
+			row = ""
 			if titlepage {
 				titlepage = false
 				out = append(out, lex.Line{Type: "newpage"})

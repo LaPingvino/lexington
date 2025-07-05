@@ -1,13 +1,21 @@
 package fountain
 
 import (
-	"github.com/lapingvino/lexington/lex"
-	"io"
 	"fmt"
+	"io"
 	"strings"
+
+	"github.com/lapingvino/lexington/lex"
 )
 
 func Write(f io.Writer, scene []string, screenplay lex.Screenplay) {
+	// The parser adds an empty line at the end which we don't want to write out
+	// if it would create a superfluous trailing newline. This makes the writer
+	// the inverse of the parser.
+	if len(screenplay) > 0 && screenplay[len(screenplay)-1].Type == "empty" {
+		screenplay = screenplay[:len(screenplay)-1]
+	}
+
 	var titlepage = "start"
 	for _, line := range screenplay {
 		element := line.Type
@@ -43,7 +51,7 @@ func Write(f io.Writer, scene []string, screenplay lex.Screenplay) {
 			var supported bool
 			for _, prefix := range scene {
 				if strings.HasPrefix(line.Contents, prefix+" ") ||
-				strings.HasPrefix(line.Contents, prefix+".") {
+					strings.HasPrefix(line.Contents, prefix+".") {
 					supported = true
 				}
 			}
