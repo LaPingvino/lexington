@@ -32,7 +32,7 @@ func main() {
 	input := flag.String("i", "-", "Input from provided filename. - means standard input.")
 	output := flag.String("o", "-", "Output to provided filename. - means standard output.")
 	from := flag.String("from", "", "Input file type. Choose from fountain, lex, fdx. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
-	to := flag.String("to", "", "Output file type. Choose from pdf (built-in, doesn't support inline markup), lex (helpful for troubleshooting and correcting fountain parsing), fountain, fdx, [html, epub*, mobi*, docx*, odt*]. Formats marked with a little star need an additional external tool to work. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
+	to := flag.String("to", "", "Output file type. Choose from pdf, lex (helpful for troubleshooting and correcting fountain parsing), fountain, fdx, [html, epub*, mobi*, docx*, odt*]. Formats marked with a little star need an additional external tool to work. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
 	help := flag.Bool("help", false, "Show this help message")
 	flag.Parse()
 
