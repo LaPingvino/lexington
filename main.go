@@ -7,6 +7,7 @@ package main
 import (
 	"github.com/lapingvino/lexington/fdx"
 	"github.com/lapingvino/lexington/fountain"
+	"github.com/lapingvino/lexington/html"
 	"github.com/lapingvino/lexington/lex"
 	"github.com/lapingvino/lexington/pdf"
 	"github.com/lapingvino/lexington/rules"
@@ -32,7 +33,7 @@ func main() {
 	input := flag.String("i", "-", "Input from provided filename. - means standard input.")
 	output := flag.String("o", "-", "Output to provided filename. - means standard output.")
 	from := flag.String("from", "", "Input file type. Choose from fountain, lex, fdx. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
-	to := flag.String("to", "", "Output file type. Choose from pdf, lex (helpful for troubleshooting and correcting fountain parsing), fountain, fdx, [html, epub*, mobi*, docx*, odt*]. Formats marked with a little star need an additional external tool to work. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
+	to := flag.String("to", "", "Output file type. Choose from pdf, lex (helpful for troubleshooting and correcting fountain parsing), fountain, fdx, html, [epub*, mobi*, docx*, odt*]. Formats marked with a little star need an additional external tool to work. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
 	help := flag.Bool("help", false, "Show this help message")
 	flag.Parse()
 
@@ -147,6 +148,11 @@ func main() {
 		fountain.Write(outfile, conf.Scenes[*sceneout], i)
 	case "fdx":
 		fdx.Write(outfile, i)
+	case "html":
+		err := html.Write(outfile, i)
+		if err != nil {
+			log.Println("Error writing HTML file: ", err)
+		}
 	default:
 		log.Printf("%s is not a valid output type", *to)
 	}
