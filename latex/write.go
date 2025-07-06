@@ -3,6 +3,7 @@ package latex
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -16,6 +17,45 @@ import (
 type LaTeXWriter struct {
 	Template string    // Path to the LaTeX template file
 	Elements rules.Set // Configuration for elements (margins, fonts, etc.)
+}
+
+// Inline markup patterns for LaTeX output
+var (
+	bolditalic = regexp.MustCompile(`\*{3}([^\*\n]+)\*{3}`)
+	bold       = regexp.MustCompile(`\*{2}([^\*\n]+)\*{2}`)
+	italic     = regexp.MustCompile(`\*{1}([^\*\n]+)\*{1}`)
+	underline  = regexp.MustCompile(`_{1}([^\*\n]+)_{1}`)
+)
+
+// processInlineMarkup converts fountain-style inline markup to LaTeX using placeholders
+func processInlineMarkup(text string) string {
+	// Only process if the text contains markup characters
+	if !strings.ContainsAny(text, "*_") {
+		return text
+	}
+
+	// Use unique placeholders that won't conflict with LaTeX escaping
+	// Apply replacements in order: bold+italic first, then bold, then italic, then underline
+	// This prevents conflicts between overlapping patterns
+	text = bolditalic.ReplaceAllString(text, "XLATEXBOLDITALICSTARTX${1}XLATEXBOLDITALICENDX")
+	text = bold.ReplaceAllString(text, "XLATEXBOLDSTARTX${1}XLATEXBOLDENDX")
+	text = italic.ReplaceAllString(text, "XLATEXITALICSTARTX${1}XLATEXITALICENDX")
+	text = underline.ReplaceAllString(text, "XLATEXUNDERLINESTARTX${1}XLATEXUNDERLINEENDX")
+
+	return text
+}
+
+// replacePlaceholders converts placeholders back to LaTeX commands after escaping
+func replacePlaceholders(text string) string {
+	text = strings.ReplaceAll(text, "XLATEXBOLDITALICSTARTX", "\\textbf{\\textit{")
+	text = strings.ReplaceAll(text, "XLATEXBOLDITALICENDX", "}}")
+	text = strings.ReplaceAll(text, "XLATEXBOLDSTARTX", "\\textbf{")
+	text = strings.ReplaceAll(text, "XLATEXBOLDENDX", "}")
+	text = strings.ReplaceAll(text, "XLATEXITALICSTARTX", "\\textit{")
+	text = strings.ReplaceAll(text, "XLATEXITALICENDX", "}")
+	text = strings.ReplaceAll(text, "XLATEXUNDERLINESTARTX", "\\underline{")
+	text = strings.ReplaceAll(text, "XLATEXUNDERLINEENDX", "}")
+	return text
 }
 
 // LaTeXTemplateData combines configuration and screenplay data for the template
@@ -319,14 +359,15 @@ func (l *LaTeXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		}
 	}
 
-	// Escape problematic characters for LaTeX
-	// This should be done carefully, ideally within the template or a custom function
-	// passed to the template, to avoid over-escaping legitimate LaTeX commands.
-	// For now, a simple replacement for common offenders.
-	// A more robust solution might require a dedicated LaTeX escaping library or
-	// a custom template function.
+	// Process inline markup first with placeholders, then escape LaTeX, then replace placeholders
+	// This ensures that user content is escaped but markup commands are not
 	for i := range data.Screenplay {
+		// First process inline markup (converts to placeholders)
+		data.Screenplay[i].Contents = processInlineMarkup(data.Screenplay[i].Contents)
+		// Then escape LaTeX characters in user content
 		data.Screenplay[i].Contents = escapeLaTeX(data.Screenplay[i].Contents)
+		// Finally replace placeholders with actual LaTeX commands
+		data.Screenplay[i].Contents = replacePlaceholders(data.Screenplay[i].Contents)
 	}
 
 	return tmpl.Execute(w, data)

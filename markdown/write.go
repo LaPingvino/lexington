@@ -3,6 +3,7 @@ package markdown
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/LaPingvino/lexington/lex"
@@ -16,6 +17,31 @@ const (
 	dualDialogueNext  = "</div>\n<div style=\"width: 48%%;\">\n\n"
 	dualDialogueClose = "</div>\n</div>\n\n"
 )
+
+// Inline markup patterns for Markdown output
+var (
+	bolditalic = regexp.MustCompile(`\*{3}([^\*\n]+)\*{3}`)
+	bold       = regexp.MustCompile(`\*{2}([^\*\n]+)\*{2}`)
+	italic     = regexp.MustCompile(`\*{1}([^\*\n]+)\*{1}`)
+	underline  = regexp.MustCompile(`_{1}([^\*\n]+)_{1}`)
+)
+
+// processInlineMarkup converts fountain-style inline markup to Markdown
+func processInlineMarkup(text string) string {
+	// Only process if the text contains markup characters
+	if !strings.ContainsAny(text, "*_") {
+		return text
+	}
+
+	// Apply replacements in order: bold+italic first, then bold, then italic, then underline
+	// This prevents conflicts between overlapping patterns
+	text = bolditalic.ReplaceAllString(text, "***${1}***")
+	text = bold.ReplaceAllString(text, "**${1}**")
+	text = italic.ReplaceAllString(text, "*${1}*")
+	text = underline.ReplaceAllString(text, "<u>${1}</u>") // Markdown doesn't have native underline
+
+	return text
+}
 
 // MarkdownWriter implements the writer.Writer interface for Markdown output.
 // This is primarily used as an intermediate format for pandoc conversion.
@@ -113,7 +139,7 @@ func (s *markdownState) processContentElements(line lex.Line) error {
 	case lex.TypeNewPage:
 		return s.writeString(newPageMarker)
 	case lex.TypeScene:
-		return s.writeFormatted("## %s\n\n", strings.ToUpper(line.Contents))
+		return s.writeFormatted("## %s\n\n", strings.ToUpper(processInlineMarkup(line.Contents)))
 	case lex.TypeAction:
 		return s.processActionLine(line)
 	case lex.TypeSpeaker:
@@ -123,15 +149,15 @@ func (s *markdownState) processContentElements(line lex.Line) error {
 	case lex.TypeParen:
 		return s.processParenLine(line)
 	case "trans":
-		return s.writeFormatted("**%s**\n\n", strings.ToUpper(line.Contents))
+		return s.writeFormatted("**%s**\n\n", strings.ToUpper(processInlineMarkup(line.Contents)))
 	case lex.TypeCenter:
-		return s.writeFormatted("<center>%s</center>\n\n", line.Contents)
+		return s.writeFormatted("<center>%s</center>\n\n", processInlineMarkup(line.Contents))
 	case lex.TypeEmpty:
 		return s.processEmptyLine()
 	case "section":
 		return s.processSectionLine(line)
 	case "synopse":
-		return s.writeFormatted("> %s\n\n", strings.TrimLeft(line.Contents, "= "))
+		return s.writeFormatted("> %s\n\n", processInlineMarkup(strings.TrimLeft(line.Contents, "= ")))
 	default:
 		return s.processDefaultLine(line)
 	}
@@ -140,7 +166,7 @@ func (s *markdownState) processContentElements(line lex.Line) error {
 // processTitlePageElement handles title page elements
 func (s *markdownState) processTitlePageElement(line lex.Line, format string) error {
 	if s.inTitlePage {
-		return s.writeFormatted(format, line.Contents)
+		return s.writeFormatted(format, processInlineMarkup(line.Contents))
 	}
 	return nil
 }
@@ -148,7 +174,7 @@ func (s *markdownState) processTitlePageElement(line lex.Line, format string) er
 // processActionLine handles action lines
 func (s *markdownState) processActionLine(line lex.Line) error {
 	if strings.TrimSpace(line.Contents) != "" {
-		return s.writeFormatted("%s\n\n", line.Contents)
+		return s.writeFormatted("%s\n\n", processInlineMarkup(line.Contents))
 	}
 	return nil
 }
@@ -156,25 +182,25 @@ func (s *markdownState) processActionLine(line lex.Line) error {
 // processSpeakerLine handles speaker lines
 func (s *markdownState) processSpeakerLine(line lex.Line) error {
 	if s.inDualDialogue {
-		return s.writeFormatted("**%s**  \n", strings.ToUpper(line.Contents))
+		return s.writeFormatted("**%s**  \n", strings.ToUpper(processInlineMarkup(line.Contents)))
 	}
-	return s.writeFormatted("**%s**\n\n", strings.ToUpper(line.Contents))
+	return s.writeFormatted("**%s**\n\n", strings.ToUpper(processInlineMarkup(line.Contents)))
 }
 
 // processDialogLine handles dialog and lyrics lines
 func (s *markdownState) processDialogLine(line lex.Line) error {
 	if s.inDualDialogue {
-		return s.writeFormatted("%s  \n", line.Contents)
+		return s.writeFormatted("%s  \n", processInlineMarkup(line.Contents))
 	}
-	return s.writeFormatted("%s\n\n", line.Contents)
+	return s.writeFormatted("%s\n\n", processInlineMarkup(line.Contents))
 }
 
 // processParenLine handles parenthetical lines
 func (s *markdownState) processParenLine(line lex.Line) error {
 	if s.inDualDialogue {
-		return s.writeFormatted("*%s*  \n", line.Contents)
+		return s.writeFormatted("*%s*  \n", processInlineMarkup(line.Contents))
 	}
-	return s.writeFormatted("*%s*\n\n", line.Contents)
+	return s.writeFormatted("*%s*\n\n", processInlineMarkup(line.Contents))
 }
 
 // processEmptyLine handles empty lines
@@ -193,13 +219,13 @@ func (s *markdownState) processSectionLine(line lex.Line) error {
 	}
 	headerPrefix := strings.Repeat("#", level+2) // +2 because we use ## for scenes
 	content := strings.TrimLeft(line.Contents, "# ")
-	return s.writeFormatted("%s %s\n\n", headerPrefix, content)
+	return s.writeFormatted("%s %s\n\n", headerPrefix, processInlineMarkup(content))
 }
 
 // processDefaultLine handles unrecognized line types
 func (s *markdownState) processDefaultLine(line lex.Line) error {
 	if strings.TrimSpace(line.Contents) != "" {
-		return s.writeFormatted("%s\n\n", line.Contents)
+		return s.writeFormatted("%s\n\n", processInlineMarkup(line.Contents))
 	}
 	return nil
 }

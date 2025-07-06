@@ -262,10 +262,10 @@ func linePrint(pdf *gofpdf.Fpdf, format rules.Format, html gofpdf.HTMLBasicType,
 	text = strings.TrimRight(text, "\r\n")
 
 	if strings.ContainsAny(text, "*_") {
-		text = bolditalic.ReplaceAllString(text, "<b><i>$1</i></b>")
-		text = bold.ReplaceAllString(text, "<b>$1</b>")
-		text = italic.ReplaceAllString(text, "<i>$1</i>")
-		text = underline.ReplaceAllString(text, "<u>$1</u>")
+		text = bolditalic.ReplaceAllString(text, "<b><i>${1}</i></b>")
+		text = bold.ReplaceAllString(text, "<b>${1}</b>")
+		text = italic.ReplaceAllString(text, "<i>${1}</i>")
+		text = underline.ReplaceAllString(text, "<u>${1}</u>")
 
 		if format.Align == "C" {
 			text = "<center>" + text + "</center>"
@@ -289,10 +289,10 @@ func (t Tree) renderDualDialogueLine(format rules.Format, text string, columnWid
 	lineHeight := 0.165
 
 	if strings.ContainsAny(text, "*_") {
-		text = bolditalic.ReplaceAllString(text, "<b><i>$1</i></b>")
-		text = bold.ReplaceAllString(text, "<b>$1</b>")
-		text = italic.ReplaceAllString(text, "<i>$1</i>")
-		text = underline.ReplaceAllString(text, "<u>$1</u>")
+		text = bolditalic.ReplaceAllString(text, "<b><i>${1}</i></b>")
+		text = bold.ReplaceAllString(text, "<b>${1}</b>")
+		text = italic.ReplaceAllString(text, "<i>${1}</i>")
+		text = underline.ReplaceAllString(text, "<u>${1}</u>")
 
 		if format.Align == "C" {
 			text = "<center>" + text + "</center>"

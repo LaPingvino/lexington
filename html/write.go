@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"regexp"
+	"strings"
 
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/rules"
@@ -13,6 +15,31 @@ import (
 // It uses a rules.Set for configurable formatting elements.
 type HTMLWriter struct {
 	Elements rules.Set // Configuration for elements (margins, fonts, etc.)
+}
+
+// Inline markup patterns for HTML output
+var (
+	bolditalic = regexp.MustCompile(`\*{3}([^\*\n]+)\*{3}`)
+	bold       = regexp.MustCompile(`\*{2}([^\*\n]+)\*{2}`)
+	italic     = regexp.MustCompile(`\*{1}([^\*\n]+)\*{1}`)
+	underline  = regexp.MustCompile(`_{1}([^\*\n]+)_{1}`)
+)
+
+// processInlineMarkup converts fountain-style inline markup to HTML
+func processInlineMarkup(text string) template.HTML {
+	// Only process if the text contains markup characters
+	if !strings.ContainsAny(text, "*_") {
+		return template.HTML(text)
+	}
+
+	// Apply replacements in order: bold+italic first, then bold, then italic, then underline
+	// This prevents conflicts between overlapping patterns
+	text = bolditalic.ReplaceAllString(text, "<b><i>$1</i></b>")
+	text = bold.ReplaceAllString(text, "<b>$1</b>")
+	text = italic.ReplaceAllString(text, "<i>$1</i>")
+	text = underline.ReplaceAllString(text, "<u>$1</u>")
+
+	return template.HTML(text)
 }
 
 // htmlTemplateString is the template for HTML output with configurable CSS
@@ -142,31 +169,31 @@ body {
     {{- if eq .Type "titlepage" -}}
 <div class="title-page">{{-
     else if eq .Type "Title" -}}
-<h1>{{- .Contents -}}</h1>{{-
+<h1>{{- processInlineMarkup .Contents -}}</h1>{{-
     else if eq .Type "Credit" -}}
-<p><em>{{- .Contents -}}</em></p>{{-
+<p><em>{{- processInlineMarkup .Contents -}}</em></p>{{-
     else if eq .Type "Author" -}}
-<p>{{- .Contents -}}</p>{{-
+<p>{{- processInlineMarkup .Contents -}}</p>{{-
     else if eq .Type "metasection" -}}
 </div>
 <div class="newpage"></div>
 <div class="page">{{-
     else if eq .Type "scene" -}}
-<div class="scene-heading">{{- .Contents -}}</div>{{-
+<div class="scene-heading">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "action" "general" -}}
-<div class="action">{{- .Contents -}}</div>{{-
+<div class="action">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "speaker" -}}
-<div class="speaker">{{- .Contents -}}</div>{{-
+<div class="speaker">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "dialog" -}}
-<div class="dialogue">{{- .Contents -}}</div>{{-
+<div class="dialogue">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "lyrics" -}}
-<div class="lyrics">{{- .Contents -}}</div>{{-
+<div class="lyrics">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "paren" -}}
-<div class="parenthetical">{{- .Contents -}}</div>{{-
+<div class="parenthetical">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "trans" -}}
-<div class="transition">{{- .Contents -}}</div>{{-
+<div class="transition">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "center" -}}
-<div class="center">{{- .Contents -}}</div>{{-
+<div class="center">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "newpage" -}}
 </div>
 <div class="newpage"></div>
@@ -350,7 +377,9 @@ func (h *HTMLWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	}
 
 	// Parse and execute the HTML template with better error context
-	tmpl, err := template.New("screenplay").Parse(htmlTemplateString)
+	tmpl, err := template.New("screenplay").Funcs(template.FuncMap{
+		"processInlineMarkup": processInlineMarkup,
+	}).Parse(htmlTemplateString)
 	if err != nil {
 		return fmt.Errorf("failed to parse HTML template: %w", err)
 	}

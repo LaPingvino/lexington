@@ -32,7 +32,14 @@ type FdxParagraph struct {
 // FdxText represents a <Text> element which contains the actual script content.
 // A paragraph can have multiple text elements for styling purposes.
 type FdxText struct {
-	Content string `xml:",chardata"`
+	Content        string `xml:",chardata"`
+	AdornmentStyle string `xml:"AdornmentStyle,attr,omitempty"`
+	Background     string `xml:"Background,attr,omitempty"`
+	Color          string `xml:"Color,attr,omitempty"`
+	Font           string `xml:"Font,attr,omitempty"`
+	RevisionID     string `xml:"RevisionID,attr,omitempty"`
+	Size           string `xml:"Size,attr,omitempty"`
+	Style          string `xml:"Style,attr,omitempty"`
 }
 
 // Parse reads an .fdx file from an io.Reader and converts it into the internal lex.Screenplay format.

@@ -5,7 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.5] - 2024-01-06
+## [1.1.0] - 2025-07-06
+
+### Major Features
+- **Complete Inline Markup Support**: Fixed and enhanced inline formatting across all output formats
+  - Fountain-style markup (`**bold**`, `*italic*`, `_underline_`, `***bold-italic***`) now works consistently
+  - Fixed critical regex capture group issue that was preventing markup conversion
+  - All output formats (HTML, LaTeX, PDF, Markdown, FDX) now properly process inline formatting
+
+### New Features
+- **FDX Inline Formatting**: Added complete inline markup support for Final Draft XML format
+  - Bold text: `**bold**` → `<Text Style="Bold">bold</Text>`
+  - Italic text: `*italic*` → `<Text AdornmentStyle="-1">italic</Text>`
+  - Underline text: `_underline_` → `<Text Style="Underline">underline</Text>`
+  - Multiple Text elements for complex formatting within paragraphs
+
+### Fixed
+- **Regex Capture Groups**: Changed all `$1` references to `${1}` in regex replacements
+  - LaTeX Writer: Now generates proper LaTeX commands (`\textbf{}`, `\textit{}`, `\underline{}`)
+  - HTML Writer: Now generates proper HTML tags (`<b>`, `<i>`, `<u>`)
+  - PDF Writer: Now processes HTML-style markup correctly
+  - Markdown Writer: Now preserves Markdown formatting with HTML fallback for underline
+- **FDX Writer**: Previously showed raw fountain markup, now generates proper Final Draft styling
+- **Template Processing**: Fixed placeholder approach in LaTeX to prevent conflicts with escaping
+
+### Enhanced
+- **Code Quality**: Refactored complex functions to reduce cyclomatic complexity
+- **Linting**: Fixed all linting issues including line length and complexity warnings
+- **Testing**: Comprehensive testing across all output formats with various markup combinations
+
+### Technical Improvements
+- Consistent inline markup processing across all writers
+- Proper XML attribute handling in FDX format
+- Enhanced template readability with proper line breaks
+- Better error handling and code organization
+
+## [1.0.5] - 2025-07-05
 
 ### Fixed
 - **HTML Template Issues**: Fixed whitespace control and unknown element handling

@@ -147,3 +147,121 @@ func TestDualDialogueHTML(t *testing.T) {
 		})
 	}
 }
+
+// TestInlineMarkupProcessing tests that inline markup is correctly converted to HTML
+func TestInlineMarkupProcessing(t *testing.T) {
+	// Create a screenplay with various inline markup patterns
+	screenplay := lex.Screenplay{
+		lex.Line{Type: lex.TypeTitlePage},
+		lex.Line{Type: "Title", Contents: "The **Bold** Title"},
+		lex.Line{Type: "Author", Contents: "*Italic* Author"},
+		lex.Line{Type: "metasection"},
+		lex.Line{Type: lex.TypeScene, Contents: "INT. ROOM - ***BOLD ITALIC*** DAY"},
+		lex.Line{Type: lex.TypeAction, Contents: "She walks to the _underlined_ door."},
+		lex.Line{Type: lex.TypeSpeaker, Contents: "**BOLD** SPEAKER"},
+		lex.Line{Type: lex.TypeDialog, Contents: "I have *italic* and **bold** and ***bold italic*** text."},
+		lex.Line{Type: lex.TypeParen, Contents: "(*whispers* _quietly_)"},
+		lex.Line{Type: lex.TypeTrans, Contents: "FADE TO ***BLACK***."},
+		lex.Line{Type: lex.TypeCenter, Contents: "**THE** _END_"},
+	}
+
+	var buffer bytes.Buffer
+	writer := &HTMLWriter{Elements: rules.Default}
+	err := writer.Write(&buffer, screenplay)
+	if err != nil {
+		t.Fatalf("HTMLWriter.Write returned an unexpected error: %v", err)
+	}
+
+	htmlOutput := buffer.String()
+
+	// Test cases for various inline markup patterns
+	checks := []struct {
+		name     string
+		substr   string
+		expected bool
+	}{
+		// Basic bold markup
+		{"Bold in title", "<h1>The <b>Bold</b> Title</h1>", true},
+		{"Bold in speaker", `<div class="speaker"><b>BOLD</b> SPEAKER</div>`, true},
+
+		// Basic italic markup
+		{"Italic in author", "<p><i>Italic</i> Author</p>", true},
+		{"Italic in dialog",
+			`<div class="dialogue">I have <i>italic</i> and <b>bold</b> and <b><i>bold italic</i></b> text.</div>`,
+			true},
+		{"Italic in parenthetical", `<div class="parenthetical">(<i>whispers</i> <u>quietly</u>)</div>`, true},
+
+		// Bold+italic markup
+		{"Bold italic in scene", `<div class="scene-heading">INT. ROOM - <b><i>BOLD ITALIC</i></b> DAY</div>`, true},
+		{"Bold italic in dialog",
+			`<div class="dialogue">I have <i>italic</i> and <b>bold</b> and <b><i>bold italic</i></b> text.</div>`,
+			true},
+		{"Bold italic in transition", `<div class="transition">FADE TO <b><i>BLACK</i></b>.</div>`, true},
+
+		// Underline markup
+		{"Underline in action", `<div class="action">She walks to the <u>underlined</u> door.</div>`, true},
+		{"Underline in parenthetical", `<div class="parenthetical">(<i>whispers</i> <u>quietly</u>)</div>`, true},
+		{"Underline in center", `<div class="center"><b>THE</b> <u>END</u></div>`, true},
+
+		// Make sure raw markup doesn't appear
+		{"No raw bold markup", "**Bold**", false},
+		{"No raw italic markup", "*italic*", false},
+		{"No raw bold-italic markup", "***bold italic***", false},
+		{"No raw underline markup", "_underlined_", false},
+	}
+
+	for _, check := range checks {
+		t.Run(check.name, func(t *testing.T) {
+			actual := strings.Contains(htmlOutput, check.substr)
+			if actual != check.expected {
+				t.Errorf("strings.Contains(%q) = %v, want %v", check.substr, actual, check.expected)
+				if !check.expected {
+					t.Logf("Full HTML output:\n%s", htmlOutput)
+				}
+			}
+		})
+	}
+}
+
+// TestProcessInlineMarkupFunction tests the processInlineMarkup function directly
+func TestProcessInlineMarkupFunction(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"No markup", "Plain text", "Plain text"},
+		{"Bold markup", "This is **bold** text", "This is <b>bold</b> text"},
+		{"Italic markup", "This is *italic* text", "This is <i>italic</i> text"},
+		{"Bold italic markup", "This is ***bold italic*** text", "This is <b><i>bold italic</i></b> text"},
+		{"Underline markup", "This is _underlined_ text", "This is <u>underlined</u> text"},
+		{"Mixed markup", "**Bold** and *italic* and _underlined_", "<b>Bold</b> and <i>italic</i> and <u>underlined</u>"},
+		{"Multiple same markup", "**First** and **second** bold", "<b>First</b> and <b>second</b> bold"},
+		{"Complex mixed",
+			"***Bold italic*** with **bold** and *italic* and _underlined_",
+			"<b><i>Bold italic</i></b> with <b>bold</b> and <i>italic</i> and <u>underlined</u>"},
+		{"Empty markup", "**", "**"},
+		{"Single asterisk", "*", "*"},
+		{"Single underscore", "_", "_"},
+		{"Nested asterisks", "****bold****", "<i><b><i>bold</i></b></i>"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := processInlineMarkup(test.input)
+			if string(result) != test.expected {
+				t.Errorf("processInlineMarkup(%q) = %q, want %q", test.input, string(result), test.expected)
+			}
+		})
+	}
+}
+
+// TestInlineMarkupWithoutMarkupChars tests that text without markup characters is processed efficiently
+func TestInlineMarkupWithoutMarkupChars(t *testing.T) {
+	testText := "This is plain text without any markup characters"
+	result := processInlineMarkup(testText)
+
+	if string(result) != testText {
+		t.Errorf("processInlineMarkup should return unchanged text when no markup characters present")
+	}
+}
