@@ -63,12 +63,12 @@ func TestDualDialoguePDF(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %v", err)
 	}
-	if err := tmpfile.Close(); err != nil {
-		t.Fatalf("Failed to close temporary file: %v", err)
+	if closeErr := tmpfile.Close(); closeErr != nil {
+		t.Fatalf("Failed to close temporary file: %v", closeErr)
 	}
 	defer func() {
-		if err := os.Remove(tmpfile.Name()); err != nil {
-			t.Logf("Failed to remove temporary file: %v", err)
+		if removeErr := os.Remove(tmpfile.Name()); removeErr != nil {
+			t.Logf("Failed to remove temporary file: %v", removeErr)
 		}
 	}()
 
@@ -84,9 +84,9 @@ func TestDualDialoguePDF(t *testing.T) {
 		}()
 
 		writer := &PDFWriter{OutputFile: tmpfile.Name(), Elements: style}
-		err := writer.Write(nil, screenplay)
-		if err != nil {
-			t.Fatalf("PDFWriter.Write returned an unexpected error: %v", err)
+		writeErr := writer.Write(nil, screenplay)
+		if writeErr != nil {
+			t.Fatalf("PDFWriter.Write returned an unexpected error: %v", writeErr)
 		}
 	}()
 
@@ -133,12 +133,12 @@ func TestDualDialogueColumnPositioning(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %v", err)
 	}
-	if err := tmpfile.Close(); err != nil {
-		t.Fatalf("Failed to close temporary file: %v", err)
+	if closeErr := tmpfile.Close(); closeErr != nil {
+		t.Fatalf("Failed to close temporary file: %v", closeErr)
 	}
 	defer func() {
-		if err := os.Remove(tmpfile.Name()); err != nil {
-			t.Logf("Failed to remove temporary file: %v", err)
+		if removeErr := os.Remove(tmpfile.Name()); removeErr != nil {
+			t.Logf("Failed to remove temporary file: %v", removeErr)
 		}
 	}()
 
@@ -196,12 +196,12 @@ func TestMultipleDualDialogueBlocks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %v", err)
 	}
-	if err := tmpfile.Close(); err != nil {
-		t.Fatalf("Failed to close temporary file: %v", err)
+	if closeErr := tmpfile.Close(); closeErr != nil {
+		t.Fatalf("Failed to close temporary file: %v", closeErr)
 	}
 	defer func() {
-		if err := os.Remove(tmpfile.Name()); err != nil {
-			t.Logf("Failed to remove temporary file: %v", err)
+		if removeErr := os.Remove(tmpfile.Name()); removeErr != nil {
+			t.Logf("Failed to remove temporary file: %v", removeErr)
 		}
 	}()
 

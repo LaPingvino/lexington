@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/lapingvino/lexington/internal"
 	"github.com/lapingvino/lexington/lex"
 )
 
@@ -57,24 +58,24 @@ func Parse(file io.Reader) (out lex.Screenplay) {
 		// Map FDX types to internal lex types
 		switch p.Type {
 		case "Scene Heading":
-			line.Type = "scene"
-		case "Action", "General":
+			line.Type = lex.TypeScene
+		case internal.ElementAction, internal.ElementGeneral:
 			if fullContent == "" {
-				line.Type = "empty"
+				line.Type = lex.TypeEmpty
 			} else {
-				line.Type = "action"
+				line.Type = lex.TypeAction
 			}
 		case "Character":
-			line.Type = "speaker"
+			line.Type = lex.TypeSpeaker
 		case "Parenthetical":
-			line.Type = "paren"
+			line.Type = lex.TypeParen
 		case "Dialogue":
-			line.Type = "dialog"
+			line.Type = lex.TypeDialog
 		case "Transition":
-			line.Type = "trans"
+			line.Type = lex.TypeTrans
 		default:
 			// If we don't recognize the type, treat it as a generic action.
-			line.Type = "action"
+			line.Type = lex.TypeAction
 		}
 
 		line.Contents = fullContent

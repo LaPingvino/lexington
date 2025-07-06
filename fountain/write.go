@@ -42,7 +42,7 @@ func (f *FountainWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 }
 
 func (f *FountainWriter) trimTrailingEmpty(screenplay lex.Screenplay) lex.Screenplay {
-	if len(screenplay) > 0 && screenplay[len(screenplay)-1].Type == "empty" {
+	if len(screenplay) > 0 && screenplay[len(screenplay)-1].Type == lex.TypeEmpty {
 		return screenplay[:len(screenplay)-1]
 	}
 	return screenplay
@@ -50,7 +50,7 @@ func (f *FountainWriter) trimTrailingEmpty(screenplay lex.Screenplay) lex.Screen
 
 func (state *WriteState) writeLine(line lex.Line) error {
 	element := line.Type
-	if state.titlepage == "start" && line.Type != "titlepage" {
+	if state.titlepage == "start" && line.Type != lex.TypeTitlePage {
 		state.titlepage = ""
 	}
 	if state.titlepage != "" {
@@ -59,21 +59,21 @@ func (state *WriteState) writeLine(line lex.Line) error {
 
 	switch element {
 	case "start":
-		state.titlepage = "titlepage"
+		state.titlepage = lex.TypeTitlePage
 		return nil
-	case "titlepage":
+	case lex.TypeTitlePage:
 		return state.writeTitlePageLine(line)
-	case "newpage":
+	case lex.TypeNewPage:
 		return state.writeNewPage()
-	case "empty":
+	case lex.TypeEmpty:
 		return state.writeEmpty()
-	case "speaker":
+	case lex.TypeSpeaker:
 		return state.writeSpeaker(line)
-	case "scene":
+	case lex.TypeScene:
 		return state.writeScene(line)
-	case "lyrics":
+	case lex.TypeLyrics:
 		return state.writeLyrics(line)
-	case "action":
+	case lex.TypeAction:
 		return state.writeAction(line)
 	default:
 		return state.writeDefault(line)
@@ -84,7 +84,7 @@ func (state *WriteState) writeTitlePageLine(line lex.Line) error {
 	if line.Type == "metasection" {
 		return nil
 	}
-	if line.Type == "newpage" {
+	if line.Type == lex.TypeNewPage {
 		if _, err := fmt.Fprintln(state.writer, ""); err != nil {
 			return err
 		}

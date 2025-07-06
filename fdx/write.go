@@ -40,22 +40,22 @@ func (f *FDXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		var pType string
 		// Map internal lex types to FDX Paragraph types.
 		switch line.Type {
-		case "scene":
+		case lex.TypeScene:
 			pType = "Scene Heading"
-		case "action", "center": // Assuming 'center' can be treated as 'Action' for FDX export
+		case lex.TypeAction, lex.TypeCenter: // Assuming 'center' can be treated as 'Action' for FDX export
 			pType = "Action"
-		case "empty":
+		case lex.TypeEmpty:
 			// An empty line in Fountain is often an empty Action paragraph in FDX.
 			pType = "Action"
-		case "speaker":
+		case lex.TypeSpeaker:
 			pType = "Character"
-		case "paren":
+		case lex.TypeParen:
 			pType = "Parenthetical"
-		case "dialog", "lyrics":
+		case lex.TypeDialog, lex.TypeLyrics:
 			pType = "Dialogue"
-		case "trans":
+		case lex.TypeTrans:
 			pType = "Transition"
-		case "dualspeaker_open", "dualspeaker_next", "dualspeaker_close":
+		case lex.TypeDualOpen, lex.TypeDualNext, lex.TypeDualClose:
 			// Dual dialogue is complex in FDX and might require a more sophisticated
 			// transformation than a simple text template can provide.
 			// For this basic template, we'll skip these markers for now,

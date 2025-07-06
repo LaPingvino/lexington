@@ -65,8 +65,8 @@ func Dump(file string) error {
 		return fmt.Errorf("failed to create configuration file %s: %w", file, err)
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
-			log.Printf("Error closing configuration file: %v", err)
+		if closeErr := f.Close(); closeErr != nil {
+			log.Printf("Error closing configuration file: %v", closeErr)
 		}
 	}()
 

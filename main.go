@@ -16,6 +16,7 @@ import (
 	"github.com/lapingvino/lexington/fdx"
 	"github.com/lapingvino/lexington/fountain"
 	"github.com/lapingvino/lexington/html"
+	"github.com/lapingvino/lexington/internal"
 	"github.com/lapingvino/lexington/latex"
 	"github.com/lapingvino/lexington/lex"
 	"github.com/lapingvino/lexington/linter"
@@ -139,16 +140,21 @@ func setupContext() (context.Context, context.CancelFunc) {
 func parseFlags() *Config {
 	config := &Config{}
 	flag.StringVar(&config.ConfigFile, "config", "lexington.toml", "Configuration file to use.")
-	flag.BoolVar(&config.Dump, "dumpconfig", false, "Dump the default configuration to the location of --config to be adapted manually.")
+	flag.BoolVar(&config.Dump, "dumpconfig", false,
+		"Dump the default configuration to the location of --config to be adapted manually.")
 	flag.StringVar(&config.SceneIn, "scenein", "", "Configuration to use for scene header detection on input.")
 	flag.StringVar(&config.SceneOut, "sceneout", "", "Configuration to use for scene header detection on output.")
 	flag.StringVar(&config.Elements, "e", "default", "Element settings from settings file to use.")
 	flag.StringVar(&config.Input, "i", "-", "Input from provided filename. - means standard input.")
 	flag.StringVar(&config.Output, "o", "-", "Output to provided filename. - means standard output.")
 	flag.StringVar(&config.From, "from", "", "Input file type. Choose from fountain, lex, fdx.")
-	flag.StringVar(&config.To, "to", "", "Output file type. Choose from pdf, lex, fountain, fdx, html, latex, or external formats requiring pandoc: epub, mobi, docx, odt, rtf, markdown, rst, json, native, man, textile, mediawiki, org, asciidoc, htmlpdf, latexpdf.")
+	flag.StringVar(&config.To, "to", "",
+		"Output file type. Choose from pdf, lex, fountain, fdx, html, latex, or external formats requiring pandoc: "+
+			"epub, mobi, docx, odt, rtf, markdown, rst, json, native, man, textile, mediawiki, org, asciidoc, "+
+			"htmlpdf, latexpdf.")
 	flag.BoolVar(&config.Lint, "lint", false, "Run the Fountain linter on the input file")
-	flag.StringVar(&config.TemplatePath, "template", "", "Path to a custom template file (e.g., for HTML, FDX, or LaTeX output).")
+	flag.StringVar(&config.TemplatePath, "template", "",
+		"Path to a custom template file (e.g., for HTML, FDX, or LaTeX output).")
 	flag.BoolVar(&config.Help, "help", false, "Show this help message")
 	flag.BoolVar(&config.ShowVersion, "version", false, "Show version information")
 	flag.Parse()
@@ -200,10 +206,10 @@ func detectFormats(config *Config) {
 
 func setDefaults(config *Config) {
 	if config.From == "" {
-		config.From = "fountain"
+		config.From = internal.FormatFountain
 	}
 	if config.To == "" && config.Output == "-" {
-		config.To = "lex"
+		config.To = internal.FormatLex
 	}
 	if config.SceneIn == "" {
 		config.SceneIn = "en"
@@ -246,8 +252,8 @@ func setupIO(config *Config) (*IOFiles, error) {
 		ioFiles.Output = outputFile
 		oldCloser := ioFiles.Closer
 		ioFiles.Closer = func() error {
-			if err := outputFile.Close(); err != nil {
-				log.Printf("Error closing output file: %v", err)
+			if closeErr := outputFile.Close(); closeErr != nil {
+				log.Printf("Error closing output file: %v", closeErr)
 			}
 			return oldCloser()
 		}
@@ -261,11 +267,11 @@ func parseInput(config *Config, conf rules.TOMLConf, input io.Reader) *lex.Scree
 
 	var screenplay lex.Screenplay
 	switch config.From {
-	case "lex":
+	case internal.FormatLex:
 		screenplay = lex.Parse(input)
-	case "fountain":
+	case internal.FormatFountain:
 		screenplay = fountain.Parse(conf.Scenes[config.SceneIn], input)
-	case "fdx":
+	case internal.FormatFDX:
 		screenplay = fdx.Parse(input)
 	default:
 		log.Printf("%s is not a valid input type", config.From)
@@ -294,7 +300,8 @@ func handleLinting(screenplay lex.Screenplay, config *Config) bool {
 	return false
 }
 
-func convertOutput(ctx context.Context, config *Config, conf rules.TOMLConf, output io.Writer, screenplay lex.Screenplay) error {
+func convertOutput(ctx context.Context, config *Config, conf rules.TOMLConf, output io.Writer,
+	screenplay lex.Screenplay) error {
 	log.Printf("Output type is %s", config.To)
 
 	if pandocFormats[config.To] {
@@ -303,13 +310,15 @@ func convertOutput(ctx context.Context, config *Config, conf rules.TOMLConf, out
 
 	outputWriter := createWriter(config, conf)
 	if outputWriter == nil {
-		log.Printf("%s is not a supported output type. Choose from: pdf, lex, fountain, fdx, html, latex, or external formats requiring pandoc: epub, mobi, docx, odt, rtf, markdown, rst, json, native, man, textile, mediawiki, org, asciidoc, htmlpdf, latexpdf.\n", config.To)
+		log.Printf("%s is not a supported output type. Choose from: pdf, lex, fountain, fdx, html, latex, "+
+			"or external formats requiring pandoc: epub, mobi, docx, odt, rtf, markdown, rst, json, native, "+
+			"man, textile, mediawiki, org, asciidoc, htmlpdf, latexpdf.\n", config.To)
 		return nil
 	}
 
 	select {
 	case <-ctx.Done():
-		log.Printf("Operation cancelled: %v", ctx.Err())
+		log.Printf("Operation canceled: %v", ctx.Err())
 		return ctx.Err()
 	default:
 		return outputWriter.Write(output, screenplay)
@@ -318,21 +327,21 @@ func convertOutput(ctx context.Context, config *Config, conf rules.TOMLConf, out
 
 func createWriter(config *Config, conf rules.TOMLConf) writer.Writer {
 	switch config.To {
-	case "pdf":
+	case internal.FormatPDF:
 		if config.Output == "-" {
 			log.Println("Cannot write PDF to standard output. Please provide an output filename (e.g., -o output.pdf).")
 			return nil
 		}
 		return &pdf.PDFWriter{OutputFile: config.Output, Elements: conf.Elements[config.Elements]}
-	case "lex":
+	case internal.FormatLex:
 		return &lex.LexWriter{}
-	case "fountain":
+	case internal.FormatFountain:
 		return &fountain.FountainWriter{SceneConfig: conf.Scenes[config.SceneOut]}
-	case "fdx":
+	case internal.FormatFDX:
 		return &fdx.FDXWriter{TemplatePath: config.TemplatePath}
-	case "html":
+	case internal.FormatHTML:
 		return &html.HTMLWriter{Elements: conf.Elements[config.Elements]}
-	case "latex":
+	case internal.FormatLaTeX:
 		return &latex.LaTeXWriter{Template: config.TemplatePath, Elements: conf.Elements[config.Elements]}
 	default:
 		return nil
@@ -358,9 +367,9 @@ func handleHTMLPDF(config *Config, conf rules.TOMLConf, screenplay lex.Screenpla
 
 	var htmlBuffer bytes.Buffer
 	htmlWriter := &html.HTMLWriter{Elements: conf.Elements[config.Elements]}
-	if err := htmlWriter.Write(&htmlBuffer, screenplay); err != nil {
-		log.Printf("Error converting to HTML format for wkhtmltopdf: %v", err)
-		return err
+	if htmlErr := htmlWriter.Write(&htmlBuffer, screenplay); htmlErr != nil {
+		log.Printf("Error converting to HTML format for wkhtmltopdf: %v", htmlErr)
+		return htmlErr
 	}
 
 	tempFile, err := os.CreateTemp("", "lexington_*.html")
@@ -410,7 +419,8 @@ func handleLaTeXPDF(config *Config, conf rules.TOMLConf, screenplay lex.Screenpl
 	} else if _, err := exec.LookPath("lualatex"); err == nil {
 		latexCmd = "lualatex"
 	} else {
-		log.Printf("Error: 'latexpdf' output requires pdflatex, xelatex, or lualatex, but none could be found in your system's PATH.")
+		log.Printf("Error: 'latexpdf' output requires pdflatex, xelatex, or lualatex, " +
+			"but none could be found in your system's PATH.")
 		return err
 	}
 
@@ -442,7 +452,8 @@ func handleLaTeXPDF(config *Config, conf rules.TOMLConf, screenplay lex.Screenpl
 	}
 
 	log.Printf("Running %s to create PDF from LaTeX...", latexCmd)
-	cmd := exec.Command(latexCmd, "-output-directory", ".", "-jobname", strings.TrimSuffix(config.Output, ".pdf"), tempFile.Name())
+	cmd := exec.Command(latexCmd, "-output-directory", ".", "-jobname",
+		strings.TrimSuffix(config.Output, ".pdf"), tempFile.Name())
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 

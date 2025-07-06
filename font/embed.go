@@ -5,6 +5,13 @@ import (
 	_ "embed"
 )
 
+// Font name constants
+const (
+	CourierBadiName  = "CourierBadi"
+	CourierPrimeName = "CourierPrime"
+	CourierName      = "Courier"
+)
+
 // Embedded font files using Go 1.16+ embed directive
 //
 //go:embed CourierBadi-Regular.ttf
@@ -16,7 +23,7 @@ var CourierBadiItalic []byte
 // GetFont returns the font data for the specified font name and style
 func GetFont(name, style string) []byte {
 	switch name {
-	case "CourierBadi", "CourierPrime", "Courier", "":
+	case CourierBadiName, CourierPrimeName, CourierName, "":
 		switch style {
 		case "I", "i":
 			return CourierBadiItalic
@@ -34,7 +41,7 @@ func GetFont(name, style string) []byte {
 // FontExists checks if a font with the given name exists
 func FontExists(name string) bool {
 	switch name {
-	case "CourierBadi", "CourierPrime", "Courier", "":
+	case CourierBadiName, CourierPrimeName, CourierName, "":
 		return true
 	default:
 		return false
@@ -44,9 +51,9 @@ func FontExists(name string) bool {
 // GetFontName returns the standard font name for PDF usage
 func GetFontName(configFont string) string {
 	switch configFont {
-	case "CourierBadi", "CourierPrime", "Courier", "":
-		return "CourierPrime"
+	case CourierBadiName, CourierPrimeName, CourierName, "":
+		return CourierPrimeName
 	default:
-		return "CourierPrime" // Default fallback
+		return CourierPrimeName // Default fallback
 	}
 }

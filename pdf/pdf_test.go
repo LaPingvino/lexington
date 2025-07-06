@@ -43,13 +43,13 @@ func TestCreatePDF(t *testing.T) {
 		t.Fatalf("Failed to create temporary file: %v", err)
 	}
 	// The Create function will open the file, so we close it here.
-	if err := tmpfile.Close(); err != nil {
-		t.Fatalf("Failed to close temporary file: %v", err)
+	if closeErr := tmpfile.Close(); closeErr != nil {
+		t.Fatalf("Failed to close temporary file: %v", closeErr)
 	}
 	// 4. Defer cleanup of the temporary file.
 	defer func() {
-		if err := os.Remove(tmpfile.Name()); err != nil {
-			t.Logf("Failed to remove temporary file: %v", err)
+		if removeErr := os.Remove(tmpfile.Name()); removeErr != nil {
+			t.Logf("Failed to remove temporary file: %v", removeErr)
 		}
 	}()
 
@@ -66,9 +66,9 @@ func TestCreatePDF(t *testing.T) {
 			}
 		}()
 		writer := &PDFWriter{OutputFile: tmpfile.Name(), Elements: style}
-		err := writer.Write(nil, screenplay)
-		if err != nil {
-			t.Fatalf("PDFWriter.Write returned an unexpected error: %v", err)
+		writeErr := writer.Write(nil, screenplay)
+		if writeErr != nil {
+			t.Fatalf("PDFWriter.Write returned an unexpected error: %v", writeErr)
 		}
 	}()
 

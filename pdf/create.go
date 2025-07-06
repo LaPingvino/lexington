@@ -1,4 +1,6 @@
-// The PDF package of Lexington creates a Screenplay PDF out of the Lex screenplay parsetree. This can be generated with the several other packages, e.g. the fountain package that parses fountain to lex in preparation.
+// The PDF package of Lexington creates a Screenplay PDF out of the Lex screenplay parsetree.
+// This can be generated with the several other packages, e.g. the fountain package that parses
+// fountain to lex in preparation.
 package pdf
 
 import (
@@ -35,78 +37,31 @@ func (t Tree) pr(a string, text string) {
 	linePrint(t.PDF, t.Rules.Get(a), t.HTML, t.Rules.Get(a).Prefix+text+t.Rules.Get(a).Postfix)
 }
 
-func (t Tree) Render() {
+func (t *Tree) Render() {
 	var block string
 	var lastsection int
 
 	for _, row := range t.F {
-		switch row.Type {
-		case "newpage":
-			// Flush any pending dual dialogue before new page
-			if t.DualDialogue {
-				t.flushDualDialogue()
-			}
-			block = ""
-			t.PDF.AddPage()
-			t.PDF.SetHeaderFuncMode(func() {
-				t.PDF.SetFont("CourierPrime", "", 12)
-				t.PDF.SetXY(-1, 0.5)
-				t.PDF.Cell(0, 0, strconv.Itoa(t.PDF.PageNo()-1)+".")
-			}, true)
-			continue
-		case "titlepage":
-			block = "title"
-			t.PDF.SetY(4)
-		case "title", "Title":
-			t.PDF.SetTitle(row.Contents, true)
-		case "metasection":
-			block = ""
-			t.PDF.SetY(-2)
-		case "dualspeaker_open":
-			t.DualDialogue = true
-			t.DualColumn = 0
-			t.DualBuffer = []lex.Line{}
-			continue
-		case "dualspeaker_next":
-			t.DualColumn = 1
-			continue
-		case "dualspeaker_close":
-			t.flushDualDialogue()
-			t.DualDialogue = false
-			t.DualColumn = 0
-			t.DualBuffer = []lex.Line{}
+		if t.handleSpecialCases(row, &block, &lastsection) {
 			continue
 		}
 
 		// Handle dual dialogue buffering
 		if t.DualDialogue {
-			// Add column information to the element
-			lineCopy := row
-			lineCopy.Type = row.Type + "_col" + strconv.Itoa(t.DualColumn)
-			t.DualBuffer = append(t.DualBuffer, lineCopy)
+			t.bufferDualDialogue(row)
 			continue
 		}
 
-		var contents string
-		var level int
-		switch row.Type {
-		case "section":
-			contents = strings.TrimLeft(row.Contents, "#")
-			level = len(row.Contents) - len(contents)
-			contents = strings.TrimLeft(contents, " ")
-			lastsection = level
-		case "scene":
-			level = lastsection + 1
-			contents = row.Contents
-		}
+		contents, level := t.processBookmarkContent(row, lastsection)
 		if contents != "" {
 			t.PDF.Bookmark(contents, level, -1)
 		}
 
-		if t.Rules.Get(row.Type).Hide && block == "" {
+		if t.shouldSkipElement(row, block) {
 			continue
 		}
-		if block == "title" {
+
+		if block == internal.ElementTitle {
 			row.Type = block
 		}
 		t.pr(row.Type, row.Contents)
@@ -118,6 +73,80 @@ func (t Tree) Render() {
 	}
 }
 
+// handleSpecialCases processes special element types that require immediate action
+func (t *Tree) handleSpecialCases(row lex.Line, block *string, lastsection *int) bool {
+	switch row.Type {
+	case "newpage":
+		if t.DualDialogue {
+			t.flushDualDialogue()
+		}
+		*block = ""
+		t.PDF.AddPage()
+		t.PDF.SetHeaderFuncMode(func() {
+			t.PDF.SetFont("CourierPrime", "", 12)
+			t.PDF.SetXY(-1, 0.5)
+			t.PDF.Cell(0, 0, strconv.Itoa(t.PDF.PageNo()-1)+".")
+		}, true)
+		return true
+	case "titlepage":
+		*block = internal.ElementTitle
+		t.PDF.SetY(4)
+		return false
+	case "title", "Title":
+		t.PDF.SetTitle(row.Contents, true)
+		return false
+	case "metasection":
+		*block = ""
+		t.PDF.SetY(-2)
+		return false
+	case "dualspeaker_open":
+		t.DualDialogue = true
+		t.DualColumn = 0
+		t.DualBuffer = []lex.Line{}
+		return true
+	case "dualspeaker_next":
+		t.DualColumn = 1
+		return true
+	case "dualspeaker_close":
+		t.flushDualDialogue()
+		t.DualDialogue = false
+		t.DualColumn = 0
+		t.DualBuffer = []lex.Line{}
+		return true
+	}
+	return false
+}
+
+// bufferDualDialogue adds a line to the dual dialogue buffer
+func (t *Tree) bufferDualDialogue(row lex.Line) {
+	lineCopy := row
+	lineCopy.Type = row.Type + "_col" + strconv.Itoa(t.DualColumn)
+	t.DualBuffer = append(t.DualBuffer, lineCopy)
+}
+
+// processBookmarkContent processes content for bookmarks
+func (t *Tree) processBookmarkContent(row lex.Line, lastsection int) (string, int) {
+	var contents string
+	var level int
+
+	switch row.Type {
+	case "section":
+		contents = strings.TrimLeft(row.Contents, "#")
+		level = len(row.Contents) - len(contents)
+		contents = strings.TrimLeft(contents, " ")
+	case "scene":
+		level = lastsection + 1
+		contents = row.Contents
+	}
+
+	return contents, level
+}
+
+// shouldSkipElement determines if an element should be skipped
+func (t *Tree) shouldSkipElement(row lex.Line, block string) bool {
+	return t.Rules.Get(row.Type).Hide && block == ""
+}
+
 var (
 	bolditalic = regexp.MustCompile("\\*{3}([^\\*\n]+)\\*{3}")
 	bold       = regexp.MustCompile("\\*{2}([^\\*\n]+)\\*{2}")
@@ -125,7 +154,7 @@ var (
 	underline  = regexp.MustCompile("_{1}([^\\*\n]+)_{1}")
 )
 
-func (t Tree) flushDualDialogue() {
+func (t *Tree) flushDualDialogue() {
 	if len(t.DualBuffer) == 0 {
 		return
 	}
@@ -305,7 +334,7 @@ func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	pdf.AddPage()
 	pdf.SetMargins(1, 1, 1)
 	pdf.SetXY(1, 1)
-	f := Tree{
+	f := &Tree{
 		PDF:          pdf,
 		Rules:        p.Elements, // Use the Elements from the PDFWriter struct
 		F:            screenplay, // Use the screenplay passed to the Write method

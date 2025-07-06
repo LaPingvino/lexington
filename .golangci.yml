@@ -5,11 +5,15 @@ run:
 
 linters-settings:
   govet:
-    check-shadowing: true
+    enable:
+      - shadow
   gocyclo:
     min-complexity: 15
   misspell:
     locale: US
+    ignore-words:
+      - dialogue
+      - cancelled
   goimports:
     local-prefixes: github.com/lapingvino/lexington
   funlen:
@@ -53,6 +57,11 @@ issues:
       linters:
         - funlen
         - gocyclo
+    # Exclude line length check for template strings in LaTeX files
+    - path: latex/write\.go
+      text: "\\\\newcommand"
+      linters:
+        - lll
 
   max-issues-per-linter: 0
   max-same-issues: 0

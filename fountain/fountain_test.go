@@ -21,8 +21,8 @@ func TestFountainRoundTrip(t *testing.T) {
 		t.Fatalf("Failed to open example.fountain: %v", err)
 	}
 	defer func() {
-		if err := originalFile.Close(); err != nil {
-			t.Logf("Error closing original file: %v", err)
+		if closeErr := originalFile.Close(); closeErr != nil {
+			t.Logf("Error closing original file: %v", closeErr)
 		}
 	}()
 
@@ -57,7 +57,8 @@ func TestFountainRoundTrip(t *testing.T) {
 		}
 		for i := 0; i < len(originalScreenplay); i++ {
 			if !reflect.DeepEqual(originalScreenplay[i], roundTripScreenplay[i]) {
-				t.Errorf("Line %d mismatch:\n  Original:  %+v\n  RoundTrip: %+v\n", i, originalScreenplay[i], roundTripScreenplay[i])
+				t.Errorf("Line %d mismatch:\n  Original:  %+v\n  RoundTrip: %+v\n", i,
+					originalScreenplay[i], roundTripScreenplay[i])
 			}
 		}
 	}
@@ -71,8 +72,8 @@ func TestParse(t *testing.T) {
 		t.Fatalf("Failed to open example.fountain: %v", err)
 	}
 	defer func() {
-		if err := file.Close(); err != nil {
-			t.Logf("Error closing file: %v", err)
+		if closeErr := file.Close(); closeErr != nil {
+			t.Logf("Error closing file: %v", closeErr)
 		}
 	}()
 
@@ -84,27 +85,27 @@ func TestParse(t *testing.T) {
 	// The fountain_example.fountain file starts with a scene heading and has no title page,
 	// so no titlepage or newpage markers should be generated.
 	expected := lex.Screenplay{
-		lex.Line{Type: "scene", Contents: "INT. HOUSE - DAY"},
-		lex.Line{Type: "empty", Contents: ""},
-		lex.Line{Type: "speaker", Contents: "MARY"},
-		lex.Line{Type: "dialog", Contents: "I can't believe how easy it is to write in Fountain."},
-		lex.Line{Type: "empty", Contents: ""},
-		lex.Line{Type: "speaker", Contents: "TOM"},
-		lex.Line{Type: "paren", Contents: "(typing)"},
-		lex.Line{Type: "dialog", Contents: "Look! I just made a parenthetical!"},
-		lex.Line{Type: "empty", Contents: ""},
-		lex.Line{Type: "action", Contents: "SOMETHING HAPPENS!"},
-		lex.Line{Type: "empty", Contents: ""},
-		lex.Line{Type: "action", Contents: "(what? I don't know...)"},
-		lex.Line{Type: "empty", Contents: ""},
-		lex.Line{Type: "scene", Contents: "EXT. GARDEN"},
-		lex.Line{Type: "empty", Contents: ""},
-		lex.Line{Type: "speaker", Contents: "TOM"},
-		lex.Line{Type: "dialog", Contents: "What am I doing here now?"},
-		lex.Line{Type: "dialog", Contents: "To be honest, I have absolutely no idea!"},
-		lex.Line{Type: "empty", Contents: ""},
-		lex.Line{Type: "action", Contents: "And that means really no idea!"},
-		lex.Line{Type: "empty", Contents: ""},
+		lex.Line{Type: lex.TypeScene, Contents: "INT. HOUSE - DAY"},
+		lex.Line{Type: lex.TypeEmpty, Contents: ""},
+		lex.Line{Type: lex.TypeSpeaker, Contents: "MARY"},
+		lex.Line{Type: lex.TypeDialog, Contents: "I can't believe how easy it is to write in Fountain."},
+		lex.Line{Type: lex.TypeEmpty, Contents: ""},
+		lex.Line{Type: lex.TypeSpeaker, Contents: "TOM"},
+		lex.Line{Type: lex.TypeParen, Contents: "(typing)"},
+		lex.Line{Type: lex.TypeDialog, Contents: "Look! I just made a parenthetical!"},
+		lex.Line{Type: lex.TypeEmpty, Contents: ""},
+		lex.Line{Type: lex.TypeAction, Contents: "SOMETHING HAPPENS!"},
+		lex.Line{Type: lex.TypeEmpty, Contents: ""},
+		lex.Line{Type: lex.TypeAction, Contents: "(what? I don't know...)"},
+		lex.Line{Type: lex.TypeEmpty, Contents: ""},
+		lex.Line{Type: lex.TypeScene, Contents: "EXT. GARDEN"},
+		lex.Line{Type: lex.TypeEmpty, Contents: ""},
+		lex.Line{Type: lex.TypeSpeaker, Contents: "TOM"},
+		lex.Line{Type: lex.TypeDialog, Contents: "What am I doing here now?"},
+		lex.Line{Type: lex.TypeDialog, Contents: "To be honest, I have absolutely no idea!"},
+		lex.Line{Type: lex.TypeEmpty, Contents: ""},
+		lex.Line{Type: lex.TypeAction, Contents: "And that means really no idea!"},
+		lex.Line{Type: lex.TypeEmpty, Contents: ""},
 	}
 
 	if !reflect.DeepEqual(screenplay, expected) {
@@ -141,20 +142,20 @@ At the same time.`
 	screenplay := Parse(scenes, reader)
 
 	expected := lex.Screenplay{
-		lex.Line{Type: "titlepage", Contents: ""},
+		lex.Line{Type: lex.TypeTitlePage, Contents: ""},
 		lex.Line{Type: "Title", Contents: "Test Scene"},
-		lex.Line{Type: "newpage", Contents: ""},
-		lex.Line{Type: "scene", Contents: "INT. ROOM - DAY"},
-		lex.Line{Type: "empty", Contents: ""},
-		lex.Line{Type: "dualspeaker_open", Contents: ""},
-		lex.Line{Type: "speaker", Contents: "MARY"},
-		lex.Line{Type: "dialog", Contents: "I am speaking."},
-		lex.Line{Type: "empty", Contents: ""},
-		lex.Line{Type: "dualspeaker_next", Contents: ""},
-		lex.Line{Type: "speaker", Contents: "TOM"},
-		lex.Line{Type: "dialog", Contents: "At the same time."},
-		lex.Line{Type: "dualspeaker_close", Contents: ""},
-		lex.Line{Type: "empty", Contents: ""},
+		lex.Line{Type: lex.TypeNewPage, Contents: ""},
+		lex.Line{Type: lex.TypeScene, Contents: "INT. ROOM - DAY"},
+		lex.Line{Type: lex.TypeEmpty, Contents: ""},
+		lex.Line{Type: lex.TypeDualOpen, Contents: ""},
+		lex.Line{Type: lex.TypeSpeaker, Contents: "MARY"},
+		lex.Line{Type: lex.TypeDialog, Contents: "I am speaking."},
+		lex.Line{Type: lex.TypeEmpty, Contents: ""},
+		lex.Line{Type: lex.TypeDualNext, Contents: ""},
+		lex.Line{Type: lex.TypeSpeaker, Contents: "TOM"},
+		lex.Line{Type: lex.TypeDialog, Contents: "At the same time."},
+		lex.Line{Type: lex.TypeDualClose, Contents: ""},
+		lex.Line{Type: lex.TypeEmpty, Contents: ""},
 	}
 
 	if !reflect.DeepEqual(screenplay, expected) {

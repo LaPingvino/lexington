@@ -19,8 +19,8 @@ func TestFdxRoundTrip(t *testing.T) {
 		t.Fatalf("Failed to open example.fdx: %v", err)
 	}
 	defer func() {
-		if err := originalFile.Close(); err != nil {
-			t.Logf("Error closing original file: %v", err)
+		if closeErr := originalFile.Close(); closeErr != nil {
+			t.Logf("Error closing original file: %v", closeErr)
 		}
 	}()
 
@@ -68,28 +68,28 @@ func TestParse(t *testing.T) {
 		t.Fatalf("Failed to open example.fdx: %v", err)
 	}
 	defer func() {
-		if err := file.Close(); err != nil {
-			t.Logf("Error closing file: %v", err)
+		if closeErr := file.Close(); closeErr != nil {
+			t.Logf("Error closing file: %v", closeErr)
 		}
 	}()
 
 	screenplay := Parse(file)
 
 	expected := lex.Screenplay{
-		lex.Line{Type: "scene", Contents: "INT. HOUSE - DAY"},
-		lex.Line{Type: "speaker", Contents: "MARY"},
-		lex.Line{Type: "dialog", Contents: "I can't believe how easy it is to write in Fountain."},
-		lex.Line{Type: "speaker", Contents: "TOM"},
-		lex.Line{Type: "paren", Contents: "(typing)"},
-		lex.Line{Type: "dialog", Contents: "Look! I just made a parenthetical!"},
-		lex.Line{Type: "action", Contents: "SOMETHING HAPPENS!"},
-		lex.Line{Type: "action", Contents: "(what? I don't know...)"},
-		lex.Line{Type: "scene", Contents: "EXT. GARDEN"},
-		lex.Line{Type: "speaker", Contents: "TOM"},
-		lex.Line{Type: "dialog", Contents: "What am I doing here now?"},
-		lex.Line{Type: "dialog", Contents: "To be honest, I have absolutely no idea!"},
-		lex.Line{Type: "empty", Contents: ""},
-		lex.Line{Type: "action", Contents: "And that means really no idea!"},
+		lex.Line{Type: lex.TypeScene, Contents: "INT. HOUSE - DAY"},
+		lex.Line{Type: lex.TypeSpeaker, Contents: "MARY"},
+		lex.Line{Type: lex.TypeDialog, Contents: "I can't believe how easy it is to write in Fountain."},
+		lex.Line{Type: lex.TypeSpeaker, Contents: "TOM"},
+		lex.Line{Type: lex.TypeParen, Contents: "(typing)"},
+		lex.Line{Type: lex.TypeDialog, Contents: "Look! I just made a parenthetical!"},
+		lex.Line{Type: lex.TypeAction, Contents: "SOMETHING HAPPENS!"},
+		lex.Line{Type: lex.TypeAction, Contents: "(what? I don't know...)"},
+		lex.Line{Type: lex.TypeScene, Contents: "EXT. GARDEN"},
+		lex.Line{Type: lex.TypeSpeaker, Contents: "TOM"},
+		lex.Line{Type: lex.TypeDialog, Contents: "What am I doing here now?"},
+		lex.Line{Type: lex.TypeDialog, Contents: "To be honest, I have absolutely no idea!"},
+		lex.Line{Type: lex.TypeEmpty, Contents: ""},
+		lex.Line{Type: lex.TypeAction, Contents: "And that means really no idea!"},
 	}
 
 	if !reflect.DeepEqual(screenplay, expected) {

@@ -44,7 +44,8 @@ func TestLexRoundTrip(t *testing.T) {
 		}
 		for i := 0; i < len(originalScreenplay); i++ {
 			if !reflect.DeepEqual(originalScreenplay[i], roundTripScreenplay[i]) {
-				t.Errorf("Line %d mismatch:\n  Original:  %+v\n  RoundTrip: %+v\n", i, originalScreenplay[i], roundTripScreenplay[i])
+				t.Errorf("Line %d mismatch:\n  Original:  %+v\n  RoundTrip: %+v\n", i,
+					originalScreenplay[i], roundTripScreenplay[i])
 			}
 		}
 	}

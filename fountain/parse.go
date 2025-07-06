@@ -23,7 +23,7 @@ func CheckScene(row string) (bool, string, string) {
 	})
 
 	if found {
-		return true, "scene", upperRow
+		return true, internal.ElementScene, upperRow
 	}
 
 	// Check for forced scene (starts with .)
@@ -81,11 +81,11 @@ func CheckForce(row string) (bool, string, string) {
 	}
 	switch row[0] {
 	case '@':
-		ftype = "speaker"
+		ftype = lex.TypeSpeaker
 	case '~':
-		ftype = "lyrics"
+		ftype = lex.TypeLyrics
 	case '!':
-		ftype = "action"
+		ftype = lex.TypeAction
 	default:
 		force = false
 	}
@@ -244,7 +244,7 @@ func (state *ParseState) parseScreenplayLine(originalRow, row, trimmedSpaceRow s
 	var isCurrentLineDualSpeakerCandidate bool
 
 	if trimmedSpaceRow == "" {
-		currentLine.Type = "empty"
+		currentLine.Type = lex.TypeEmpty
 		currentLine.Contents = ""
 		return currentLine, false
 	}
@@ -253,7 +253,7 @@ func (state *ParseState) parseScreenplayLine(originalRow, row, trimmedSpaceRow s
 	if check, ftype, contents := CheckForce(originalRow); check {
 		currentLine.Type = ftype
 		currentLine.Contents = strings.TrimSpace(contents)
-		if ftype == "speaker" && strings.HasSuffix(currentLine.Contents, "^") {
+		if ftype == lex.TypeSpeaker && strings.HasSuffix(currentLine.Contents, "^") {
 			isCurrentLineDualSpeakerCandidate = true
 			currentLine.Contents = strings.TrimRight(currentLine.Contents, " ^")
 		}
@@ -305,27 +305,29 @@ func (state *ParseState) checkInferredTypes(row, trimmedSpaceRow string) (lex.Li
 	} else if len(row) > 1 && row[0] == '(' && row[len(row)-1] == ')' {
 		// Parenthetical
 		if state.inDialogueContext {
-			currentLine.Type = "paren"
+			currentLine.Type = lex.TypeParen
 		} else {
-			currentLine.Type = "action"
+			currentLine.Type = lex.TypeAction
 		}
 		currentLine.Contents = trimmedSpaceRow
 	} else if state.inDialogueContext {
 		// Dialogue
-		currentLine.Type = "dialog"
+		currentLine.Type = lex.TypeDialog
 		currentLine.Contents = trimmedSpaceRow
 	} else {
-		// Default to action
-		currentLine.Type = "action"
+		// Action
+		currentLine.Type = lex.TypeAction
 		currentLine.Contents = trimmedSpaceRow
 	}
 
 	return currentLine, isCurrentLineDualSpeakerCandidate
 }
 
-func (state *ParseState) handleDualDialogue(currentLine lex.Line, isCurrentLineDualSpeakerCandidate bool, i, totalLines int) {
+func (state *ParseState) handleDualDialogue(currentLine lex.Line, isCurrentLineDualSpeakerCandidate bool,
+	i, totalLines int) {
 	// Handle dual dialogue closing
-	if state.inDualDialogue && state.shouldCloseDualDialogue(currentLine, isCurrentLineDualSpeakerCandidate, i, totalLines) {
+	if state.inDualDialogue && state.shouldCloseDualDialogue(currentLine, isCurrentLineDualSpeakerCandidate,
+		i, totalLines) {
 		state.out = append(state.out, lex.Line{Type: lex.TypeDualClose})
 		state.inDualDialogue = false
 	}
@@ -344,9 +346,11 @@ func (state *ParseState) handleDualDialogue(currentLine lex.Line, isCurrentLineD
 	}
 }
 
-func (state *ParseState) shouldCloseDualDialogue(currentLine lex.Line, isCurrentLineDualSpeakerCandidate bool, i, totalLines int) bool {
+func (state *ParseState) shouldCloseDualDialogue(currentLine lex.Line, isCurrentLineDualSpeakerCandidate bool,
+	i, totalLines int) bool {
 	switch currentLine.Type {
-	case lex.TypeScene, lex.TypeAction, lex.TypeTrans, lex.TypeCenter, "section", "synopse", lex.TypeNewPage, lex.TypeTitlePage, "metasection":
+	case lex.TypeScene, lex.TypeAction, lex.TypeTrans, lex.TypeCenter, "section", "synopse", lex.TypeNewPage,
+		lex.TypeTitlePage, "metasection":
 		return true
 	case lex.TypeSpeaker:
 		return !isCurrentLineDualSpeakerCandidate
@@ -363,7 +367,8 @@ func (state *ParseState) insertDualDialogueOpen() {
 		if state.out[j].Type == lex.TypeSpeaker {
 			for k := j; k >= 0; k-- {
 				if state.out[k].Type == lex.TypeEmpty {
-					state.out = append(state.out[:k+1], append([]lex.Line{{Type: lex.TypeDualOpen}}, state.out[k+1:]...)...)
+					dualOpen := []lex.Line{{Type: lex.TypeDualOpen}}
+					state.out = append(state.out[:k+1], append(dualOpen, state.out[k+1:]...)...)
 					foundOpenInsertPoint = true
 					break
 				} else if k == 0 {

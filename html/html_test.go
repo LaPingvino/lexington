@@ -14,18 +14,18 @@ import (
 func TestHTMLWrite(t *testing.T) {
 	// 1. Define a sample screenplay with various element types.
 	screenplay := lex.Screenplay{
-		lex.Line{Type: "titlepage"},
+		lex.Line{Type: lex.TypeTitlePage},
 		lex.Line{Type: "Title", Contents: "The Great Test"},
 		lex.Line{Type: "Author", Contents: "A. Software Engineer"},
 		lex.Line{Type: "metasection"},
-		lex.Line{Type: "scene", Contents: "INT. TEST SUITE - DAY"},
-		lex.Line{Type: "action", Contents: "A simple action line."},
-		lex.Line{Type: "speaker", Contents: "TDD BOT"},
-		lex.Line{Type: "paren", Contents: "(smiling)"},
-		lex.Line{Type: "dialog", Contents: "Does this HTML look right?"},
-		lex.Line{Type: "trans", Contents: "FADE TO BLACK."},
-		lex.Line{Type: "newpage"},
-		lex.Line{Type: "center", Contents: "Centered Text"},
+		lex.Line{Type: lex.TypeScene, Contents: "INT. TEST SUITE - DAY"},
+		lex.Line{Type: lex.TypeAction, Contents: "A simple action line."},
+		lex.Line{Type: lex.TypeSpeaker, Contents: "TDD BOT"},
+		lex.Line{Type: lex.TypeParen, Contents: "(smiling)"},
+		lex.Line{Type: lex.TypeDialog, Contents: "Does this HTML look right?"},
+		lex.Line{Type: lex.TypeTrans, Contents: "FADE TO BLACK."},
+		lex.Line{Type: lex.TypeNewPage},
+		lex.Line{Type: lex.TypeCenter, Contents: "Centered Text"},
 	}
 
 	// 2. Write the screenplay to an in-memory buffer.
@@ -95,15 +95,15 @@ func TestEmptyScreenplay(t *testing.T) {
 func TestDualDialogueHTML(t *testing.T) {
 	// Create a screenplay with dual dialogue
 	screenplay := lex.Screenplay{
-		lex.Line{Type: "scene", Contents: "INT. ROOM - DAY"},
-		lex.Line{Type: "dualspeaker_open"},
-		lex.Line{Type: "speaker", Contents: "ALICE"},
-		lex.Line{Type: "dialog", Contents: "I have something to tell you."},
-		lex.Line{Type: "dualspeaker_next"},
-		lex.Line{Type: "speaker", Contents: "BOB"},
-		lex.Line{Type: "dialog", Contents: "I have something to tell you too."},
-		lex.Line{Type: "dualspeaker_close"},
-		lex.Line{Type: "action", Contents: "They both stop and look at each other."},
+		lex.Line{Type: lex.TypeScene, Contents: "INT. ROOM - DAY"},
+		lex.Line{Type: lex.TypeDualOpen},
+		lex.Line{Type: lex.TypeSpeaker, Contents: "ALICE"},
+		lex.Line{Type: lex.TypeDialog, Contents: "I have something to tell you."},
+		lex.Line{Type: lex.TypeDualNext},
+		lex.Line{Type: lex.TypeSpeaker, Contents: "BOB"},
+		lex.Line{Type: lex.TypeDialog, Contents: "I have something to tell you too."},
+		lex.Line{Type: lex.TypeDualClose},
+		lex.Line{Type: lex.TypeAction, Contents: "They both stop and look at each other."},
 	}
 
 	var buffer bytes.Buffer
@@ -126,8 +126,12 @@ func TestDualDialogueHTML(t *testing.T) {
 		{"First table cell", `<td>`, true},
 		{"Second table cell (after dualspeaker_next)", `</td><td>`, true},
 		{"Table close", `</td></tr></table>`, true},
-		{"Alice in first column", `<td><div class="speaker">ALICE</div><div class="dialogue">I have something to tell you.</div>`, true},
-		{"Bob in second column", `<td><div class="speaker">BOB</div><div class="dialogue">I have something to tell you too.</div>`, true},
+		{"Alice in first column",
+			`<td><div class="speaker">ALICE</div><div class="dialogue">I have something to tell you.</div>`,
+			true},
+		{"Bob in second column",
+			`<td><div class="speaker">BOB</div><div class="dialogue">I have something to tell you too.</div>`,
+			true},
 		{"No nested tables", `<table class="dual-dialogue"><tr><td><table`, false},
 	}
 

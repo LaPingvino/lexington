@@ -1,4 +1,5 @@
-// The rules package of Lexington provides the tools around configuration of how a screenplay should look. The default should work but can be adjusted for a personal touch..
+// The rules package of Lexington provides the tools around configuration of how a screenplay should look.
+// The default should work but can be adjusted for a personal touch.
 package rules
 
 import (
