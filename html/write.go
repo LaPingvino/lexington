@@ -118,7 +118,7 @@ body {
     else if eq .Type "Title" -}}<h1>{{.Contents}}</h1>{{-
     else if eq .Type "Credit" -}}<p><em>{{.Contents}}</em></p>{{-
     else if eq .Type "Author" -}}<p>{{.Contents}}</p>{{-
-    else if eq .Type "metasection" -}}</div><div class=\"newpage\"></div><div class=\"page\">{{-
+    else if eq .Type "metasection" -}}</div><div class="newpage"></div><div class="page">{{-
     else if eq .Type "scene" -}}<div class="scene-heading">{{.Contents}}</div>{{-
     else if eq .Type "action" "general" -}}<div class="action">{{.Contents}}</div>{{-
     else if eq .Type "speaker" -}}<div class="speaker">{{.Contents}}</div>{{-
@@ -126,7 +126,7 @@ body {
     else if eq .Type "paren" -}}<div class="parenthetical">{{.Contents}}</div>{{-
     else if eq .Type "trans" -}}<div class="transition">{{.Contents}}</div>{{-
     else if eq .Type "center" -}}<div class="center">{{.Contents}}</div>{{-
-    else if eq .Type "newpage" -}}</div><div class=\"newpage\"></div><div class=\"page\">{{-
+    else if eq .Type "newpage" -}}</div><div class="newpage"></div><div class="page">{{-
     else if eq .Type "empty" -}}<div class="empty"></div>{{-
     else if eq .Type "dualspeaker_open" -}}<table class="dual-dialogue"><tr><td>{{-
     else if eq .Type "dualspeaker_next" -}}</td><td>{{-

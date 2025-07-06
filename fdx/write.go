@@ -1,27 +1,37 @@
 package fdx
 
 import (
+	"bytes"
 	"encoding/xml"
+	"fmt"
 	"io"
+	"text/template"
 
 	"github.com/lapingvino/lexington/lex"
 )
 
-// Write converts the internal lex.Screenplay format to an FDX XML file.
-// Note: This is a basic implementation and does not handle all FDX features,
-// such as title pages or complex text adornments.
 // FDXWriter implements the writer.Writer interface for FDX output.
-type FDXWriter struct{}
+type FDXWriter struct {
+	TemplatePath string // Path to a custom FDX template file
+}
+
+const defaultFDXTemplate = `<?xml version="1.0" encoding="UTF-8"?>
+<FinalDraft Version="1.0">
+  <Content>
+{{range .Paragraphs}}    <Paragraph Type="{{.Type}}">
+      <Text>{{range .Texts}}{{.Content}}{{end}}</Text>
+    </Paragraph>
+{{end}}  </Content>
+</FinalDraft>
+`
 
 // Write converts the internal lex.Screenplay format to an FDX XML file.
 // It implements the writer.Writer interface.
 func (f *FDXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	var fdxFile FdxFile
-	fdxFile.XMLName = xml.Name{Local: "FinalDraft"}
 
 	for _, line := range screenplay {
-		// Title page elements have a separate structure in FDX and are skipped for now.
-		// Other non-paragraph elements are also skipped.
+		// Skip structural lex types that don't directly map to FDX paragraphs
 		switch line.Type {
 		case "titlepage", "metasection", "newpage", "section", "synopse":
 			continue
@@ -32,10 +42,10 @@ func (f *FDXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		switch line.Type {
 		case "scene":
 			pType = "Scene Heading"
-		case "action", "center":
+		case "action", "center": // Assuming 'center' can be treated as 'Action' for FDX export
 			pType = "Action"
 		case "empty":
-			// An empty line in Fountain is an empty Action paragraph in FDX.
+			// An empty line in Fountain is often an empty Action paragraph in FDX.
 			pType = "Action"
 		case "speaker":
 			pType = "Character"
@@ -45,35 +55,55 @@ func (f *FDXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 			pType = "Dialogue"
 		case "trans":
 			pType = "Transition"
+		case "dualspeaker_open", "dualspeaker_next", "dualspeaker_close":
+			// Dual dialogue is complex in FDX and might require a more sophisticated
+			// transformation than a simple text template can provide.
+			// For this basic template, we'll skip these markers for now,
+			// or treat them as actions/general text if content is present.
+			// A full FDX dual dialogue implementation would involve nested structures.
+			continue
 		default:
 			// Use "General" as a fallback for any unrecognized types.
 			pType = "General"
 		}
 
+		// Escape XML special characters
+		escapedContent := escapeXML(line.Contents)
+
 		paragraph := FdxParagraph{
 			Type: pType,
-			// FDX can have multiple <Text> elements for styling, but for now
-			// we'll just use one per paragraph.
 			Texts: []FdxText{
-				{Content: line.Contents},
+				{Content: escapedContent},
 			},
 		}
 
 		fdxFile.Content.Paragraphs = append(fdxFile.Content.Paragraphs, paragraph)
 	}
 
-	// Write the standard XML header to the file.
-	_, err := w.Write([]byte(xml.Header))
-	if err != nil {
-		return err
+	var tmpl *template.Template
+	var err error
+
+	if f.TemplatePath != "" {
+		tmpl, err = template.ParseFiles(f.TemplatePath)
+		if err != nil {
+			return fmt.Errorf("failed to parse FDX template file %s: %w", f.TemplatePath, err)
+		}
+	} else {
+		tmpl, err = template.New("fdxScreenplay").Parse(defaultFDXTemplate)
+		if err != nil {
+			return fmt.Errorf("failed to parse default FDX template: %w", err)
+		}
 	}
 
-	// Use an encoder to get indented, human-readable XML output.
-	encoder := xml.NewEncoder(w)
-	encoder.Indent("", "  ")
-	err = encoder.Encode(fdxFile)
-	if err != nil {
-		return err
-	}
-	return nil
+	// Execute the template with the constructed FdxFile data.
+	// We need to pass fdxFile.Content as the top-level data for the template
+	// because the template expects a slice of Paragraphs.
+	return tmpl.Execute(w, fdxFile.Content)
+}
+
+// escapeXML escapes characters that have special meaning in XML.
+func escapeXML(s string) string {
+	var b bytes.Buffer
+	xml.EscapeText(&b, []byte(s))
+	return b.String()
 }

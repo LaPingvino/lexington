@@ -344,7 +344,7 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 				// with more than two columns.
 				isCurrentLineDualSpeakerCandidate = false // Reset for current line
 				currentLine.Type = "speaker"
-				currentLine.Contents = trimmedSpaceRow
+				currentLine.Contents = strings.TrimRight(trimmedSpaceRow, " ^") // Trim " ^" from content for display
 			}
 		}
 

@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FinalDraft Version="1.0">
+  <Content>
+    <Paragraph Type="General">
+      <Text>Dual Dialogue Test</Text>
+    </Paragraph>
+    <Paragraph Type="General">
+      <Text>Test Author</Text>
+    </Paragraph>
+    <Paragraph Type="Scene Heading">
+      <Text>INT. COFFEE SHOP - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text></Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text>Two friends, ALICE and BOB, sit across from each other at a small table.</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text></Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>I can&#39;t believe you&#39;re moving to New York.</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text></Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>It&#39;s a great opportunity. I have to take it.</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text></Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>But what about our friendship?</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text></Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>We&#39;ll stay in touch.</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text></Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>It won&#39;t be the same.</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text></Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text>Beat.</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text></Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical">
+      <Text>(emotional)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>I&#39;m going to miss you so much.</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text></Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical">
+      <Text>(reaching across the table)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>Hey, this isn&#39;t goodbye forever.</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text></Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>Promise me you&#39;ll call every week.</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text></Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>I promise.</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text></Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical">
+      <Text>(smiling through tears)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>Okay. I guess I&#39;m happy for you.</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text></Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text>They reach across the table and hold hands.</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text></Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text>FADE OUT.</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text></Text>
+    </Paragraph>
+  </Content>
+</FinalDraft>
