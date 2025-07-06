@@ -6,3 +6,5 @@ require (
 )
 
 go 1.24
+
+// Version: v1.0.3
