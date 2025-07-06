@@ -66,12 +66,9 @@ func (l *Linter) Lint(screenplay lex.Screenplay) {
 			if inDualDialogueBlock {
 				// This implies a third speaker in a dual dialogue block, which is also an error.
 				l.addError(currentLineNum, "More than two speakers in a dual dialogue block. Fountain specifies only two.", line.Contents)
-			} else {
-				// This indicates a dual dialogue speaker marker outside a dual block, implying structural issue.
-				// This is actually handled by the parser, but we can lint for it to be explicit.
-				// For now, the parser already tries to create a dual block.
-				// This lint check is primarily for *additional* `^` speakers within an already established dual block.
 			}
+			// Note: Dual dialogue speaker marker outside a dual block is handled by the parser
+			// and doesn't require additional linting here.
 		}
 
 		// Example: Check for empty speaker names
@@ -80,7 +77,7 @@ func (l *Linter) Lint(screenplay lex.Screenplay) {
 		}
 
 		// Example: Check for parentheticals without preceding dialogue/speaker
-		if line.Type == "paren" && i > 0 && !(screenplay[i-1].Type == "speaker" || screenplay[i-1].Type == "dialog" || screenplay[i-1].Type == "paren") {
+		if line.Type == "paren" && i > 0 && (screenplay[i-1].Type != "speaker" && screenplay[i-1].Type != "dialog" && screenplay[i-1].Type != "paren") {
 			l.addError(currentLineNum, "Parenthetical without a preceding speaker or dialogue line. This might be interpreted as action.", line.Contents)
 		}
 

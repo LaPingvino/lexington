@@ -100,7 +100,11 @@ func main() {
 		log.Printf("Error setting up I/O: %v", err)
 		return
 	}
-	defer ioFiles.Closer()
+	defer func() {
+		if err := ioFiles.Closer(); err != nil {
+			log.Printf("Error closing files: %v", err)
+		}
+	}()
 
 	screenplay := parseInput(config, conf, ioFiles.Input)
 	if screenplay == nil {
@@ -242,7 +246,9 @@ func setupIO(config *Config) (*IOFiles, error) {
 		ioFiles.Output = outputFile
 		oldCloser := ioFiles.Closer
 		ioFiles.Closer = func() error {
-			outputFile.Close()
+			if err := outputFile.Close(); err != nil {
+				log.Printf("Error closing output file: %v", err)
+			}
 			return oldCloser()
 		}
 	}
@@ -362,13 +368,20 @@ func handleHTMLPDF(config *Config, conf rules.TOMLConf, screenplay lex.Screenpla
 		log.Printf("Error creating temporary HTML file: %v", err)
 		return err
 	}
-	defer os.Remove(tempFile.Name())
+	defer func() {
+		if err := os.Remove(tempFile.Name()); err != nil {
+			log.Printf("Error removing temporary HTML file: %v", err)
+		}
+	}()
 
 	if _, err := tempFile.Write(htmlBuffer.Bytes()); err != nil {
 		log.Printf("Error writing HTML content: %v", err)
 		return err
 	}
-	tempFile.Close()
+	if err := tempFile.Close(); err != nil {
+		log.Printf("Error closing temporary HTML file: %v", err)
+		return err
+	}
 
 	cmdArgs := []string{
 		"--page-size", "Letter",
@@ -413,13 +426,20 @@ func handleLaTeXPDF(config *Config, conf rules.TOMLConf, screenplay lex.Screenpl
 		log.Printf("Error creating temporary LaTeX file: %v", err)
 		return err
 	}
-	defer os.Remove(tempFile.Name())
+	defer func() {
+		if err := os.Remove(tempFile.Name()); err != nil {
+			log.Printf("Error removing temporary LaTeX file: %v", err)
+		}
+	}()
 
 	if _, err := tempFile.Write(latexBuffer.Bytes()); err != nil {
 		log.Printf("Error writing LaTeX content: %v", err)
 		return err
 	}
-	tempFile.Close()
+	if err := tempFile.Close(); err != nil {
+		log.Printf("Error closing temporary LaTeX file: %v", err)
+		return err
+	}
 
 	log.Printf("Running %s to create PDF from LaTeX...", latexCmd)
 	cmd := exec.Command(latexCmd, "-output-directory", ".", "-jobname", strings.TrimSuffix(config.Output, ".pdf"), tempFile.Name())
@@ -438,9 +458,10 @@ func handleStandardPandoc(config *Config, screenplay lex.Screenplay) error {
 
 	var title, author string
 	for _, line := range screenplay {
-		if line.Type == "Title" {
+		switch line.Type {
+		case "Title":
 			title = line.Contents
-		} else if line.Type == "Author" {
+		case "Author":
 			author = line.Contents
 		}
 	}

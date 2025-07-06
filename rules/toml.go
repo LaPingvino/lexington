@@ -64,7 +64,11 @@ func Dump(file string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create configuration file %s: %w", file, err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("Error closing configuration file: %v", err)
+		}
+	}()
 
 	if err := toml.NewEncoder(f).Encode(DefaultConf()); err != nil {
 		return fmt.Errorf("failed to encode configuration to %s: %w", file, err)

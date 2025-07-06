@@ -20,7 +20,11 @@ func TestFountainRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open example.fountain: %v", err)
 	}
-	defer originalFile.Close()
+	defer func() {
+		if err := originalFile.Close(); err != nil {
+			t.Logf("Error closing original file: %v", err)
+		}
+	}()
 
 	originalScreenplay := Parse(scenes, originalFile)
 	if len(originalScreenplay) == 0 {
@@ -66,7 +70,11 @@ func TestParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open example.fountain: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Logf("Error closing file: %v", err)
+		}
+	}()
 
 	screenplay := Parse(scenes, file)
 

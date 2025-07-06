@@ -254,9 +254,10 @@ func (h *HTMLWriter) getTemplateConfig() TemplateConfig {
 	}
 
 	transAlign := "right"
-	if trans.Align == "L" {
+	switch trans.Align {
+	case "L":
 		transAlign = "left"
-	} else if trans.Align == "C" {
+	case "C":
 		transAlign = "center"
 	}
 

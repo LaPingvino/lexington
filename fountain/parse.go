@@ -13,17 +13,6 @@ import (
 // This can be changed with the toml configuration in the rules package.
 var Scene = []string{"INT", "EXT", "EST", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"}
 
-// last safely retrieves a pointer to a lex.Line from the screenplay,
-// returning a pointer to an "empty" line if the index is out of bounds.
-func last(out *lex.Screenplay, i int) *lex.Line {
-	if len(*out) >= i {
-		return &(*out)[len(*out)-i]
-	} else {
-		line := lex.Line{Type: "empty"} // Return an empty line if out is not long enough
-		return &line
-	}
-}
-
 // CheckScene determines if a row is a scene heading.
 func CheckScene(row string) (bool, string, string) {
 	upperRow := strings.ToUpper(row)

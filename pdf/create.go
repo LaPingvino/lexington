@@ -89,12 +89,13 @@ func (t Tree) Render() {
 
 		var contents string
 		var level int
-		if row.Type == "section" {
+		switch row.Type {
+		case "section":
 			contents = strings.TrimLeft(row.Contents, "#")
 			level = len(row.Contents) - len(contents)
 			contents = strings.TrimLeft(contents, " ")
 			lastsection = level
-		} else if row.Type == "scene" {
+		case "scene":
 			level = lastsection + 1
 			contents = row.Contents
 		}
@@ -171,13 +172,14 @@ func (t Tree) flushDualDialogue() {
 	for _, line := range leftElements {
 		lineType := line.Type
 		var format rules.Format
-		if lineType == "speaker" {
+		switch lineType {
+		case "speaker":
 			format = t.Rules.Get("dualspeaker")
-		} else if lineType == "dialog" {
+		case "dialog":
 			format = t.Rules.Get("dualdialog")
-		} else if lineType == "paren" {
+		case "paren":
 			format = t.Rules.Get("dualparen")
-		} else {
+		default:
 			format = t.Rules.Get(lineType)
 		}
 
@@ -191,13 +193,14 @@ func (t Tree) flushDualDialogue() {
 	for _, line := range rightElements {
 		lineType := line.Type
 		var format rules.Format
-		if lineType == "speaker" {
+		switch lineType {
+		case "speaker":
 			format = t.Rules.Get("dualspeaker")
-		} else if lineType == "dialog" {
+		case "dialog":
 			format = t.Rules.Get("dualdialog")
-		} else if lineType == "paren" {
+		case "paren":
 			format = t.Rules.Get("dualparen")
-		} else {
+		default:
 			format = t.Rules.Get(lineType)
 		}
 

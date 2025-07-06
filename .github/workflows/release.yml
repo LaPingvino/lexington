@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -21,53 +21,53 @@ jobs:
             goarch: arm64
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.24'
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
 
-    - name: Get dependencies
-      run: go mod download
+      - name: Get dependencies
+        run: go mod download
 
-    - name: Run tests
-      run: go test ./...
+      - name: Run tests
+        run: go test ./...
 
-    - name: Set binary name
-      id: binary
-      run: |
-        BINARY_NAME=lexington
-        if [ "${{ matrix.goos }}" = "windows" ]; then
-          BINARY_NAME="${BINARY_NAME}.exe"
-        fi
-        echo "name=${BINARY_NAME}" >> $GITHUB_OUTPUT
-        echo "archive=lexington-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}" >> $GITHUB_OUTPUT
+      - name: Set binary name
+        id: binary
+        run: |
+          BINARY_NAME=lexington
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            BINARY_NAME="${BINARY_NAME}.exe"
+          fi
+          echo "name=${BINARY_NAME}" >> $GITHUB_OUTPUT
+          echo "archive=lexington-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}" >> $GITHUB_OUTPUT
 
-    - name: Build binary
-      env:
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
-        CGO_ENABLED: 0
-      run: |
-        go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" -o ${{ steps.binary.outputs.name }} .
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" -o ${{ steps.binary.outputs.name }} .
 
-    - name: Create archive
-      run: |
-        if [ "${{ matrix.goos }}" = "windows" ]; then
-          zip -r ${{ steps.binary.outputs.archive }}.zip ${{ steps.binary.outputs.name }} LICENSE README.md
-        else
-          tar -czf ${{ steps.binary.outputs.archive }}.tar.gz ${{ steps.binary.outputs.name }} LICENSE README.md
-        fi
+      - name: Create archive
+        run: |
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            zip -r ${{ steps.binary.outputs.archive }}.zip ${{ steps.binary.outputs.name }} LICENSE README.md
+          else
+            tar -czf ${{ steps.binary.outputs.archive }}.tar.gz ${{ steps.binary.outputs.name }} LICENSE README.md
+          fi
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ steps.binary.outputs.archive }}
-        path: |
-          ${{ steps.binary.outputs.archive }}.tar.gz
-          ${{ steps.binary.outputs.archive }}.zip
-        if-no-files-found: ignore
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.binary.outputs.archive }}
+          path: |
+            ${{ steps.binary.outputs.archive }}.tar.gz
+            ${{ steps.binary.outputs.archive }}.zip
+          if-no-files-found: ignore
 
   release:
     needs: build
@@ -75,84 +75,84 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: ./artifacts
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
 
-    - name: Create release notes
-      id: release_notes
-      run: |
-        cat > release_notes.md << 'EOF'
-        # Lexington v${{ github.ref_name }}
+      - name: Create release notes
+        id: release_notes
+        run: |
+          cat > release_notes.md << 'EOF'
+          # Lexington v${{ github.ref_name }}
 
-        ## What's New
+          ## What's New
 
-        This is the first stable release of Lexington! 🎉
+          This is the first stable release of Lexington! 🎉
 
-        ## Features
+          ## Features
 
-        - **Dual Dialogue Support**: Proper side-by-side dual dialogue formatting in PDF and HTML output
-        - **Multiple Input Formats**: Support for Fountain, FDX, and LEX formats
-        - **Multiple Output Formats**: PDF, HTML, LaTeX, and integration with pandoc for ebooks
-        - **Industry Standard Formatting**: Compliant with professional screenplay formatting standards
-        - **Configurable Margins and Fonts**: Customizable via TOML configuration files
-        - **Modern Go Codebase**: Built with Go 1.24, featuring generics and modern error handling
-        - **Comprehensive Testing**: Full test coverage for critical functionality
+          - **Dual Dialogue Support**: Proper side-by-side dual dialogue formatting in PDF and HTML output
+          - **Multiple Input Formats**: Support for Fountain, FDX, and LEX formats
+          - **Multiple Output Formats**: PDF, HTML, LaTeX, and integration with pandoc for ebooks
+          - **Industry Standard Formatting**: Compliant with professional screenplay formatting standards
+          - **Configurable Margins and Fonts**: Customizable via TOML configuration files
+          - **Modern Go Codebase**: Built with Go 1.24, featuring generics and modern error handling
+          - **Comprehensive Testing**: Full test coverage for critical functionality
 
-        ## Supported Formats
+          ## Supported Formats
 
-        **Input**: Fountain (.fountain), FDX (.fdx), LEX (.lex)
-        **Output**: PDF (.pdf), HTML (.html), LaTeX (.tex), and pandoc integration for EPUB, MOBI, DOCX, etc.
+          **Input**: Fountain (.fountain), FDX (.fdx), LEX (.lex)
+          **Output**: PDF (.pdf), HTML (.html), LaTeX (.tex), and pandoc integration for EPUB, MOBI, DOCX, etc.
 
-        ## Installation
+          ## Installation
 
-        Download the appropriate binary for your platform below, or install via Go:
+          Download the appropriate binary for your platform below, or install via Go:
 
-        ```bash
-        go install github.com/lapingvino/lexington@latest
-        ```
+          ```bash
+          go install github.com/lapingvino/lexington@latest
+          ```
 
-        ## Usage
+          ## Usage
 
-        ```bash
-        # Convert Fountain to PDF
-        lexington -i script.fountain -to pdf -o script.pdf
+          ```bash
+          # Convert Fountain to PDF
+          lexington -i script.fountain -to pdf -o script.pdf
 
-        # Convert with custom configuration
-        lexington -i script.fountain -to html -o script.html -config custom.toml
+          # Convert with custom configuration
+          lexington -i script.fountain -to html -o script.html -config custom.toml
 
-        # Generate configuration file
-        lexington -dumpconfig -config lexington.toml
-        ```
+          # Generate configuration file
+          lexington -dumpconfig -config lexington.toml
+          ```
 
-        ## What's Fixed
+          ## What's Fixed
 
-        - ✅ Dual dialogue columns no longer overlap in PDF output
-        - ✅ Proper title page detection for files with and without title pages
-        - ✅ Industry standard margin compliance
-        - ✅ Modern font loading with Go embed
-        - ✅ Enhanced error handling and graceful shutdown
+          - ✅ Dual dialogue columns no longer overlap in PDF output
+          - ✅ Proper title page detection for files with and without title pages
+          - ✅ Industry standard margin compliance
+          - ✅ Modern font loading with Go embed
+          - ✅ Enhanced error handling and graceful shutdown
 
-        Full documentation available in the README.md file.
-        EOF
+          Full documentation available in the README.md file.
+          EOF
 
-    - name: Flatten artifacts
-      run: |
-        find ./artifacts -name "*.tar.gz" -exec mv {} . \;
-        find ./artifacts -name "*.zip" -exec mv {} . \;
+      - name: Flatten artifacts
+        run: |
+          find ./artifacts -name "*.tar.gz" -exec mv {} . \;
+          find ./artifacts -name "*.zip" -exec mv {} . \;
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: |
-          *.tar.gz
-          *.zip
-        body_path: release_notes.md
-        draft: false
-        prerelease: false
-        make_latest: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            *.tar.gz
+            *.zip
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

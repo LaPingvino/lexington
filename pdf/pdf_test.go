@@ -43,9 +43,15 @@ func TestCreatePDF(t *testing.T) {
 		t.Fatalf("Failed to create temporary file: %v", err)
 	}
 	// The Create function will open the file, so we close it here.
-	tmpfile.Close()
+	if err := tmpfile.Close(); err != nil {
+		t.Fatalf("Failed to close temporary file: %v", err)
+	}
 	// 4. Defer cleanup of the temporary file.
-	defer os.Remove(tmpfile.Name())
+	defer func() {
+		if err := os.Remove(tmpfile.Name()); err != nil {
+			t.Logf("Failed to remove temporary file: %v", err)
+		}
+	}()
 
 	// 5. Run the PDF creation function, recovering from any potential panics.
 	// The current implementation of Create() logs errors instead of returning them,

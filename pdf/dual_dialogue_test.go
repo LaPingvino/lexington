@@ -63,8 +63,14 @@ func TestDualDialoguePDF(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %v", err)
 	}
-	tmpfile.Close()
-	defer os.Remove(tmpfile.Name())
+	if err := tmpfile.Close(); err != nil {
+		t.Fatalf("Failed to close temporary file: %v", err)
+	}
+	defer func() {
+		if err := os.Remove(tmpfile.Name()); err != nil {
+			t.Logf("Failed to remove temporary file: %v", err)
+		}
+	}()
 
 	// Test PDF generation without panicking
 	var didPanic bool
@@ -123,12 +129,18 @@ func TestDualDialogueColumnPositioning(t *testing.T) {
 	style := rules.Default
 
 	// Create temporary file for PDF output
-	tmpfile, err := os.CreateTemp("", "lexington_dual_positioning_test_*.pdf")
+	tmpfile, err := os.CreateTemp("", "lexington_dual_dialogue_positioning_test_*.pdf")
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %v", err)
 	}
-	tmpfile.Close()
-	defer os.Remove(tmpfile.Name())
+	if err := tmpfile.Close(); err != nil {
+		t.Fatalf("Failed to close temporary file: %v", err)
+	}
+	defer func() {
+		if err := os.Remove(tmpfile.Name()); err != nil {
+			t.Logf("Failed to remove temporary file: %v", err)
+		}
+	}()
 
 	// Test that dual dialogue column positioning works without errors
 	writer := &PDFWriter{OutputFile: tmpfile.Name(), Elements: style}
@@ -180,12 +192,18 @@ func TestMultipleDualDialogueBlocks(t *testing.T) {
 	style := rules.Default
 
 	// Create temporary file for PDF output
-	tmpfile, err := os.CreateTemp("", "lexington_multiple_dual_test_*.pdf")
+	tmpfile, err := os.CreateTemp("", "lexington_multiple_dual_dialogue_test_*.pdf")
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %v", err)
 	}
-	tmpfile.Close()
-	defer os.Remove(tmpfile.Name())
+	if err := tmpfile.Close(); err != nil {
+		t.Fatalf("Failed to close temporary file: %v", err)
+	}
+	defer func() {
+		if err := os.Remove(tmpfile.Name()); err != nil {
+			t.Logf("Failed to remove temporary file: %v", err)
+		}
+	}()
 
 	// Test multiple dual dialogue blocks
 	writer := &PDFWriter{OutputFile: tmpfile.Name(), Elements: style}

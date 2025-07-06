@@ -18,7 +18,11 @@ func TestFdxRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open example.fdx: %v", err)
 	}
-	defer originalFile.Close()
+	defer func() {
+		if err := originalFile.Close(); err != nil {
+			t.Logf("Error closing original file: %v", err)
+		}
+	}()
 
 	originalScreenplay := Parse(originalFile)
 	if len(originalScreenplay) == 0 {
@@ -63,7 +67,11 @@ func TestParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open example.fdx: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Logf("Error closing file: %v", err)
+		}
+	}()
 
 	screenplay := Parse(file)
 

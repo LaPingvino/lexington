@@ -23,7 +23,9 @@ func TestLexRoundTrip(t *testing.T) {
 	// 2. Write the screenplay to an in-memory buffer.
 	var buffer bytes.Buffer
 	writer := &LexWriter{}
-	writer.Write(&buffer, originalScreenplay)
+	if err := writer.Write(&buffer, originalScreenplay); err != nil {
+		t.Fatalf("Error writing screenplay: %v", err)
+	}
 
 	// Check if the writer produced any output.
 	if buffer.Len() == 0 {
@@ -81,7 +83,9 @@ func TestWrite(t *testing.T) {
 
 	var buffer bytes.Buffer
 	writer := &LexWriter{}
-	writer.Write(&buffer, screenplay)
+	if err := writer.Write(&buffer, screenplay); err != nil {
+		t.Fatalf("Error writing screenplay: %v", err)
+	}
 
 	expected := `scene: INT. HOUSE - DAY
 speaker: TOM

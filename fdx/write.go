@@ -104,6 +104,9 @@ func (f *FDXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 // escapeXML escapes characters that have special meaning in XML.
 func escapeXML(s string) string {
 	var b bytes.Buffer
-	xml.EscapeText(&b, []byte(s))
+	if err := xml.EscapeText(&b, []byte(s)); err != nil {
+		// xml.EscapeText should not fail for valid strings, but handle error just in case
+		return s
+	}
 	return b.String()
 }
