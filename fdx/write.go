@@ -41,20 +41,20 @@ func (f *FDXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		// Map internal lex types to FDX Paragraph types.
 		switch line.Type {
 		case lex.TypeScene:
-			pType = "Scene Heading"
+			pType = FDXSceneHeading
 		case lex.TypeAction, lex.TypeCenter: // Assuming 'center' can be treated as 'Action' for FDX export
-			pType = "Action"
+			pType = FDXAction
 		case lex.TypeEmpty:
 			// An empty line in Fountain is often an empty Action paragraph in FDX.
-			pType = "Action"
+			pType = FDXAction
 		case lex.TypeSpeaker:
-			pType = "Character"
+			pType = FDXCharacter
 		case lex.TypeParen:
-			pType = "Parenthetical"
+			pType = FDXParenthetical
 		case lex.TypeDialog, lex.TypeLyrics:
-			pType = "Dialogue"
+			pType = FDXDialogue
 		case lex.TypeTrans:
-			pType = "Transition"
+			pType = FDXTransition
 		case lex.TypeDualOpen, lex.TypeDualNext, lex.TypeDualClose:
 			// Dual dialogue is complex in FDX and might require a more sophisticated
 			// transformation than a simple text template can provide.
@@ -64,7 +64,7 @@ func (f *FDXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 			continue
 		default:
 			// Use "General" as a fallback for any unrecognized types.
-			pType = "General"
+			pType = FDXGeneral
 		}
 
 		// Escape XML special characters

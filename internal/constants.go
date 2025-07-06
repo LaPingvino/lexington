@@ -13,10 +13,9 @@ const (
 
 // Common element type constants (in addition to those in lex package)
 const (
-	ElementAction  = "action"
-	ElementGeneral = "General"
-	ElementTitle   = "title"
-	ElementScene   = "scene"
+	ElementAction = "action"
+	ElementTitle  = "title"
+	ElementScene  = "scene"
 )
 
 // Common configuration constants
