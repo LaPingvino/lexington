@@ -85,15 +85,15 @@ const defaultLaTeXTemplate = `\documentclass[{{printf "%.0f" .Config.FontSize}}p
 \renewcommand{\footrulewidth}{0pt}
 
 % Define screenplay formatting commands with configurable indentation
-\newcommand{\sceneheading}[1]{\noindent\hspace{ {{printf "%.1f" .Config.SceneLeft}}in}` +
+\newcommand{\sceneheading}[1]{\noindent\hspace{ {{- printf "%.1f" .Config.SceneLeft -}}in}` +
 	`\textbf{\MakeUppercase{#1}}\par\vspace{0.5\baselineskip}}
-\newcommand{\action}[1]{\noindent\hspace{ {{printf "%.1f" .Config.ActionLeft}}in}` +
-	`\parbox{ {{printf "%.1f" (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.ActionLeft .Config.ActionRight)}}in}{#1}` +
+\newcommand{\action}[1]{\noindent\hspace{ {{- printf "%.1f" .Config.ActionLeft -}}in}` +
+	`\parbox{ {{- printf "%.1f" (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.ActionLeft .Config.ActionRight) -}}in}{#1}` +
 	`\par\vspace{\baselineskip}}
-\newcommand{\character}[1]{\noindent\hspace{ {{printf "%.1f" .Config.SpeakerLeft}}in}\textbf{\MakeUppercase{#1}}\par}
-\newcommand{\dialogue}[1]{\noindent\hspace{ {{printf "%.1f" .Config.DialogLeft}}in}` +
-	`\parbox{ {{printf "%.1f" (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.DialogLeft .Config.DialogRight)}}in}{#1}\par}
-\newcommand{\parenthetical}[1]{\noindent\hspace{ {{printf "%.1f" .Config.ParenLeft}}in}\textit{#1}\par}
+\newcommand{\character}[1]{\noindent\hspace{ {{- printf "%.1f" .Config.SpeakerLeft -}}in}\textbf{\MakeUppercase{#1}}\par}
+\newcommand{\dialogue}[1]{\noindent\hspace{ {{- printf "%.1f" .Config.DialogLeft -}}in}` +
+	`\parbox{ {{- printf "%.1f" (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.DialogLeft .Config.DialogRight) -}}in}{#1}\par}
+\newcommand{\parenthetical}[1]{\noindent\hspace{ {{- printf "%.1f" .Config.ParenLeft -}}in}\textit{#1}\par}
 \newcommand{\transition}[1]{\noindent\hfill\textbf{\MakeUppercase{#1}}\par\vspace{\baselineskip}}
 \newcommand{\centeredtext}[1]{\begin{center}#1\end{center}\par}
 
@@ -104,9 +104,9 @@ const defaultLaTeXTemplate = `\documentclass[{{printf "%.0f" .Config.FontSize}}p
 
 % Dual dialogue environment using tabular with configurable spacing
 \newenvironment{dualdialogue}{\noindent\begin{tabular}{` +
-	`p{ {{printf "%.1f" (div (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.ActionLeft .Config.ActionRight) 2.2)}}in}` +
+	`p{ {{- printf "%.1f" (div (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.ActionLeft .Config.ActionRight) 2.2) -}}in}` +
 	`@{\hspace{0.3in}}` +
-	`p{ {{printf "%.1f" (div (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.ActionLeft .Config.ActionRight) 2.2)}}in}}}` +
+	`p{ {{- printf "%.1f" (div (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.ActionLeft .Config.ActionRight) 2.2) -}}in}}}` +
 	`{\end{tabular}\par\vspace{\baselineskip}}
 \newcommand{\leftcol}{}
 \newcommand{\rightcol}{ & }
@@ -122,26 +122,26 @@ const defaultLaTeXTemplate = `\documentclass[{{printf "%.0f" .Config.FontSize}}p
     {{if eq .Type "titlepage"}}
         \thispagestyle{empty}
         \vspace*{2in}
-    {{else if eq .Type "Title"}}\titletext{ {{.Contents}} }
-    {{else if eq .Type "Credit"}}\credittext{ {{.Contents}} }
-    {{else if eq .Type "Author"}}\authorname{ {{.Contents}} }
+    {{else if eq .Type "Title"}}\titletext{ {{- .Contents -}} }
+    {{else if eq .Type "Credit"}}\credittext{ {{- .Contents -}} }
+    {{else if eq .Type "Author"}}\authorname{ {{- .Contents -}} }
     {{else if eq .Type "metasection"}}
         \newpage
         \setcounter{page}{2}
     {{else if eq .Type "scene"}}
-        \sceneheading{ {{.Contents}} }
+        \sceneheading{ {{- .Contents -}} }
     {{else if eq .Type "action"}}
-        \action{ {{.Contents}} }
+        \action{ {{- .Contents -}} }
     {{else if eq .Type "speaker"}}
-        \character{ {{.Contents}} }
+        \character{ {{- .Contents -}} }
     {{else if eq .Type "dialog"}}
-        \dialogue{ {{.Contents}} }
+        \dialogue{ {{- .Contents -}} }
     {{else if eq .Type "paren"}}
-        \parenthetical{ {{.Contents}} }
+        \parenthetical{ {{- .Contents -}} }
     {{else if eq .Type "trans"}}
-        \transition{ {{.Contents}} }
+        \transition{ {{- .Contents -}} }
     {{else if eq .Type "center"}}
-        \centeredtext{ {{.Contents}} }
+        \centeredtext{ {{- .Contents -}} }
     {{else if eq .Type "newpage"}}
         \newpage
     {{else if eq .Type "empty"}}
@@ -154,14 +154,13 @@ const defaultLaTeXTemplate = `\documentclass[{{printf "%.0f" .Config.FontSize}}p
     {{else if eq .Type "dualspeaker_close"}}
         \end{dualdialogue}
     {{else if eq .Type "dualspeaker"}}
-        \dualcharacter{ {{.Contents}} }
+        \dualcharacter{ {{- .Contents -}} }
     {{else if eq .Type "dualdialog"}}
-        \dualtext{ {{.Contents}} }
+        \dualtext{ {{- .Contents -}} }
     {{else if eq .Type "dualparen"}}
-        \dualparenthetical{ {{.Contents}} }
+        \dualparenthetical{ {{- .Contents -}} }
     {{else}}
-        % Fallback for unhandled types
-        \textbf{UNHANDLED TYPE: {{.Type}}}: {{.Contents}}
+        % Ignore unhandled types
     {{end}}
 {{end}}
 
@@ -190,39 +189,43 @@ func (l *LaTeXWriter) getLatexConfig() LaTeXConfig {
 	dualDialog := elements.Get("dualdialog")
 	dualParen := elements.Get("dualparen")
 
+	// Standard page margins
+	pageLeftMargin := 1.0
+	pageRightMargin := 1.0
+
 	return LaTeXConfig{
-		// Page layout
-		LeftMargin:   action.Left,
-		RightMargin:  action.Right,
+		// Page layout - use standard margins
+		LeftMargin:   pageLeftMargin,
+		RightMargin:  pageRightMargin,
 		TopMargin:    1.0,
 		BottomMargin: 1.0,
 
-		// Element margins
-		ActionLeft:   action.Left,
+		// Element margins - adjust for page margin to get absolute positioning
+		ActionLeft:   action.Left - pageLeftMargin,
 		ActionRight:  action.Right,
-		SpeakerLeft:  speaker.Left,
+		SpeakerLeft:  speaker.Left - pageLeftMargin,
 		SpeakerRight: speaker.Right,
-		DialogLeft:   dialog.Left,
+		DialogLeft:   dialog.Left - pageLeftMargin,
 		DialogRight:  dialog.Right,
-		ParenLeft:    paren.Left,
+		ParenLeft:    paren.Left - pageLeftMargin,
 		ParenRight:   paren.Right,
-		SceneLeft:    scene.Left,
+		SceneLeft:    scene.Left - pageLeftMargin,
 		SceneRight:   scene.Right,
-		TransLeft:    trans.Left,
+		TransLeft:    trans.Left - pageLeftMargin,
 		TransRight:   trans.Right,
-		CenterLeft:   center.Left,
+		CenterLeft:   center.Left - pageLeftMargin,
 		CenterRight:  center.Right,
-		LyricsLeft:   lyrics.Left,
+		LyricsLeft:   lyrics.Left - pageLeftMargin,
 		LyricsRight:  lyrics.Right,
 
 		// Font configuration
 		FontFamily: action.Font,
 		FontSize:   action.Size,
 
-		// Dual dialogue margins
-		DualSpeakerLeft: dualSpeaker.Left,
-		DualDialogLeft:  dualDialog.Left,
-		DualParenLeft:   dualParen.Left,
+		// Dual dialogue margins - adjust for page margin
+		DualSpeakerLeft: dualSpeaker.Left - pageLeftMargin,
+		DualDialogLeft:  dualDialog.Left - pageLeftMargin,
+		DualParenLeft:   dualParen.Left - pageLeftMargin,
 	}
 }
 
@@ -327,6 +330,8 @@ func (l *LaTeXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 // escapeLaTeX escapes characters that have special meaning in LaTeX.
 // This is a basic implementation and might need to be extended for more complex scenarios.
 func escapeLaTeX(s string) string {
+	// Escape backslash FIRST to avoid double-escaping
+	s = strings.ReplaceAll(s, "\\", "\\textbackslash{}")
 	s = strings.ReplaceAll(s, "&", "\\&")
 	s = strings.ReplaceAll(s, "%", "\\%")
 	s = strings.ReplaceAll(s, "$", "\\$")
@@ -336,7 +341,6 @@ func escapeLaTeX(s string) string {
 	s = strings.ReplaceAll(s, "}", "\\}")
 	s = strings.ReplaceAll(s, "~", "\\textasciitilde{}")
 	s = strings.ReplaceAll(s, "^", "\\textasciicircum{}")
-	s = strings.ReplaceAll(s, "\\", "\\textbackslash{}") // Escapes backslash itself
 	s = strings.ReplaceAll(s, "<", "\\textless{}")
 	s = strings.ReplaceAll(s, ">", "\\textgreater{}")
 	// For quotes, apostrophes, etc., a more intelligent solution might be needed
