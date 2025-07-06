@@ -3,6 +3,7 @@ package pdf
 
 import (
 	"github.com/lapingvino/lexington/font"
+	"github.com/lapingvino/lexington/internal"
 	"github.com/lapingvino/lexington/lex"
 	"github.com/lapingvino/lexington/rules"
 
@@ -128,19 +129,26 @@ func (t Tree) flushDualDialogue() {
 		return
 	}
 
-	// Separate left and right column elements
-	leftElements := []lex.Line{}
-	rightElements := []lex.Line{}
-
-	for _, line := range t.DualBuffer {
-		if strings.HasSuffix(line.Type, "_col0") {
+	// Separate left and right column elements using generic utilities
+	leftElements := internal.Map(
+		internal.Filter(t.DualBuffer, func(line lex.Line) bool {
+			return strings.HasSuffix(line.Type, "_col0")
+		}),
+		func(line lex.Line) lex.Line {
 			line.Type = strings.TrimSuffix(line.Type, "_col0")
-			leftElements = append(leftElements, line)
-		} else if strings.HasSuffix(line.Type, "_col1") {
+			return line
+		},
+	)
+
+	rightElements := internal.Map(
+		internal.Filter(t.DualBuffer, func(line lex.Line) bool {
+			return strings.HasSuffix(line.Type, "_col1")
+		}),
+		func(line lex.Line) lex.Line {
 			line.Type = strings.TrimSuffix(line.Type, "_col1")
-			rightElements = append(rightElements, line)
-		}
-	}
+			return line
+		},
+	)
 
 	// Store original position and margins
 	startY := t.PDF.GetY()

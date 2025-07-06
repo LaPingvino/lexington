@@ -1,31 +1,44 @@
 package rules
 
 import (
-	"github.com/BurntSushi/toml"
-	"os"
+	"errors"
+	"fmt"
 	"log"
+	"os"
+
+	"github.com/BurntSushi/toml"
 )
 
-type TOMLConf struct{
-	Elements map[string]Set
-	Scenes map[string][]string
+type TOMLConf struct {
+	Elements map[string]Set      `toml:"Elements"`
+	Scenes   map[string][]string `toml:"Scenes"`
 	metadata toml.MetaData
 }
 
 func ReadFile(file string) (TOMLConf, error) {
 	var r TOMLConf
+
+	// Check if file exists first
+	if _, err := os.Stat(file); errors.Is(err, os.ErrNotExist) {
+		return r, fmt.Errorf("configuration file %s not found: %w", file, err)
+	}
+
 	m, err := toml.DecodeFile(file, &r)
+	if err != nil {
+		return r, fmt.Errorf("failed to parse TOML file %s: %w", file, err)
+	}
+
 	r.metadata = m
-	return r, err
+	return r, nil
 }
 
 func GetConf(file string) TOMLConf {
 	c, err := ReadFile(file)
 	if err != nil {
-		log.Println("Error loading file, loading default configuration: ", err)
-		c = DefaultConf()
+		log.Printf("Error loading configuration file: %v, using defaults", err)
+		return DefaultConf()
 	}
-	log.Println("Configuration set")
+	log.Println("Configuration loaded successfully")
 	return c
 }
 
@@ -49,7 +62,13 @@ func DefaultConf() TOMLConf {
 func Dump(file string) error {
 	f, err := os.Create(file)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create configuration file %s: %w", file, err)
 	}
-	return toml.NewEncoder(f).Encode(DefaultConf())
+	defer f.Close()
+
+	if err := toml.NewEncoder(f).Encode(DefaultConf()); err != nil {
+		return fmt.Errorf("failed to encode configuration to %s: %w", file, err)
+	}
+
+	return nil
 }

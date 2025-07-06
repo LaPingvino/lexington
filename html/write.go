@@ -326,11 +326,15 @@ func (h *HTMLWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		Screenplay: screenplay,
 	}
 
-	// Parse and execute the HTML template
+	// Parse and execute the HTML template with better error context
 	tmpl, err := template.New("screenplay").Parse(htmlTemplateString)
 	if err != nil {
 		return fmt.Errorf("failed to parse HTML template: %w", err)
 	}
 
-	return tmpl.Execute(w, templateData)
+	if err := tmpl.Execute(w, templateData); err != nil {
+		return fmt.Errorf("failed to execute HTML template: %w", err)
+	}
+
+	return nil
 }

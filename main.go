@@ -2,12 +2,15 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"io"
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/lapingvino/lexington/fdx"
@@ -43,6 +46,19 @@ var pandocFormats = map[string]bool{
 }
 
 func main() {
+	// Create context that can be cancelled
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Handle graceful shutdown on interrupt signals
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		log.Println("Received interrupt signal, shutting down...")
+		cancel()
+	}()
+
 	start := time.Now()
 	defer func() {
 		log.Printf("Conversion took %v", time.Since(start))
@@ -361,9 +377,15 @@ func main() {
 		}
 	}
 
-	// Execute the write operation using the interface
-	err = outputWriter.Write(outfile, i)
-	if err != nil {
-		log.Printf("Error writing output file: %v", err)
+	// Execute the write operation using the interface with context check
+	select {
+	case <-ctx.Done():
+		log.Printf("Operation cancelled: %v", ctx.Err())
+		return
+	default:
+		err = outputWriter.Write(outfile, i)
+		if err != nil {
+			log.Printf("Error writing output file: %v", err)
+		}
 	}
 }

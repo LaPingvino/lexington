@@ -1,8 +1,8 @@
 module github.com/lapingvino/lexington
 
 require (
-	github.com/BurntSushi/toml v0.3.1
-	github.com/phpdave11/gofpdf v1.4.2
+	github.com/BurntSushi/toml v1.5.0
+	github.com/phpdave11/gofpdf v1.4.3
 )
 
-go 1.16
+go 1.24
