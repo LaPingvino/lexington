@@ -16,7 +16,7 @@ func TestFountainRoundTrip(t *testing.T) {
 	// 1. Read and parse the original example.fountain file.
 	// The scenes slice is passed for scene heading detection.
 	scenes := []string{"INT", "EXT", "EST", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"}
-	originalFile, err := os.Open("example.fountain")
+	originalFile, err := os.Open("../testdata/input/fountain_example.fountain")
 	if err != nil {
 		t.Fatalf("Failed to open example.fountain: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestFountainRoundTrip(t *testing.T) {
 // TestParse checks the output of parsing example.fountain against a known-good structure.
 func TestParse(t *testing.T) {
 	scenes := []string{"INT", "EXT", "EST", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"}
-	file, err := os.Open("example.fountain")
+	file, err := os.Open("../testdata/input/fountain_example.fountain")
 	if err != nil {
 		t.Fatalf("Failed to open example.fountain: %v", err)
 	}

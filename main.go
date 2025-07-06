@@ -206,6 +206,16 @@ func main() {
 				return
 			}
 
+			// Extract title and author from screenplay for pandoc metadata
+			var title, author string
+			for _, line := range i {
+				if line.Type == "Title" {
+					title = line.Contents
+				} else if line.Type == "Author" {
+					author = line.Contents
+				}
+			}
+
 			// Convert the screenplay to Markdown format in memory.
 			var markdownBuffer bytes.Buffer
 			markdownWriter := &markdown.MarkdownWriter{}
@@ -216,7 +226,14 @@ func main() {
 			}
 
 			// Prepare and run the pandoc command.
-			cmd := exec.Command(pandoc, "--from=markdown", "--to="+*to, "-o", *output)
+			cmdArgs := []string{"--from=markdown", "--to=" + *to, "-o", *output}
+			if title != "" {
+				cmdArgs = append(cmdArgs, "--metadata", "title="+title)
+			}
+			if author != "" {
+				cmdArgs = append(cmdArgs, "--metadata", "author="+author)
+			}
+			cmd := exec.Command(pandoc, cmdArgs...)
 			cmd.Stdin = &markdownBuffer
 			cmd.Stderr = os.Stderr // Pipe pandoc's errors to our stderr.
 

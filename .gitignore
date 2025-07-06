@@ -1,3 +1,19 @@
 lexington
 textplay
 *.pdf
+
+# Test output files (generated, can be recreated)
+testdata/output/
+*.epub
+*.docx
+*.odt
+*.rtf
+*.html
+*.tex
+*.lex
+*.md
+*.mobi
+*.json
+
+# Keep input test files
+!testdata/input/
