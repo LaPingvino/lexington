@@ -112,6 +112,7 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 	var toParse []string
 	var s string
 	var consecutiveEmptyLines int = 0
+	var hasTitlePageContent bool = false // Track if we actually have title page content
 
 	// Read all lines into a buffer
 	// Note: ReadString('\n') includes the newline character if found.
@@ -152,9 +153,12 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 			}
 
 			// Condition to exit title page mode
-			if (!isKeyValLine && trimmedSpaceRow != "" && len(out) > 0) || (consecutiveEmptyLines >= 2) {
+			if (!isKeyValLine && trimmedSpaceRow != "") || (consecutiveEmptyLines >= 2) {
 				titlepage = false
-				out = append(out, lex.Line{Type: "newpage"})
+				// Only add newpage marker if we actually had title page content
+				if hasTitlePageContent {
+					out = append(out, lex.Line{Type: "newpage"})
+				}
 				if trimmedSpaceRow == "" {
 					// If the transition was triggered by empty lines, and the current line is also empty,
 					// this empty line acts as part of the page break and should not be processed further
@@ -169,6 +173,7 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 			if titlepage {
 				if titletag == "" && trimmedSpaceRow != "" { // Only add titlepage marker if content exists
 					out = append(out, lex.Line{Type: "titlepage"})
+					hasTitlePageContent = true
 				}
 
 				if isKeyValLine {
@@ -192,10 +197,12 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 					}
 					currentLine.Type = titletag
 					currentLine.Contents = strings.TrimSpace(split[1])
+					hasTitlePageContent = true
 				} else {
 					// Continuation of a multi-line title page entry
 					currentLine.Type = titletag
 					currentLine.Contents = trimmedSpaceRow
+					hasTitlePageContent = true
 				}
 
 				if currentLine.Contents == "" { // Don't append purely empty content lines that aren't structural (like the `titlepage` itself)

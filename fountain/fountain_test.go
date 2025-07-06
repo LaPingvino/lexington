@@ -73,10 +73,11 @@ func TestParse(t *testing.T) {
 	// Note: The parser produces an extra `empty` line at the very end
 	// because of its "read-ahead" logic to terminate dialogue blocks.
 	// This is expected behavior.
+	// The fountain_example.fountain file starts with a scene heading and has no title page,
+	// so no titlepage or newpage markers should be generated.
 	expected := lex.Screenplay{
-		lex.Line{Type: "titlepage", Contents: ""},
-		lex.Line{Type: "", Contents: "INT. HOUSE - DAY"},
-		lex.Line{Type: "newpage", Contents: ""},
+		lex.Line{Type: "scene", Contents: "INT. HOUSE - DAY"},
+		lex.Line{Type: "empty", Contents: ""},
 		lex.Line{Type: "speaker", Contents: "MARY"},
 		lex.Line{Type: "dialog", Contents: "I can't believe how easy it is to write in Fountain."},
 		lex.Line{Type: "empty", Contents: ""},
