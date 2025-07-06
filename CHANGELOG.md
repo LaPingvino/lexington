@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2024-01-06
+
+### Changed
+- **Code Quality**: Significantly reduced cyclomatic complexity across the codebase
+  - Refactored `main()` function from complexity 33 to <10 by breaking into focused functions
+  - Refactored `fountain.Parse()` from complexity 25 to <10 using state-based approach
+  - Refactored `fountain.Write()` from complexity 21 to <10 using helper functions
+  - Improved code maintainability and readability without changing functionality
+- **Function Organization**: Split large functions into smaller, single-purpose functions
+  - `parseFlags()`, `setupIO()`, `parseInput()`, `convertOutput()` for main functionality
+  - State-based parsing with `ParseState` struct for fountain parsing
+  - Helper functions for each output type in fountain writing
+
+### Technical Improvements
+- Better separation of concerns with focused, testable functions
+- Improved error handling with clearer error propagation
+- Enhanced code structure following Go best practices
+- All existing functionality preserved with 100% test compatibility
+
+### Fixed
+- **Go Report Card**: Addressed gofmt complexity warnings
+- **Code Maintainability**: Reduced technical debt from high-complexity functions
+
 ## [1.0.0] - 2024-01-06
 
 ### Added
