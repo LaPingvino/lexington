@@ -13,17 +13,17 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lapingvino/lexington/fdx"
-	"github.com/lapingvino/lexington/fountain"
-	"github.com/lapingvino/lexington/html"
-	"github.com/lapingvino/lexington/internal"
-	"github.com/lapingvino/lexington/latex"
-	"github.com/lapingvino/lexington/lex"
-	"github.com/lapingvino/lexington/linter"
-	"github.com/lapingvino/lexington/markdown"
-	"github.com/lapingvino/lexington/pdf"
-	"github.com/lapingvino/lexington/rules"
-	"github.com/lapingvino/lexington/writer"
+	"github.com/LaPingvino/lexington/fdx"
+	"github.com/LaPingvino/lexington/fountain"
+	"github.com/LaPingvino/lexington/html"
+	"github.com/LaPingvino/lexington/internal"
+	"github.com/LaPingvino/lexington/latex"
+	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/linter"
+	"github.com/LaPingvino/lexington/markdown"
+	"github.com/LaPingvino/lexington/pdf"
+	"github.com/LaPingvino/lexington/rules"
+	"github.com/LaPingvino/lexington/writer"
 )
 
 // Version information (set by build flags)

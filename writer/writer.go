@@ -3,7 +3,7 @@ package writer
 import (
 	"io"
 
-	"github.com/lapingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/lex"
 )
 
 // Writer defines the interface for different screenplay output formats (e.g., HTML, PDF, FDX).

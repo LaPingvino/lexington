@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lapingvino/lexington/lex"
-	"github.com/lapingvino/lexington/rules"
+	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // TestHTMLWrite checks if the HTML writer generates a valid HTML document

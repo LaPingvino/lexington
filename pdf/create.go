@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lapingvino/lexington/font"
-	"github.com/lapingvino/lexington/internal"
-	"github.com/lapingvino/lexington/lex"
-	"github.com/lapingvino/lexington/rules"
+	"github.com/LaPingvino/lexington/font"
+	"github.com/LaPingvino/lexington/internal"
+	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/rules"
 
 	"github.com/phpdave11/gofpdf"
 )

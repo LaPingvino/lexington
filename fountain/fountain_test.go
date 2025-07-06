@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lapingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/lex"
 )
 
 // TestFountainRoundTrip ensures that parsing a Fountain file, writing it back,

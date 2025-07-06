@@ -7,8 +7,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/lapingvino/lexington/internal"
-	"github.com/lapingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/internal"
+	"github.com/LaPingvino/lexington/lex"
 )
 
 // FdxFile represents the top-level <FinalDraft> element.
@@ -59,7 +59,7 @@ func Parse(file io.Reader) (out lex.Screenplay) {
 		switch p.Type {
 		case "Scene Heading":
 			line.Type = lex.TypeScene
-		case internal.ElementAction, internal.ElementGeneral:
+		case "Action", internal.ElementGeneral:
 			if fullContent == "" {
 				line.Type = lex.TypeEmpty
 			} else {

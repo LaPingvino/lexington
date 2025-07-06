@@ -5,8 +5,8 @@ import (
 	"html/template"
 	"io"
 
-	"github.com/lapingvino/lexington/lex"
-	"github.com/lapingvino/lexington/rules"
+	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // HTMLWriter implements the writer.Writer interface for HTML output.

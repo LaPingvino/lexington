@@ -7,7 +7,7 @@ import (
 	"io"
 	"text/template"
 
-	"github.com/lapingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/lex"
 )
 
 // FDXWriter implements the writer.Writer interface for FDX output.

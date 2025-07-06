@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/lapingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/lex"
 )
 
 // Constants for markdown formatting

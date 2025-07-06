@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/lapingvino/lexington/lex"
-	"github.com/lapingvino/lexington/rules"
+	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // TestCreatePDF is a smoke test for the PDF creation process.

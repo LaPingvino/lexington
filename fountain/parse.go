@@ -5,8 +5,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/lapingvino/lexington/internal"
-	"github.com/lapingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/internal"
+	"github.com/LaPingvino/lexington/lex"
 )
 
 // Scene contains all the prefixes the scene detection looks for.

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/lapingvino/lexington/lex"
-	"github.com/lapingvino/lexington/rules"
+	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // LaTeXWriter implements the writer.Writer interface for LaTeX output.

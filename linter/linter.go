@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lapingvino/lexington/internal"
-	"github.com/lapingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/internal"
+	"github.com/LaPingvino/lexington/lex"
 )
 
 // LintError represents a single linting issue found in the screenplay.

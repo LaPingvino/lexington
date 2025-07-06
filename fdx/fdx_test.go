@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lapingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/lex"
 )
 
 // TestFdxRoundTrip tests if parsing an FDX file, writing it back out,
