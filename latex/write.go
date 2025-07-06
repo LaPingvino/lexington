@@ -88,11 +88,14 @@ const defaultLaTeXTemplate = `\documentclass[{{printf "%.0f" .Config.FontSize}}p
 \newcommand{\sceneheading}[1]{\noindent\hspace{ {{- printf "%.1f" .Config.SceneLeft -}}in}` +
 	`\textbf{\MakeUppercase{#1}}\par\vspace{0.5\baselineskip}}
 \newcommand{\action}[1]{\noindent\hspace{ {{- printf "%.1f" .Config.ActionLeft -}}in}` +
-	`\parbox{ {{- printf "%.1f" (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.ActionLeft .Config.ActionRight) -}}in}{#1}` +
+	`\parbox{ {{- printf "%.1f" (sub 8.5 .Config.LeftMargin .Config.RightMargin ` +
+	`.Config.ActionLeft .Config.ActionRight) -}}in}{#1}` +
 	`\par\vspace{\baselineskip}}
-\newcommand{\character}[1]{\noindent\hspace{ {{- printf "%.1f" .Config.SpeakerLeft -}}in}\textbf{\MakeUppercase{#1}}\par}
+\newcommand{\character}[1]{\noindent\hspace{ {{- printf "%.1f" .Config.SpeakerLeft -}}in}` +
+	`\textbf{\MakeUppercase{#1}}\par}
 \newcommand{\dialogue}[1]{\noindent\hspace{ {{- printf "%.1f" .Config.DialogLeft -}}in}` +
-	`\parbox{ {{- printf "%.1f" (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.DialogLeft .Config.DialogRight) -}}in}{#1}\par}
+	`\parbox{ {{- printf "%.1f" (sub 8.5 .Config.LeftMargin .Config.RightMargin ` +
+	`.Config.DialogLeft .Config.DialogRight) -}}in}{#1}\par}
 \newcommand{\parenthetical}[1]{\noindent\hspace{ {{- printf "%.1f" .Config.ParenLeft -}}in}\textit{#1}\par}
 \newcommand{\transition}[1]{\noindent\hfill\textbf{\MakeUppercase{#1}}\par\vspace{\baselineskip}}
 \newcommand{\centeredtext}[1]{\begin{center}#1\end{center}\par}
@@ -104,9 +107,11 @@ const defaultLaTeXTemplate = `\documentclass[{{printf "%.0f" .Config.FontSize}}p
 
 % Dual dialogue environment using tabular with configurable spacing
 \newenvironment{dualdialogue}{\noindent\begin{tabular}{` +
-	`p{ {{- printf "%.1f" (div (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.ActionLeft .Config.ActionRight) 2.2) -}}in}` +
+	`p{ {{- printf "%.1f" (div (sub 8.5 .Config.LeftMargin .Config.RightMargin ` +
+	`.Config.ActionLeft .Config.ActionRight) 2.2) -}}in}` +
 	`@{\hspace{0.3in}}` +
-	`p{ {{- printf "%.1f" (div (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.ActionLeft .Config.ActionRight) 2.2) -}}in}}}` +
+	`p{ {{- printf "%.1f" (div (sub 8.5 .Config.LeftMargin .Config.RightMargin ` +
+	`.Config.ActionLeft .Config.ActionRight) 2.2) -}}in}}}` +
 	`{\end{tabular}\par\vspace{\baselineskip}}
 \newcommand{\leftcol}{}
 \newcommand{\rightcol}{ & }
