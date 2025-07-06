@@ -38,6 +38,8 @@ var pandocFormats = map[string]bool{
 	"mediawiki": true,
 	"org":       true,
 	"asciidoc":  true,
+	"htmlpdf":   true, // HTML to PDF via wkhtmltopdf
+	"latexpdf":  true, // LaTeX to PDF via pdflatex/xelatex
 }
 
 func main() {
@@ -54,7 +56,7 @@ func main() {
 	input := flag.String("i", "-", "Input from provided filename. - means standard input.")
 	output := flag.String("o", "-", "Output to provided filename. - means standard output.")
 	from := flag.String("from", "", "Input file type. Choose from fountain, lex, fdx.")
-	to := flag.String("to", "", "Output file type. Choose from pdf, lex, fountain, fdx, html, latex, or external formats requiring pandoc: epub, mobi, docx, odt, rtf, markdown, rst, json, native, man, textile, mediawiki, org, asciidoc.")
+	to := flag.String("to", "", "Output file type. Choose from pdf, lex, fountain, fdx, html, latex, or external formats requiring pandoc: epub, mobi, docx, odt, rtf, markdown, rst, json, native, man, textile, mediawiki, org, asciidoc, htmlpdf, latexpdf.")
 	lint := flag.Bool("lint", false, "Run the Fountain linter on the input file")
 	templatePath := flag.String("template", "", "Path to a custom template file (e.g., for HTML, FDX, or LaTeX output).") // New flag
 	help := flag.Bool("help", false, "Show this help message")
@@ -193,8 +195,8 @@ func main() {
 		// FDXWriter will be updated to use a template
 		outputWriter = &fdx.FDXWriter{TemplatePath: *templatePath} // Pass template path
 	case "html":
-		// HTMLWriter already handles its internal template
-		outputWriter = &html.HTMLWriter{}
+		// HTMLWriter uses configuration for styling
+		outputWriter = &html.HTMLWriter{Elements: conf.Elements[*elements]}
 	case "latex":
 		outputWriter = &latex.LaTeXWriter{Template: *templatePath, Elements: conf.Elements[*elements]}
 	default:
@@ -214,6 +216,116 @@ func main() {
 				} else if line.Type == "Author" {
 					author = line.Contents
 				}
+			}
+
+			// Special handling for HTML to PDF conversion
+			if *to == "htmlpdf" {
+				// Check for wkhtmltopdf
+				wkhtmltopdf, err := exec.LookPath("wkhtmltopdf")
+				if err != nil {
+					log.Printf("Error: 'htmlpdf' output requires wkhtmltopdf, but it could not be found in your system's PATH.")
+					return
+				}
+
+				// Convert the screenplay to HTML format in memory.
+				var htmlBuffer bytes.Buffer
+				htmlWriter := &html.HTMLWriter{Elements: conf.Elements[*elements]}
+				err = htmlWriter.Write(&htmlBuffer, i)
+				if err != nil {
+					log.Printf("Error converting to HTML format for wkhtmltopdf: %v", err)
+					return
+				}
+
+				// Create temporary HTML file
+				tempFile, err := os.CreateTemp("", "lexington_*.html")
+				if err != nil {
+					log.Printf("Error creating temporary HTML file: %v", err)
+					return
+				}
+				defer os.Remove(tempFile.Name())
+
+				// Write HTML content to temp file
+				_, err = tempFile.Write(htmlBuffer.Bytes())
+				if err != nil {
+					log.Printf("Error writing HTML content: %v", err)
+					return
+				}
+				tempFile.Close()
+
+				// Prepare and run the wkhtmltopdf command
+				cmdArgs := []string{
+					"--page-size", "Letter",
+					"--margin-top", "0.75in",
+					"--margin-right", "0.75in",
+					"--margin-bottom", "0.75in",
+					"--margin-left", "0.75in",
+					"--encoding", "UTF-8",
+					"--print-media-type",
+					tempFile.Name(),
+					*output,
+				}
+				cmd := exec.Command(wkhtmltopdf, cmdArgs...)
+				cmd.Stderr = os.Stderr // Pipe wkhtmltopdf's errors to our stderr.
+
+				log.Printf("Running wkhtmltopdf to create PDF from HTML...")
+				err = cmd.Run()
+				if err != nil {
+					log.Printf("Error executing wkhtmltopdf command: %v", err)
+				}
+				return
+			}
+
+			// Special handling for LaTeX to PDF conversion
+			if *to == "latexpdf" {
+				// Check for LaTeX compiler
+				var latexCmd string
+				if _, err := exec.LookPath("pdflatex"); err == nil {
+					latexCmd = "pdflatex"
+				} else if _, err := exec.LookPath("xelatex"); err == nil {
+					latexCmd = "xelatex"
+				} else if _, err := exec.LookPath("lualatex"); err == nil {
+					latexCmd = "lualatex"
+				} else {
+					log.Printf("Error: 'latexpdf' output requires pdflatex, xelatex, or lualatex, but none could be found in your system's PATH.")
+					return
+				}
+
+				// Convert the screenplay to LaTeX format in memory.
+				var latexBuffer bytes.Buffer
+				latexWriter := &latex.LaTeXWriter{Template: *templatePath, Elements: conf.Elements[*elements]}
+				err = latexWriter.Write(&latexBuffer, i)
+				if err != nil {
+					log.Printf("Error converting to LaTeX format: %v", err)
+					return
+				}
+
+				// Create temporary LaTeX file
+				tempFile, err := os.CreateTemp("", "lexington_*.tex")
+				if err != nil {
+					log.Printf("Error creating temporary LaTeX file: %v", err)
+					return
+				}
+				defer os.Remove(tempFile.Name())
+
+				// Write LaTeX content to temp file
+				_, err = tempFile.Write(latexBuffer.Bytes())
+				if err != nil {
+					log.Printf("Error writing LaTeX content: %v", err)
+					return
+				}
+				tempFile.Close()
+
+				// Run LaTeX compiler
+				log.Printf("Running %s to create PDF from LaTeX...", latexCmd)
+				cmd := exec.Command(latexCmd, "-output-directory", ".", "-jobname", strings.TrimSuffix(*output, ".pdf"), tempFile.Name())
+				cmd.Stderr = os.Stderr
+				cmd.Stdout = os.Stdout
+
+				err = cmd.Run()
+				if err != nil {
+					log.Printf("Error executing %s command: %v", latexCmd, err)
+				}
+				return
 			}
 
 			// Convert the screenplay to Markdown format in memory.
@@ -244,7 +356,7 @@ func main() {
 			}
 			return
 		} else {
-			log.Printf("%s is not a supported output type. Choose from: pdf, lex, fountain, fdx, html, latex, or external formats requiring pandoc: epub, mobi, docx, odt, rtf, markdown, rst, json, native, man, textile, mediawiki, org, asciidoc.\n", *to)
+			log.Printf("%s is not a supported output type. Choose from: pdf, lex, fountain, fdx, html, latex, or external formats requiring pandoc: epub, mobi, docx, odt, rtf, markdown, rst, json, native, man, textile, mediawiki, org, asciidoc, htmlpdf, latexpdf.\n", *to)
 			return
 		}
 	}
