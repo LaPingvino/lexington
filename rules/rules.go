@@ -72,6 +72,18 @@ var Default = Set{
 		Left:  1.5,
 		Right: 1,
 	},
+	"dualspeaker": {
+		Left:  1.5,
+		Right: 0.5,
+	},
+	"dualdialog": {
+		Left:  1.0,
+		Right: 0.5,
+	},
+	"dualparen": {
+		Left:  1.3,
+		Right: 0.5,
+	},
 	"title": {
 		Left:  1.5,
 		Right: 1,
