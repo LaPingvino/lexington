@@ -23,11 +23,11 @@ body {
     font-size: 12pt;
     background-color: #fdfdfd;
     color: #111;
-    max-width: 8.5in;
-    margin: 0 auto;
+    margin: 0;
+    padding: 0;
 }
 .page {
-    margin: 1in;
+    margin: 1in 1in 1in 1.5in;
     min-height: 9in;
 }
 .scene-heading {
@@ -43,18 +43,18 @@ body {
 }
 .speaker {
     text-transform: uppercase;
-    text-align: center;
+    margin-left: 2.2in;
     margin-top: 1em;
     margin-bottom: 0;
 }
 .dialogue {
-    margin-left: 2.5in;
-    margin-right: 2.5in;
+    margin-left: 1.5in;
+    margin-right: 1.5in;
     text-align: left;
 }
 .parenthetical {
-    margin-left: 3.1in;
-    margin-right: 3.1in;
+    margin-left: 1.8in;
+    margin-right: 1.5in;
     text-align: left;
 }
 .transition {
@@ -84,25 +84,26 @@ body {
 	text-align: center;
 }
 .dual-dialogue {
-	width: 100%;
+	width: 50%;
 	margin-top: 1em;
 	margin-bottom: 1em;
 }
 .dual-dialogue td {
 	width: 50%;
 	vertical-align: top;
-	padding: 0 1em;
+	padding: 0 0.5em;
 }
 .dual-dialogue .speaker {
+	margin-left: 1.1in;
 	margin-top: 0;
 }
 .dual-dialogue .dialogue {
-	margin-left: 0;
-	margin-right: 0;
+	margin-left: 0.75in;
+	margin-right: 0.75in;
 }
 .dual-dialogue .parenthetical {
-	margin-left: 0.6in;
-	margin-right: 0.6in;
+	margin-left: 0.9in;
+	margin-right: 0.75in;
 }
 @media print {
     .newpage {

@@ -1,0 +1,104 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Screenplay</title>
+<meta charset="UTF-8">
+<style>
+body {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 12pt;
+    background-color: #fdfdfd;
+    color: #111;
+    max-width: 8.5in;
+    margin: 0 auto;
+}
+.page {
+    margin: 1in;
+    min-height: 9in;
+}
+.scene-heading {
+    text-transform: uppercase;
+    font-weight: bold;
+    margin-top: 1.5em;
+    margin-bottom: 1em;
+}
+.action, .general {
+    margin-top: 1em;
+    margin-bottom: 1em;
+    text-align: justify;
+}
+.speaker {
+    text-transform: uppercase;
+    text-align: center;
+    margin-top: 1em;
+    margin-bottom: 0;
+}
+.dialogue {
+    margin-left: 2.5in;
+    margin-right: 2.5in;
+    text-align: left;
+}
+.parenthetical {
+    margin-left: 3.1in;
+    margin-right: 3.1in;
+    text-align: left;
+}
+.transition {
+    text-transform: uppercase;
+    text-align: right;
+    margin-top: 1.5em;
+    margin-bottom: 1.5em;
+}
+.empty {
+    height: 1em;
+}
+.title-page {
+	text-align: center;
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+}
+.title-page h1 {
+	margin-bottom: 1em;
+}
+.title-page p {
+	margin: 0.5em 0;
+}
+.center {
+	text-align: center;
+}
+.dual-dialogue {
+	width: 100%;
+	margin-top: 1em;
+	margin-bottom: 1em;
+}
+.dual-dialogue td {
+	width: 50%;
+	vertical-align: top;
+	padding: 0 1em;
+}
+.dual-dialogue .speaker {
+	margin-top: 0;
+}
+.dual-dialogue .dialogue {
+	margin-left: 0;
+	margin-right: 0;
+}
+.dual-dialogue .parenthetical {
+	margin-left: 0.6in;
+	margin-right: 0.6in;
+}
+@media print {
+    .newpage {
+        page-break-after: always;
+    }
+}
+</style>
+</head>
+<body>
+<div class="page"><table class="dual-dialogue"><tr><td><div class="title-page"><div class="general">: INT. ROOM - DAY</div></div><div class="newpage"></div><div class="page"><div class="speaker">ALICE</div><div class="dialogue">I have something to tell you.</div><div class="empty"></div></td><td><div class="speaker">BOB</div><div class="dialogue">I have something to tell you too.</div><div class="empty"></div></td></tr></table><div class="action">They both stop and look at each other.</div><div class="empty"></div><div class="speaker">ALICE</div><div class="dialogue">You first.</div><div class="empty"></div><div class="speaker">BOB</div><div class="dialogue">No, you first.</div><div class="empty"></div></div>
+</body>
+</html>

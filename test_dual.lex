@@ -16,16 +16,13 @@ dualspeaker_open:
 speaker: ALICE
 dialog: But what about our friendship?
 empty: 
-dualspeaker_open: 
 dualspeaker_next: 
 speaker: BOB
 dialog: We'll stay in touch.
-dualspeaker_close: 
 empty: 
-dualspeaker_next: 
+dualspeaker_close: 
 speaker: ALICE
 dialog: It won't be the same.
-dualspeaker_close: 
 empty: 
 action: Beat.
 empty: 
@@ -41,17 +38,14 @@ dualspeaker_open:
 speaker: ALICE
 dialog: Promise me you'll call every week.
 empty: 
-dualspeaker_open: 
 dualspeaker_next: 
 speaker: BOB
 dialog: I promise.
-dualspeaker_close: 
 empty: 
-dualspeaker_next: 
+dualspeaker_close: 
 speaker: ALICE
 paren: (smiling through tears)
 dialog: Okay. I guess I'm happy for you.
-dualspeaker_close: 
 empty: 
 action: They reach across the table and hold hands.
 empty: 

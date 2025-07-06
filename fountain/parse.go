@@ -339,9 +339,10 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 				out = append(out, lex.Line{Type: "dualspeaker_next"})
 			} else {
 				// If already in dual dialogue and another '^' speaker is encountered,
-				// this is considered a "syntax error" case per discussion.
-				// We treat it as a regular speaker to avoid breaking HTML structure
-				// with more than two columns.
+				// close the current dual dialogue block and treat this as a regular speaker
+				// to avoid breaking HTML structure with more than two columns.
+				out = append(out, lex.Line{Type: "dualspeaker_close"})
+				inDualDialogue = false
 				isCurrentLineDualSpeakerCandidate = false // Reset for current line
 				currentLine.Type = "speaker"
 				currentLine.Contents = strings.TrimRight(trimmedSpaceRow, " ^") // Trim " ^" from content for display

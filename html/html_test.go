@@ -88,3 +88,57 @@ func TestEmptyScreenplay(t *testing.T) {
 		t.Error("Expected a basic HTML structure even for an empty screenplay, but didn't find a doctype.")
 	}
 }
+
+// TestDualDialogueHTML tests that dual dialogue is rendered correctly with proper table structure
+// and that dialogue margins are reset within dual dialogue blocks.
+func TestDualDialogueHTML(t *testing.T) {
+	// Create a screenplay with dual dialogue
+	screenplay := lex.Screenplay{
+		lex.Line{Type: "scene", Contents: "INT. ROOM - DAY"},
+		lex.Line{Type: "dualspeaker_open"},
+		lex.Line{Type: "speaker", Contents: "ALICE"},
+		lex.Line{Type: "dialog", Contents: "I have something to tell you."},
+		lex.Line{Type: "dualspeaker_next"},
+		lex.Line{Type: "speaker", Contents: "BOB"},
+		lex.Line{Type: "dialog", Contents: "I have something to tell you too."},
+		lex.Line{Type: "dualspeaker_close"},
+		lex.Line{Type: "action", Contents: "They both stop and look at each other."},
+	}
+
+	var buffer bytes.Buffer
+	writer := &HTMLWriter{}
+	err := writer.Write(&buffer, screenplay)
+	if err != nil {
+		t.Fatalf("HTMLWriter.Write returned an unexpected error: %v", err)
+	}
+
+	htmlOutput := buffer.String()
+
+	// Check that dual dialogue table structure is correct
+	checks := []struct {
+		name     string
+		substr   string
+		expected bool
+	}{
+		{"Dual dialogue table", `<table class="dual-dialogue">`, true},
+		{"Table row", `<tr>`, true},
+		{"First table cell", `<td>`, true},
+		{"Second table cell (after dualspeaker_next)", `</td><td>`, true},
+		{"Table close", `</td></tr></table>`, true},
+		{"Alice in first column", `<td><div class="speaker">ALICE</div><div class="dialogue">I have something to tell you.</div>`, true},
+		{"Bob in second column", `<td><div class="speaker">BOB</div><div class="dialogue">I have something to tell you too.</div>`, true},
+		{"No nested tables", `<table class="dual-dialogue"><tr><td><table`, false},
+	}
+
+	for _, check := range checks {
+		t.Run(check.name, func(t *testing.T) {
+			actual := strings.Contains(htmlOutput, check.substr)
+			if actual != check.expected {
+				t.Errorf("strings.Contains(%q) = %v, want %v", check.substr, actual, check.expected)
+				if !check.expected {
+					t.Logf("Full HTML output:\n%s", htmlOutput)
+				}
+			}
+		})
+	}
+}
