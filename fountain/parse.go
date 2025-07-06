@@ -85,7 +85,7 @@ func CheckSection(row string) (bool, string, string) {
 
 // CheckForce determines if a row is a forced type (e.g., @speaker, ~lyrics, !action).
 func CheckForce(row string) (bool, string, string) {
-	var force = true
+	force := true
 	var ftype string
 	if len(row) < 1 {
 		return false, "", ""

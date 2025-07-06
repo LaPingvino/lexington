@@ -2,15 +2,15 @@
 package pdf
 
 import (
-	"github.com/lapingvino/lexington/font"
-	"github.com/lapingvino/lexington/internal"
-	"github.com/lapingvino/lexington/lex"
-	"github.com/lapingvino/lexington/rules"
-
 	"io"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/lapingvino/lexington/font"
+	"github.com/lapingvino/lexington/internal"
+	"github.com/lapingvino/lexington/lex"
+	"github.com/lapingvino/lexington/rules"
 
 	"github.com/phpdave11/gofpdf"
 )

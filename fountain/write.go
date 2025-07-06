@@ -23,7 +23,7 @@ func (f *FountainWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		screenplay = screenplay[:len(screenplay)-1]
 	}
 
-	var titlepage = "start"
+	titlepage := "start"
 	for _, line := range screenplay {
 		element := line.Type
 		if titlepage == "start" && line.Type != "titlepage" {
