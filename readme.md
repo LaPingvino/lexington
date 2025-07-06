@@ -1,11 +1,20 @@
-Lexington commandline tool for screenwriters
-============================================
+# Lexington v1.0 - Professional Screenplay Formatter
 
-[![Go](https://github.com/LaPingvino/lexington/actions/workflows/go.yml/badge.svg)](https://github.com/LaPingvino/lexington/actions/workflows/go.yml)
+[![CI](https://github.com/LaPingvino/lexington/actions/workflows/ci.yml/badge.svg)](https://github.com/LaPingvino/lexington/actions/workflows/ci.yml)
+[![Release](https://github.com/LaPingvino/lexington/actions/workflows/release.yml/badge.svg)](https://github.com/LaPingvino/lexington/actions/workflows/release.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/lapingvino/lexington)](https://goreportcard.com/report/github.com/lapingvino/lexington)
+[![License](https://img.shields.io/github/license/lapingvino/lexington)](LICENSE)
 
-Lexington helps you convert between Final Draft, Fountain and its own lex file formats, and output to PDF, HTML and ebook formats.
+**Lexington** is a professional command-line tool for screenwriters that converts between multiple screenplay formats with industry-standard formatting. Built with modern Go and featuring comprehensive dual dialogue support.
 
-The tool supports dual dialogue (simultaneous dialog), configurable margins and fonts, and professional screenplay formatting. It integrates with pandoc for ebook generation and supports multiple output formats.
+## 🎯 Key Features
+
+- **✅ Dual Dialogue Support**: Perfect side-by-side formatting in PDF and HTML
+- **📄 Multiple Formats**: Fountain, FDX (Final Draft), LEX, PDF, HTML, LaTeX, EPUB
+- **🎨 Professional Output**: Industry-standard margins and typography
+- **⚙️ Highly Configurable**: Customize fonts, margins, and styling
+- **🌍 International**: Multi-language scene heading support
+- **🚀 Modern Codebase**: Built with Go 1.24, featuring generics and robust error handling
 
 ## Installation
 

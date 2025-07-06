@@ -25,6 +25,13 @@ import (
 	"github.com/lapingvino/lexington/writer"
 )
 
+// Version information (set by build flags)
+var (
+	version = "dev"
+	commit  = "unknown"
+	date    = "unknown"
+)
+
 // pandocFormats lists the formats that are delegated to the pandoc command.
 var pandocFormats = map[string]bool{
 	"epub":      true,
@@ -76,10 +83,16 @@ func main() {
 	lint := flag.Bool("lint", false, "Run the Fountain linter on the input file")
 	templatePath := flag.String("template", "", "Path to a custom template file (e.g., for HTML, FDX, or LaTeX output).") // New flag
 	help := flag.Bool("help", false, "Show this help message")
+	showVersion := flag.Bool("version", false, "Show version information")
 	flag.Parse()
 
 	if *help {
 		flag.PrintDefaults()
+		return
+	}
+
+	if *showVersion {
+		log.Printf("Lexington version %s (commit: %s, built: %s)", version, commit, date)
 		return
 	}
 
