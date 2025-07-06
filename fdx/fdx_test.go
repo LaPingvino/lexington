@@ -27,7 +27,11 @@ func TestFdxRoundTrip(t *testing.T) {
 
 	// 2. Write the parsed screenplay to an in-memory buffer.
 	var buffer bytes.Buffer
-	Write(&buffer, originalScreenplay)
+	writer := &FDXWriter{}
+	err = writer.Write(&buffer, originalScreenplay)
+	if err != nil {
+		t.Fatalf("FDXWriter.Write returned an unexpected error: %v", err)
+	}
 	if buffer.Len() == 0 {
 		t.Fatal("Writing the screenplay to the buffer resulted in no data.")
 	}

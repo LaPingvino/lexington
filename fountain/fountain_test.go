@@ -29,7 +29,11 @@ func TestFountainRoundTrip(t *testing.T) {
 
 	// 2. Write the parsed screenplay to an in-memory buffer.
 	var buffer bytes.Buffer
-	Write(&buffer, scenes, originalScreenplay)
+	writer := &FountainWriter{SceneConfig: scenes}
+	err = writer.Write(&buffer, originalScreenplay)
+	if err != nil {
+		t.Fatalf("FountainWriter.Write returned an unexpected error: %v", err)
+	}
 	if buffer.Len() == 0 {
 		t.Fatal("Writing the screenplay to the buffer resulted in no data.")
 	}
@@ -70,8 +74,9 @@ func TestParse(t *testing.T) {
 	// because of its "read-ahead" logic to terminate dialogue blocks.
 	// This is expected behavior.
 	expected := lex.Screenplay{
-		lex.Line{Type: "scene", Contents: "INT. HOUSE - DAY"},
-		lex.Line{Type: "empty", Contents: ""},
+		lex.Line{Type: "titlepage", Contents: ""},
+		lex.Line{Type: "", Contents: "INT. HOUSE - DAY"},
+		lex.Line{Type: "newpage", Contents: ""},
 		lex.Line{Type: "speaker", Contents: "MARY"},
 		lex.Line{Type: "dialog", Contents: "I can't believe how easy it is to write in Fountain."},
 		lex.Line{Type: "empty", Contents: ""},
@@ -114,7 +119,9 @@ func TestParse(t *testing.T) {
 // TestParseDualDialogue checks if the parser correctly handles dual dialogue syntax.
 func TestParseDualDialogue(t *testing.T) {
 	scenes := []string{"INT", "EXT"}
-	fountainContent := `INT. ROOM - DAY
+	fountainContent := `title: Test Scene
+
+INT. ROOM - DAY
 
 MARY
 I am speaking.
@@ -125,6 +132,9 @@ At the same time.`
 	screenplay := Parse(scenes, reader)
 
 	expected := lex.Screenplay{
+		lex.Line{Type: "titlepage", Contents: ""},
+		lex.Line{Type: "Title", Contents: "Test Scene"},
+		lex.Line{Type: "newpage", Contents: ""},
 		lex.Line{Type: "scene", Contents: "INT. ROOM - DAY"},
 		lex.Line{Type: "empty", Contents: ""},
 		lex.Line{Type: "dualspeaker_open", Contents: ""},

@@ -59,7 +59,11 @@ func TestCreatePDF(t *testing.T) {
 				panicValue = r
 			}
 		}()
-		Create(tmpfile.Name(), style, screenplay)
+		writer := &PDFWriter{OutputFile: tmpfile.Name(), Elements: style}
+		err := writer.Write(nil, screenplay)
+		if err != nil {
+			t.Fatalf("PDFWriter.Write returned an unexpected error: %v", err)
+		}
 	}()
 
 	if didPanic {

@@ -29,9 +29,10 @@ func TestHTMLWrite(t *testing.T) {
 
 	// 2. Write the screenplay to an in-memory buffer.
 	var buffer bytes.Buffer
-	err := Write(&buffer, screenplay)
+	writer := &HTMLWriter{}
+	err := writer.Write(&buffer, screenplay)
 	if err != nil {
-		t.Fatalf("Write function returned an unexpected error: %v", err)
+		t.Fatalf("HTMLWriter.Write returned an unexpected error: %v", err)
 	}
 
 	htmlOutput := buffer.String()
@@ -76,9 +77,10 @@ func TestEmptyScreenplay(t *testing.T) {
 	var screenplay lex.Screenplay // Empty screenplay
 	var buffer bytes.Buffer
 
-	err := Write(&buffer, screenplay)
+	writer := &HTMLWriter{}
+	err := writer.Write(&buffer, screenplay)
 	if err != nil {
-		t.Fatalf("Write function returned an unexpected error for an empty screenplay: %v", err)
+		t.Fatalf("HTMLWriter.Write returned an unexpected error for an empty screenplay: %v", err)
 	}
 
 	htmlOutput := buffer.String()
