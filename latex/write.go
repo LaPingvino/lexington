@@ -88,11 +88,11 @@ const defaultLaTeXTemplate = `\documentclass[{{printf "%.0f" .Config.FontSize}}p
 \newcommand{\sceneheading}[1]{\noindent\hspace{ {{printf "%.1f" .Config.SceneLeft}}in}` +
 	`\textbf{\MakeUppercase{#1}}\par\vspace{0.5\baselineskip}}
 \newcommand{\action}[1]{\noindent\hspace{ {{printf "%.1f" .Config.ActionLeft}}in}` +
-	`\parbox{ {{printf "%.1f" (sub 8.5 .Config.ActionLeft .Config.ActionRight)}}in}{#1}` +
+	`\parbox{ {{printf "%.1f" (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.ActionLeft .Config.ActionRight)}}in}{#1}` +
 	`\par\vspace{\baselineskip}}
 \newcommand{\character}[1]{\noindent\hspace{ {{printf "%.1f" .Config.SpeakerLeft}}in}\textbf{\MakeUppercase{#1}}\par}
 \newcommand{\dialogue}[1]{\noindent\hspace{ {{printf "%.1f" .Config.DialogLeft}}in}` +
-	`\parbox{ {{printf "%.1f" (sub 8.5 .Config.DialogLeft .Config.DialogRight)}}in}{#1}\par}
+	`\parbox{ {{printf "%.1f" (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.DialogLeft .Config.DialogRight)}}in}{#1}\par}
 \newcommand{\parenthetical}[1]{\noindent\hspace{ {{printf "%.1f" .Config.ParenLeft}}in}\textit{#1}\par}
 \newcommand{\transition}[1]{\noindent\hfill\textbf{\MakeUppercase{#1}}\par\vspace{\baselineskip}}
 \newcommand{\centeredtext}[1]{\begin{center}#1\end{center}\par}
@@ -104,18 +104,17 @@ const defaultLaTeXTemplate = `\documentclass[{{printf "%.0f" .Config.FontSize}}p
 
 % Dual dialogue environment using tabular with configurable spacing
 \newenvironment{dualdialogue}{\noindent\begin{tabular}{` +
-	`p{ {{printf "%.1f" (div (sub 8.5 .Config.ActionLeft .Config.ActionRight) 2.2)}}in}` +
+	`p{ {{printf "%.1f" (div (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.ActionLeft .Config.ActionRight) 2.2)}}in}` +
 	`@{\hspace{0.3in}}` +
-	`p{ {{printf "%.1f" (div (sub 8.5 .Config.ActionLeft .Config.ActionRight) 2.2)}}in}}}` +
+	`p{ {{printf "%.1f" (div (sub 8.5 .Config.LeftMargin .Config.RightMargin .Config.ActionLeft .Config.ActionRight) 2.2)}}in}}}` +
 	`{\end{tabular}\par\vspace{\baselineskip}}
 \newcommand{\leftcol}{}
 \newcommand{\rightcol}{ & }
 
 % Dual dialogue specific commands with configurable margins
-\newcommand{\dualcharacter}[1]{\hspace{ {{printf "%.1f" .Config.DualSpeakerLeft}}in}\textbf{\MakeUppercase{#1}}\par}
-\newcommand{\dualtext}[1]{\hspace{ {{printf "%.1f" .Config.DualDialogLeft}}in}` +
-	`\parbox{ {{printf "%.1f" (div (sub 8.5 .Config.ActionLeft .Config.ActionRight) 2.5)}}in}{#1}\par}
-\newcommand{\dualparenthetical}[1]{\hspace{ {{printf "%.1f" .Config.DualParenLeft}}in}\textit{#1}\par}
+\newcommand{\dualcharacter}[1]{\textbf{\MakeUppercase{#1}}\par}
+\newcommand{\dualtext}[1]{#1\par}
+\newcommand{\dualparenthetical}[1]{\textit{#1}\par}
 
 \begin{document}
 
@@ -227,6 +226,41 @@ func (l *LaTeXWriter) getLatexConfig() LaTeXConfig {
 	}
 }
 
+// preprocessDualDialogue converts speaker/dialog elements to dualspeaker/dualdialog
+// when they appear inside dual dialogue blocks
+func preprocessDualDialogue(screenplay lex.Screenplay) lex.Screenplay {
+	var result lex.Screenplay
+	inDualDialogue := false
+
+	for _, line := range screenplay {
+		newLine := line
+
+		// Track dual dialogue state
+		switch line.Type {
+		case "dualspeaker_open":
+			inDualDialogue = true
+		case "dualspeaker_close":
+			inDualDialogue = false
+		case "speaker":
+			if inDualDialogue {
+				newLine.Type = "dualspeaker"
+			}
+		case "dialog":
+			if inDualDialogue {
+				newLine.Type = "dualdialog"
+			}
+		case "paren":
+			if inDualDialogue {
+				newLine.Type = "dualparen"
+			}
+		}
+
+		result = append(result, newLine)
+	}
+
+	return result
+}
+
 // Write converts the internal lex.Screenplay format to a LaTeX file.
 // It implements the writer.Writer interface.
 //
@@ -235,6 +269,9 @@ func (l *LaTeXWriter) getLatexConfig() LaTeXConfig {
 // (like `screenwright` or `fountain-latex`) installed on the system.
 // The PDF generation step is external to this Go program.
 func (l *LaTeXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
+	// Preprocess screenplay to handle dual dialogue
+	screenplay = preprocessDualDialogue(screenplay)
+
 	// Get template configuration from rules
 	config := l.getLatexConfig()
 
@@ -250,7 +287,13 @@ func (l *LaTeXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 
 	// Create template with helper functions
 	funcMap := template.FuncMap{
-		"sub":    func(a, b, c float64) float64 { return a - b - c },
+		"sub": func(a float64, rest ...float64) float64 {
+			result := a
+			for _, val := range rest {
+				result -= val
+			}
+			return result
+		},
 		"div":    func(a, b float64) float64 { return a / b },
 		"mul":    func(a, b float64) float64 { return a * b },
 		"printf": fmt.Sprintf,
