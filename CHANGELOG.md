@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2024-01-06
+
+### Fixed
+- **HTML Template Issues**: Fixed whitespace control and unknown element handling
+  - Added proper whitespace control using `{{- .Contents -}}` for all content elements
+  - Unknown elements are now properly ignored instead of displaying debug information
+  - Improved HTML output readability with strategic newlines for easier debugging
+- **Template Consistency**: HTML template now follows same patterns as LaTeX template fixes
+- **Debug Output**: Enhanced HTML template structure for better debugging experience
+
+### Technical Improvements
+- Cleaner HTML output with proper line breaks and formatting
+- Consistent whitespace handling across all HTML elements
+- Better template debugging capabilities without affecting functionality
+- All existing tests continue to pass with no functionality changes
+
 ## [1.0.2] - 2024-01-06
 
 ### Fixed
