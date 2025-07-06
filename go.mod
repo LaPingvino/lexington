@@ -5,4 +5,4 @@ require (
 	github.com/phpdave11/gofpdf v1.4.2
 )
 
-go 1.13
+go 1.16
