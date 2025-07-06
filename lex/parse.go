@@ -6,10 +6,10 @@ import (
 	"strings"
 )
 
-//Parse walks through the lex file, which contains the element of a screenplay,
-//optionally followed by a colon and space and the actual contents of that element.
-//Special elements exist: newpage, titlepage and metasection.
-//These elements trigger pdf creation instructions.
+// Parse walks through the lex file, which contains the element of a screenplay,
+// optionally followed by a colon and space and the actual contents of that element.
+// Special elements exist: newpage, titlepage and metasection.
+// These elements trigger pdf creation instructions.
 func Parse(file io.Reader) (out Screenplay) {
 	f := bufio.NewReader(file)
 	var err error
