@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2024-01-06
+
+### Fixed
+- **Go Version Compatibility**: Updated from Go 1.24 to Go 1.23 for better ecosystem compatibility
+- **Code Quality Issues**: Fixed all golangci-lint errors and warnings
+  - Resolved 18 errcheck issues by properly handling error return values
+  - Fixed 7 staticcheck issues by using switch statements instead of if-else chains
+  - Removed 1 unused function from fountain/parse.go
+- **Error Handling**: Improved error handling in deferred file operations
+- **CI/CD Compatibility**: Updated GitHub Actions workflows to use Go 1.23
+
+### Technical Improvements
+- Enhanced golangci-lint configuration for modern linter versions
+- Better error propagation in temporary file handling
+- Improved code maintainability with proper error checking
+- All tests continue to pass with no functionality changes
+
 ## [1.0.1] - 2024-01-06
 
 ### Changed
