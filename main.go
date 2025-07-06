@@ -9,29 +9,18 @@ import (
 	"github.com/lapingvino/lexington/fountain"
 	"github.com/lapingvino/lexington/html"
 	"github.com/lapingvino/lexington/lex"
+	"github.com/lapingvino/lexington/linter" // New import for the linter
 	"github.com/lapingvino/lexington/pdf"
 	"github.com/lapingvino/lexington/rules"
+	"github.com/lapingvino/lexington/writer" // New import for the pluggable template system
 
-	"bytes"
 	"flag"
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 )
-
-// pandocFormats lists the formats that are delegated to the pandoc command.
-var pandocFormats = map[string]bool{
-	"epub":  true,
-	"mobi":  true,
-	"docx":  true,
-	"odt":   true,
-	"rtf":   true,
-	"md":    true,
-	"latex": true,
-}
 
 func main() {
 	start := time.Now()
@@ -47,6 +36,7 @@ func main() {
 	output := flag.String("o", "-", "Output to provided filename. - means standard output.")
 	from := flag.String("from", "", "Input file type. Choose from fountain, lex, fdx. Formats between angle brackets are planned to be supported, but are not supported by this binary.")
 	to := flag.String("to", "", "Output file type. Choose from pdf, lex, fountain, fdx, html, or external formats requiring pandoc: epub, mobi, docx, odt, rtf, md, latex.")
+	lint := flag.Bool("lint", false, "Run the Fountain linter on the input file")
 	help := flag.Bool("help", false, "Show this help message")
 	flag.Parse()
 
@@ -142,55 +132,79 @@ func main() {
 		i = fdx.Parse(infile)
 	default:
 		log.Printf("%s is not a valid input type", *from)
+		return
+	}
+
+	// Run linter if requested
+	if *lint {
+		l := linter.NewLinter()
+		l.Lint(i)
+		if l.HasErrors() {
+			log.Println(l.FormatErrors())
+			// Exit here if linting errors are found and it's solely a linting run
+			// Or continue if we want to allow generation despite lint errors.
+			// For now, let's exit as requested.
+			return
+		} else {
+			log.Println("Linting complete: No errors found.")
+			if *to == "" && *output == "-" { // If no output format specified, and not writing to file, imply lint-only
+				return // If just linting, exit after report.
+			}
+		}
 	}
 
 	log.Println("Output type is ", *to)
+
+	var outputWriter writer.Writer // Declare the interface variable
+	var err error                  // Declare err here for broader scope
+
 	switch *to {
 	case "pdf":
-		if *output == "-" && len(ins) > 0 && ins[0] != "" {
-			*output = ins[0] + ".pdf"
-		}
+		// pdf.PDFWriter will encapsulate the logic for PDF generation.
+		// It will ignore the io.Writer 'outfile' passed to its Write method for now,
+		// and use the 'output' filename directly until the underlying PDF creation
+		// supports writing to an io.Writer.
 		if *output == "-" {
-			log.Println("Cannot write PDF to standard output")
-			return
+			log.Println("Cannot write PDF to standard output. Please provide an output filename (e.g., -o output.pdf).")
+			return // Exit because PDF output to stdout is not supported.
 		}
-		pdf.Create(*output, conf.Elements[*elements], i)
+		// NOTE: pdf.PDFWriter needs to be defined in lexington/pdf/write.go (or similar)
+		// and implement writer.Writer.
+		outputWriter = &pdf.PDFWriter{OutputFile: *output, Elements: conf.Elements[*elements]}
 	case "lex":
-		lex.Write(i, outfile)
+		// lex.LexWriter will encapsulate lex.Write.
+		// NOTE: lex.LexWriter needs to be defined in lexington/lex/write.go
+		// and implement writer.Writer.
+		outputWriter = &lex.LexWriter{}
 	case "fountain":
-		fountain.Write(outfile, conf.Scenes[*sceneout], i)
+		// fountain.FountainWriter will encapsulate fountain.Write.
+		// NOTE: fountain.FountainWriter needs to be defined in lexington/fountain/write.go
+		// and implement writer.Writer. It will also need to handle SceneConfig.
+		outputWriter = &fountain.FountainWriter{SceneConfig: conf.Scenes[*sceneout]}
 	case "fdx":
-		fdx.Write(outfile, i)
+		// fdx.FDXWriter will encapsulate fdx.Write.
+		// NOTE: fdx.FDXWriter needs to be defined in lexington/fdx/write.go
+		// and implement writer.Writer.
+		outputWriter = &fdx.FDXWriter{}
 	case "html":
-		err := html.Write(outfile, i)
-		if err != nil {
-			log.Println("Error writing HTML file: ", err)
-		}
+		// html.HTMLWriter will encapsulate html.Write.
+		// NOTE: html.HTMLWriter needs to be defined in lexington/html/write.go
+		// and implement writer.Writer.
+		outputWriter = &html.HTMLWriter{}
 	default:
-		// Check if the format is one that should be handled by pandoc.
-		if pandocFormats[*to] {
-			pandoc, err := exec.LookPath("pandoc")
-			if err != nil {
-				log.Printf("Error: '%s' output requires pandoc, but it could not be found in your system's PATH.", *to)
-				return
-			}
+		log.Printf("%s is not a supported output type. Choose from: pdf, lex, fountain, fdx, html.", *to)
+		return
+	}
 
-			// Convert the screenplay to Fountain format in memory.
-			var fountainBuffer bytes.Buffer
-			fountain.Write(&fountainBuffer, conf.Scenes[*sceneout], i)
+	// Check if an outputWriter was successfully assigned
+	if outputWriter == nil {
+		log.Println("Failed to initialize output writer. This should not happen for supported types.")
+		return
+	}
 
-			// Prepare and run the pandoc command.
-			cmd := exec.Command(pandoc, "--from=fountain", "--to="+*to, "-o", *output)
-			cmd.Stdin = &fountainBuffer
-			cmd.Stderr = os.Stderr // Pipe pandoc's errors to our stderr.
-
-			log.Printf("Running pandoc to create %s...", *output)
-			err = cmd.Run()
-			if err != nil {
-				log.Printf("Error executing pandoc command: %v", err)
-			}
-		} else {
-			log.Printf("%s is not a valid output type", *to)
-		}
+	// Execute the write operation using the interface
+	err = outputWriter.Write(outfile, i)
+	if err != nil {
+		log.Printf("Error writing output file: %v", err)
 	}
 }

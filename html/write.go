@@ -8,6 +8,9 @@ import (
 	"github.com/lapingvino/lexington/lex"
 )
 
+// HTMLWriter implements the writer.Writer interface for HTML output.
+type HTMLWriter struct{}
+
 const htmlTemplate = `
 <!DOCTYPE html>
 <html>
@@ -80,6 +83,27 @@ body {
 .center {
 	text-align: center;
 }
+.dual-dialogue {
+	width: 100%;
+	margin-top: 1em;
+	margin-bottom: 1em;
+}
+.dual-dialogue td {
+	width: 50%;
+	vertical-align: top;
+	padding: 0 1em;
+}
+.dual-dialogue .speaker {
+	margin-top: 0;
+}
+.dual-dialogue .dialogue {
+	margin-left: 0;
+	margin-right: 0;
+}
+.dual-dialogue .parenthetical {
+	margin-left: 0.6in;
+	margin-right: 0.6in;
+}
 @media print {
     .newpage {
         page-break-after: always;
@@ -89,30 +113,34 @@ body {
 </head>
 <body>
 <div class="page">
-{{range .}}
-    {{if eq .Type "titlepage"}}<div class="title-page">
-    {{else if eq .Type "Title"}}<h1>{{.Contents}}</h1>
-    {{else if eq .Type "Credit"}}<p><em>{{.Contents}}</em></p>
-    {{else if eq .Type "Author"}}<p>{{.Contents}}</p>
-    {{else if eq .Type "metasection"}}</div><div class="newpage"></div><div class="page">
-    {{else if eq .Type "scene"}}<div class="scene-heading">{{.Contents}}</div>
-    {{else if eq .Type "action" "general"}}<div class="action">{{.Contents}}</div>
-    {{else if eq .Type "speaker"}}<div class="speaker">{{.Contents}}</div>
-    {{else if eq .Type "dialog" "lyrics"}}<div class="dialogue">{{.Contents}}</div>
-    {{else if eq .Type "paren"}}<div class="parenthetical">{{.Contents}}</div>
-    {{else if eq .Type "trans"}}<div class="transition">{{.Contents}}</div>
-    {{else if eq .Type "center"}}<div class="center">{{.Contents}}</div>
-    {{else if eq .Type "newpage"}}</div><div class="newpage"></div><div class="page">
-    {{else if eq .Type "empty"}}<div class="empty"></div>
-    {{else}}<div class="general">{{.Type}}: {{.Contents}}</div>{{end}}
-{{end}}
+{{- range . -}}
+    {{- if eq .Type "titlepage" -}}<div class="title-page">{{-
+    else if eq .Type "Title" -}}<h1>{{.Contents}}</h1>{{-
+    else if eq .Type "Credit" -}}<p><em>{{.Contents}}</em></p>{{-
+    else if eq .Type "Author" -}}<p>{{.Contents}}</p>{{-
+    else if eq .Type "metasection" -}}</div><div class=\"newpage\"></div><div class=\"page\">{{-
+    else if eq .Type "scene" -}}<div class="scene-heading">{{.Contents}}</div>{{-
+    else if eq .Type "action" "general" -}}<div class="action">{{.Contents}}</div>{{-
+    else if eq .Type "speaker" -}}<div class="speaker">{{.Contents}}</div>{{-
+    else if eq .Type "dialog" "lyrics" -}}<div class="dialogue">{{.Contents}}</div>{{-
+    else if eq .Type "paren" -}}<div class="parenthetical">{{.Contents}}</div>{{-
+    else if eq .Type "trans" -}}<div class="transition">{{.Contents}}</div>{{-
+    else if eq .Type "center" -}}<div class="center">{{.Contents}}</div>{{-
+    else if eq .Type "newpage" -}}</div><div class=\"newpage\"></div><div class=\"page\">{{-
+    else if eq .Type "empty" -}}<div class="empty"></div>{{-
+    else if eq .Type "dualspeaker_open" -}}<table class="dual-dialogue"><tr><td>{{-
+    else if eq .Type "dualspeaker_next" -}}</td><td>{{-
+    else if eq .Type "dualspeaker_close" -}}</td></tr></table>{{-
+    else -}}<div class="general">{{.Type}}: {{.Contents}}</div>{{- end -}}
+{{- end -}}
 </div>
 </body>
 </html>
 `
 
 // Write converts the internal lex.Screenplay format to a self-contained HTML file.
-func Write(w io.Writer, screenplay lex.Screenplay) error {
+// It implements the writer.Writer interface.
+func (h *HTMLWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	tmpl, err := template.New("screenplay").Parse(htmlTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to parse HTML template: %w", err)

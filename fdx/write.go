@@ -10,7 +10,12 @@ import (
 // Write converts the internal lex.Screenplay format to an FDX XML file.
 // Note: This is a basic implementation and does not handle all FDX features,
 // such as title pages or complex text adornments.
-func Write(f io.Writer, screenplay lex.Screenplay) {
+// FDXWriter implements the writer.Writer interface for FDX output.
+type FDXWriter struct{}
+
+// Write converts the internal lex.Screenplay format to an FDX XML file.
+// It implements the writer.Writer interface.
+func (f *FDXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	var fdxFile FdxFile
 	fdxFile.XMLName = xml.Name{Local: "FinalDraft"}
 
@@ -58,14 +63,17 @@ func Write(f io.Writer, screenplay lex.Screenplay) {
 	}
 
 	// Write the standard XML header to the file.
-	f.Write([]byte(xml.Header))
+	_, err := w.Write([]byte(xml.Header))
+	if err != nil {
+		return err
+	}
 
 	// Use an encoder to get indented, human-readable XML output.
-	encoder := xml.NewEncoder(f)
+	encoder := xml.NewEncoder(w)
 	encoder.Indent("", "  ")
-	err := encoder.Encode(fdxFile)
+	err = encoder.Encode(fdxFile)
 	if err != nil {
-		// In case of an error, write a comment into the file.
-		f.Write([]byte("<!-- Error encoding FDX file: " + err.Error() + " -->"))
+		return err
 	}
+	return nil
 }

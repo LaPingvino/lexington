@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/lapingvino/lexington/lex"
@@ -102,6 +103,50 @@ func TestParse(t *testing.T) {
 			limit = len(expected)
 		}
 		for i := 0; i < limit; i++ {
+			if !reflect.DeepEqual(screenplay[i], expected[i]) {
+				t.Errorf("First mismatch at line %d:\n  Got:      %+v\n  Expected: %+v\n", i, screenplay[i], expected[i])
+				break
+			}
+		}
+	}
+}
+
+// TestParseDualDialogue checks if the parser correctly handles dual dialogue syntax.
+func TestParseDualDialogue(t *testing.T) {
+	scenes := []string{"INT", "EXT"}
+	fountainContent := `INT. ROOM - DAY
+
+MARY
+I am speaking.
+
+TOM ^
+At the same time.`
+	reader := strings.NewReader(fountainContent)
+	screenplay := Parse(scenes, reader)
+
+	expected := lex.Screenplay{
+		lex.Line{Type: "scene", Contents: "INT. ROOM - DAY"},
+		lex.Line{Type: "empty", Contents: ""},
+		lex.Line{Type: "dualspeaker_open", Contents: ""},
+		lex.Line{Type: "speaker", Contents: "MARY"},
+		lex.Line{Type: "dialog", Contents: "I am speaking."},
+		lex.Line{Type: "empty", Contents: ""},
+		lex.Line{Type: "dualspeaker_next", Contents: ""},
+		lex.Line{Type: "speaker", Contents: "TOM"},
+		lex.Line{Type: "dialog", Contents: "At the same time."},
+		lex.Line{Type: "dualspeaker_close", Contents: ""},
+		lex.Line{Type: "empty", Contents: ""},
+	}
+
+	if !reflect.DeepEqual(screenplay, expected) {
+		t.Errorf("Parsed dual dialogue does not match expected structure.")
+		t.Logf("Got %d lines, Expected %d lines.", len(screenplay), len(expected))
+		t.Logf("Got:\n%#v\n", screenplay)
+		t.Logf("Expected:\n%#v\n", expected)
+		if len(screenplay) != len(expected) {
+			t.Fatalf("Length mismatch: got %d, expected %d", len(screenplay), len(expected))
+		}
+		for i := 0; i < len(screenplay); i++ {
 			if !reflect.DeepEqual(screenplay[i], expected[i]) {
 				t.Errorf("First mismatch at line %d:\n  Got:      %+v\n  Expected: %+v\n", i, screenplay[i], expected[i])
 				break

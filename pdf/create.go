@@ -2,15 +2,23 @@
 package pdf
 
 import (
+	"github.com/lapingvino/lexington/font"
 	"github.com/lapingvino/lexington/lex"
 	"github.com/lapingvino/lexington/rules"
-	"github.com/lapingvino/lexington/font"
 
+	"io"
+	"regexp"
 	"strconv"
 	"strings"
-	"regexp"
+
 	"github.com/phpdave11/gofpdf"
 )
+
+// PDFWriter implements the writer.Writer interface for PDF output.
+type PDFWriter struct {
+	OutputFile string
+	Elements   rules.Set
+}
 
 type Tree struct {
 	PDF   *gofpdf.Fpdf
@@ -74,9 +82,9 @@ func (t Tree) Render() {
 
 var (
 	bolditalic = regexp.MustCompile("\\*{3}([^\\*\n]+)\\*{3}")
-	bold = regexp.MustCompile("\\*{2}([^\\*\n]+)\\*{2}")
-	italic = regexp.MustCompile("\\*{1}([^\\*\n]+)\\*{1}")
-	underline = regexp.MustCompile("_{1}([^\\*\n]+)_{1}")
+	bold       = regexp.MustCompile("\\*{2}([^\\*\n]+)\\*{2}")
+	italic     = regexp.MustCompile("\\*{1}([^\\*\n]+)\\*{1}")
+	underline  = regexp.MustCompile("_{1}([^\\*\n]+)_{1}")
 )
 
 func line(pdf *gofpdf.Fpdf, format rules.Format, html gofpdf.HTMLBasicType, text string) {
@@ -94,17 +102,21 @@ func line(pdf *gofpdf.Fpdf, format rules.Format, html gofpdf.HTMLBasicType, text
 		text = underline.ReplaceAllString(text, "<u>$1</u>")
 
 		if format.Align == "C" {
-			text = "<center>"+text+"</center>"
+			text = "<center>" + text + "</center>"
 		}
 		html.Write(0.165, text)
-		pdf.SetY(pdf.GetY()+0.165)
+		pdf.SetY(pdf.GetY() + 0.165)
 		return
 	}
 
 	pdf.MultiCell(0, 0.165, text, "", format.Align, false)
 }
 
-func Create(file string, format rules.Set, contents lex.Screenplay) {
+// Write converts the internal lex.Screenplay format to a PDF file.
+// It implements the writer.Writer interface.
+// Note: For PDF, the 'w io.Writer' argument is currently ignored as gofpdf
+// requires a file path for output. The output file path is taken from PDFWriter.OutputFile.
+func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	pdf := gofpdf.New("P", "in", "Letter", "")
 	pdf.AddUTF8FontFromBytes("CourierPrime", "", font.MustAsset("CourierBadi-Regular.ttf"))
 	pdf.AddUTF8FontFromBytes("CourierPrime", "B", font.MustAsset("CourierBadi-Regular.ttf"))
@@ -115,13 +127,14 @@ func Create(file string, format rules.Set, contents lex.Screenplay) {
 	pdf.SetXY(1, 1)
 	f := Tree{
 		PDF:   pdf,
-		Rules: format,
-		F:     contents,
+		Rules: p.Elements, // Use the Elements from the PDFWriter struct
+		F:     screenplay, // Use the screenplay passed to the Write method
 		HTML:  pdf.HTMLBasicNew(),
 	}
 	f.Render()
-	err := pdf.OutputFileAndClose(file)
+	err := pdf.OutputFileAndClose(p.OutputFile) // Use the OutputFile from the PDFWriter struct
 	if err != nil {
-		panic(err)
+		return err // Return the error instead of panicking
 	}
+	return nil
 }
