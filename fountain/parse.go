@@ -106,31 +106,29 @@ func CheckForce(row string) (bool, string, string) {
 	return force, ftype, row
 }
 
+// ParseState holds the state needed during parsing
+type ParseState struct {
+	scenes                []string
+	titlepage             bool
+	inDialogueContext     bool
+	inDualDialogue        bool
+	titletag              string
+	consecutiveEmptyLines int
+	hasTitlePageContent   bool
+	out                   lex.Screenplay
+}
+
 // Parse converts a Fountain file into the internal lex.Screenplay format.
 func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 	Scene = scenes
-	var err error
-	var titlepage bool = true
-	var inDialogueContext bool = false // True if the *previous* line allows for dialog/paren
-	var inDualDialogue bool = false    // True if we are currently inside a dual dialogue block
-	var titletag string
-	var toParse []string
-	var s string
-	var consecutiveEmptyLines int = 0
-	var hasTitlePageContent bool = false // Track if we actually have title page content
 
-	// Read all lines into a buffer
-	// Note: ReadString('\n') includes the newline character if found.
-	f := bufio.NewReader(file)
-	for err == nil {
-		s, err = f.ReadString('\n')
-		if err != io.EOF || len(s) > 0 {
-			toParse = append(toParse, s)
-		}
+	toParse := readAllLines(file)
+
+	state := &ParseState{
+		scenes:    scenes,
+		titlepage: true,
+		out:       make(lex.Screenplay, 0),
 	}
-	// Add a sentinel empty line to trigger final closing logic, especially for dual dialogue.
-	// This line will be processed last but not necessarily appended to `out`.
-	toParse = append(toParse, "")
 
 	for i, row := range toParse {
 		originalRow := row
@@ -138,269 +136,284 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 		trimmedSpaceRow := strings.TrimSpace(row)
 
 		var currentLine lex.Line
-		var isCurrentLineDualSpeakerCandidate bool = false
+		var isCurrentLineDualSpeakerCandidate bool
 
-		// --- Title Page Handling ---
-		if titlepage {
-			// A title page ends if:
-			// 1. A line without a colon is encountered, AND it's not purely an empty line,
-			//    OR if it's the very first line of the file and it doesn't have a colon
-			//    (implies the file starts directly with screenplay body).
-			// 2. Three or more consecutive empty lines are encountered.
-
-			isKeyValLine := strings.Contains(row, ":") && !strings.HasPrefix(row, "   ")
-
-			// Check for consecutive empty lines
-			if trimmedSpaceRow == "" {
-				consecutiveEmptyLines++
-			} else {
-				consecutiveEmptyLines = 0 // Reset counter if non-empty line
-			}
-
-			// Condition to exit title page mode
-			if (!isKeyValLine && trimmedSpaceRow != "") || (consecutiveEmptyLines >= 2) {
-				titlepage = false
-				// Only add newpage marker if we actually had title page content
-				if hasTitlePageContent {
-					out = append(out, lex.Line{Type: lex.TypeNewPage})
-				}
-				if trimmedSpaceRow == "" {
-					// If the transition was triggered by empty lines, and the current line is also empty,
-					// this empty line acts as part of the page break and should not be processed further
-					// by the screenplay body parser as a standalone empty line.
-					continue
-				}
-				// If transition by a non-key-value, non-empty line (e.g., a scene heading),
-				// this line needs to fall through and be parsed by the screenplay body logic.
-			}
-
-			// If still in title page mode after checks, parse as a title page line.
-			if titlepage {
-				if titletag == "" && trimmedSpaceRow != "" { // Only add titlepage marker if content exists
-					out = append(out, lex.Line{Type: lex.TypeTitlePage})
-					hasTitlePageContent = true
-				}
-
-				if isKeyValLine {
-					// This is a title page key-value pair
-					split := strings.SplitN(row, ":", 2)
-					currentMetaTag := split[0]
-					switch strings.ToLower(currentMetaTag) {
-					case "title":
-						titletag = "Title" // Capitalize for HTML template match
-					case "credit":
-						titletag = "Credit" // Capitalize for HTML template match
-					case "author", "authors":
-						titletag = "Author" // Capitalize for HTML template match
-					default:
-						// If previous tag was one of the special ones, add a metasection break.
-						if titletag == "Title" || titletag == "Credit" || titletag == "Author" {
-							out = append(out, lex.Line{Type: "metasection"})
-						}
-						titletag = currentMetaTag // For other custom tags, keep original case
-						titletag = currentMetaTag
-					}
-					currentLine.Type = titletag
-					currentLine.Contents = strings.TrimSpace(split[1])
-					hasTitlePageContent = true
-				} else {
-					// Continuation of a multi-line title page entry
-					currentLine.Type = titletag
-					currentLine.Contents = trimmedSpaceRow
-					hasTitlePageContent = true
-				}
-
-				if currentLine.Contents == "" { // Don't append purely empty content lines that aren't structural (like the `titlepage` itself)
-					continue
-				}
-				out = append(out, currentLine)
-				continue // Line was handled by title page, move to next row
+		// Handle title page parsing
+		if state.titlepage {
+			if handled := state.handleTitlePage(row, trimmedSpaceRow, &currentLine); handled {
+				continue
 			}
 		}
 
-		// --- Normal Screenplay Body Parsing (if titlepage is false) ---
+		// Parse screenplay body
+		currentLine, isCurrentLineDualSpeakerCandidate = state.parseScreenplayLine(originalRow, row, trimmedSpaceRow)
+
+		// Handle dual dialogue logic
+		state.handleDualDialogue(currentLine, isCurrentLineDualSpeakerCandidate, i, len(toParse))
+
+		// Append line if appropriate
+		if state.shouldAppendLine(currentLine, trimmedSpaceRow, i, len(toParse)) {
+			state.out = append(state.out, currentLine)
+		}
+
+		// Update dialogue context for next iteration
+		state.updateDialogueContext(currentLine)
+	}
+
+	return state.out
+}
+
+func readAllLines(file io.Reader) []string {
+	var toParse []string
+	f := bufio.NewReader(file)
+
+	for {
+		s, err := f.ReadString('\n')
+		if err != nil {
+			if err == io.EOF && len(s) > 0 {
+				toParse = append(toParse, s)
+			}
+			break
+		}
+		toParse = append(toParse, s)
+	}
+
+	// Add sentinel empty line for final closing logic
+	toParse = append(toParse, "")
+	return toParse
+}
+
+func (state *ParseState) handleTitlePage(row, trimmedSpaceRow string, currentLine *lex.Line) bool {
+	isKeyValLine := strings.Contains(row, ":") && !strings.HasPrefix(row, "   ")
+
+	// Check for consecutive empty lines
+	if trimmedSpaceRow == "" {
+		state.consecutiveEmptyLines++
+	} else {
+		state.consecutiveEmptyLines = 0
+	}
+
+	// Check if we should exit title page mode
+	if (!isKeyValLine && trimmedSpaceRow != "") || (state.consecutiveEmptyLines >= 2) {
+		state.titlepage = false
+		if state.hasTitlePageContent {
+			state.out = append(state.out, lex.Line{Type: lex.TypeNewPage})
+		}
 		if trimmedSpaceRow == "" {
-			currentLine.Type = "empty"
-			currentLine.Contents = ""
-		} else {
-			foundExplicitType := false
-
-			// Check forced types (@speaker, ~lyrics, !action)
-			if check, ftype, contents := CheckForce(originalRow); check {
-				currentLine.Type = ftype
-				currentLine.Contents = strings.TrimSpace(contents) // Ensure content is fully trimmed
-				foundExplicitType = true
-				if ftype == "speaker" {
-					// A forced speaker: @SPEAKER
-					// Check if it's a dual dialogue speaker by looking at the original row's suffix
-					if strings.HasSuffix(currentLine.Contents, "^") { // Check trimmed content for ^
-						isCurrentLineDualSpeakerCandidate = true
-						currentLine.Contents = strings.TrimRight(currentLine.Contents, " ^") // Trim " ^" from content (already trimmed)
-					}
-				}
-			}
-
-			// Check other structural types (Scene, Transition, Newpage, Section)
-			if !foundExplicitType {
-				checkfuncs := []func(string) (bool, string, string){
-					CheckScene,
-					CheckCrow,
-					CheckEqual,
-					CheckSection,
-				}
-				for _, checkfunc := range checkfuncs {
-					if check, element, contents := checkfunc(row); check {
-						currentLine.Type = element
-						currentLine.Contents = strings.TrimSpace(contents) // Ensure content is fully trimmed
-						foundExplicitType = true
-						break
-					}
-				}
-			}
-
-			// If no explicit type found yet, determine based on inferred types (speaker, paren, dialog, action)
-			if !foundExplicitType {
-				charcheck := strings.Split(row, "(")
-				if len(charcheck) > 0 && strings.ToUpper(charcheck[0]) == charcheck[0] && strings.TrimSpace(charcheck[0]) != "" {
-					// Looks like a speaker name (all caps, not empty before parenthesis)
-					currentLine.Type = lex.TypeSpeaker
-					currentLine.Contents = trimmedSpaceRow
-					// Check if it's a dual dialogue speaker by looking at the original row's suffix
-					if strings.HasSuffix(currentLine.Contents, "^") { // Check currentLine.Contents for ^
-						isCurrentLineDualSpeakerCandidate = true
-						currentLine.Contents = strings.TrimRight(currentLine.Contents, " ^") // Trim " ^" from content (already trimmed)
-					}
-				} else if len(row) > 1 && row[0] == '(' && row[len(row)-1] == ')' {
-					// It's a parenthetical
-					if inDialogueContext {
-						currentLine.Type = "paren"
-					} else {
-						// Standalone parenthetical like "(what? I don't know...)" is an action.
-						currentLine.Type = "action"
-					}
-					currentLine.Contents = trimmedSpaceRow
-				} else if inDialogueContext {
-					// Dialogue following a dialogue element (based on inDialogueContext)
-					currentLine.Type = "dialog"
-					currentLine.Contents = trimmedSpaceRow
-				} else {
-					// Default to action if no other type matches and not in dialogue context
-					currentLine.Type = "action"
-					currentLine.Contents = trimmedSpaceRow
-				}
-			}
+			return true // Skip this empty line
 		}
+		return false // Process as screenplay body
+	}
 
-		// 2. Dual Dialogue Closing Logic (This happens *after* currentLine is determined, but *before* appending it)
-		// A dual dialogue block is closed if `inDualDialogue` is true AND the `currentLine` is not
-		// a speaker, dialogue, parenthetical, or an empty line (which can separate dialogue blocks).
-		if inDualDialogue {
-			shouldCloseDual := false
-			switch currentLine.Type {
-			case lex.TypeScene, lex.TypeAction, lex.TypeTrans, lex.TypeCenter, "section", "synopse", lex.TypeNewPage, lex.TypeTitlePage, "metasection":
-				shouldCloseDual = true
-			case lex.TypeSpeaker:
-				if !isCurrentLineDualSpeakerCandidate {
-					shouldCloseDual = true // A regular speaker ends a dual dialogue
-				}
-			case lex.TypeEmpty:
-				// If this is the *last* line (the sentinel empty line), and we are in dual dialogue,
-				// it means the dual dialogue should close here.
-				if i == len(toParse)-1 {
-					shouldCloseDual = true
-				}
-				// Otherwise, an empty line *within* a dual dialogue block does not close it.
-			}
+	// Still in title page mode
+	if state.titletag == "" && trimmedSpaceRow != "" {
+		state.out = append(state.out, lex.Line{Type: lex.TypeTitlePage})
+		state.hasTitlePageContent = true
+	}
 
-			if shouldCloseDual {
-				out = append(out, lex.Line{Type: lex.TypeDualClose})
-				inDualDialogue = false
-			}
+	if isKeyValLine {
+		state.parseTitlePageKeyValue(row, currentLine)
+	} else {
+		currentLine.Type = state.titletag
+		currentLine.Contents = trimmedSpaceRow
+		state.hasTitlePageContent = true
+	}
+
+	if currentLine.Contents == "" {
+		return true // Skip empty content lines
+	}
+
+	state.out = append(state.out, *currentLine)
+	return true
+}
+
+func (state *ParseState) parseTitlePageKeyValue(row string, currentLine *lex.Line) {
+	split := strings.SplitN(row, ":", 2)
+	currentMetaTag := split[0]
+
+	switch strings.ToLower(currentMetaTag) {
+	case "title":
+		state.titletag = "Title"
+	case "credit":
+		state.titletag = "Credit"
+	case "author", "authors":
+		state.titletag = "Author"
+	default:
+		if state.titletag == "Title" || state.titletag == "Credit" || state.titletag == "Author" {
+			state.out = append(state.out, lex.Line{Type: "metasection"})
 		}
+		state.titletag = currentMetaTag
+	}
 
-		// 3. Dual Dialogue Opening/Next Logic (This also happens *before* appending the current line)
-		if isCurrentLineDualSpeakerCandidate {
-			if !inDualDialogue { // This is the *first* dual speaker in a new dual block
-				// Insert `dualspeaker_open` marker *before* the previous speaker's block.
-				// This involves looking back for the preceding speaker's entire block (speaker + dialog/paren lines)
-				// and inserting `dualspeaker_open` before it.
-				// We need to find the empty line before the previous speaker.
-				foundOpenInsertPoint := false
-				for j := len(out) - 1; j >= 0; j-- {
-					if out[j].Type == lex.TypeSpeaker { // Found the previous speaker (e.g., "MARY" in the test case)
-						// Go back until an empty line *before* that speaker or the start of the screenplay
-						for k := j; k >= 0; k-- { // Start from speaker line
-							if out[k].Type == lex.TypeEmpty {
-								// Insert dualspeaker_open after this empty line.
-								out = append(out[:k+1], append([]lex.Line{{Type: lex.TypeDualOpen}}, out[k+1:]...)...)
-								foundOpenInsertPoint = true
-								break
-							} else if k == 0 { // If we reach the very beginning and no empty line
-								out = append([]lex.Line{{Type: lex.TypeDualOpen}}, out...)
-								foundOpenInsertPoint = true
-								break
-							}
-						}
-						if foundOpenInsertPoint {
-							break // Break from outer loop too, found insertion point for open
-						}
-					}
-				}
-				inDualDialogue = true // Mark that we are now inside a dual dialogue block
-				// Append `dualspeaker_next` immediately before the current dual speaker's line.
-				out = append(out, lex.Line{Type: lex.TypeDualNext})
-			} else {
-				// If already in dual dialogue and another '^' speaker is encountered,
-				// close the current dual dialogue block and treat this as a regular speaker
-				// to avoid breaking HTML structure with more than two columns.
-				out = append(out, lex.Line{Type: lex.TypeDualClose})
-				inDualDialogue = false
-				isCurrentLineDualSpeakerCandidate = false // Reset for current line
-				currentLine.Type = lex.TypeSpeaker
-				currentLine.Contents = strings.TrimRight(trimmedSpaceRow, " ^") // Trim " ^" from content for display
-			}
+	currentLine.Type = state.titletag
+	currentLine.Contents = strings.TrimSpace(split[1])
+	state.hasTitlePageContent = true
+}
+
+func (state *ParseState) parseScreenplayLine(originalRow, row, trimmedSpaceRow string) (lex.Line, bool) {
+	var currentLine lex.Line
+	var isCurrentLineDualSpeakerCandidate bool
+
+	if trimmedSpaceRow == "" {
+		currentLine.Type = "empty"
+		currentLine.Contents = ""
+		return currentLine, false
+	}
+
+	// Check forced types first
+	if check, ftype, contents := CheckForce(originalRow); check {
+		currentLine.Type = ftype
+		currentLine.Contents = strings.TrimSpace(contents)
+		if ftype == "speaker" && strings.HasSuffix(currentLine.Contents, "^") {
+			isCurrentLineDualSpeakerCandidate = true
+			currentLine.Contents = strings.TrimRight(currentLine.Contents, " ^")
 		}
+		return currentLine, isCurrentLineDualSpeakerCandidate
+	}
 
-		// Append the determined line for the current row
-		// The last empty sentinel line should generally not be appended unless it's a specific requirement.
-		// Given TestParseDualDialogue expects `dualspeaker_close` then `empty`, we need to append the empty.
-		// However, for the general case, if it's the very last sentinel line and it triggered dual dialogue closure,
-		// we should probably not append it as a regular empty line.
-		if !(i == len(toParse)-1 && trimmedSpaceRow == "" && inDualDialogue) { // Don't append the final sentinel empty line if it just closed dual dialogue
-			out = append(out, currentLine)
-		} else if i == len(toParse)-1 && trimmedSpaceRow == "" && !inDualDialogue {
-			// If it's the final sentinel and no dual dialogue was open, append it if needed by tests.
-			// TestParse expects a final empty line.
-			out = append(out, currentLine)
-		}
+	// Check structural types
+	if currentLine = state.checkStructuralTypes(row); currentLine.Type != "" {
+		return currentLine, false
+	}
 
-		// 4. Update `inDialogueContext` for the next iteration.
-		// This determines if subsequent lines can be automatically interpreted as `paren` or `dialog`.
-		// It's crucial this happens *after* `currentLine` is appended, using its final type.
-		if currentLine.IsDialogueElement() {
-			inDialogueContext = true
-		} else if currentLine.Type == lex.TypeEmpty {
-			// If an empty line is encountered immediately after a speaker (and not in dual dialogue),
-			// the speaker should be reverted to an action according to Fountain rules.
-			// This indicates the end of a dialogue context.
-			if len(out) >= 2 && out[len(out)-2].Type == lex.TypeSpeaker && !inDualDialogue {
-				out[len(out)-2].Type = lex.TypeAction // Revert last speaker to action if followed only by empty line
-				inDialogueContext = false             // Context breaks
-			} else {
-				// An empty line not immediately after a speaker also breaks the `inDialogueContext`
-				// for auto-detection, unless it's within a dual dialogue block.
-				inDialogueContext = false
+	// Check inferred types
+	return state.checkInferredTypes(row, trimmedSpaceRow)
+}
+
+func (state *ParseState) checkStructuralTypes(row string) lex.Line {
+	checkfuncs := []func(string) (bool, string, string){
+		CheckScene,
+		CheckCrow,
+		CheckEqual,
+		CheckSection,
+	}
+
+	for _, checkfunc := range checkfuncs {
+		if check, element, contents := checkfunc(row); check {
+			return lex.Line{
+				Type:     element,
+				Contents: strings.TrimSpace(contents),
 			}
-		} else {
-			// Any other non-dialogue line breaks the context.
-			inDialogueContext = false
 		}
 	}
 
-	// This final closing is now handled within the loop for the sentinel line.
-	// if inDualDialogue {
-	// 	out = append(out, lex.Line{Type: "dualspeaker_close"})
-	// }
+	return lex.Line{}
+}
 
-	return out
+func (state *ParseState) checkInferredTypes(row, trimmedSpaceRow string) (lex.Line, bool) {
+	var currentLine lex.Line
+	var isCurrentLineDualSpeakerCandidate bool
+
+	charcheck := strings.Split(row, "(")
+	if len(charcheck) > 0 && strings.ToUpper(charcheck[0]) == charcheck[0] && strings.TrimSpace(charcheck[0]) != "" {
+		// Speaker name (all caps)
+		currentLine.Type = lex.TypeSpeaker
+		currentLine.Contents = trimmedSpaceRow
+		if strings.HasSuffix(currentLine.Contents, "^") {
+			isCurrentLineDualSpeakerCandidate = true
+			currentLine.Contents = strings.TrimRight(currentLine.Contents, " ^")
+		}
+	} else if len(row) > 1 && row[0] == '(' && row[len(row)-1] == ')' {
+		// Parenthetical
+		if state.inDialogueContext {
+			currentLine.Type = "paren"
+		} else {
+			currentLine.Type = "action"
+		}
+		currentLine.Contents = trimmedSpaceRow
+	} else if state.inDialogueContext {
+		// Dialogue
+		currentLine.Type = "dialog"
+		currentLine.Contents = trimmedSpaceRow
+	} else {
+		// Default to action
+		currentLine.Type = "action"
+		currentLine.Contents = trimmedSpaceRow
+	}
+
+	return currentLine, isCurrentLineDualSpeakerCandidate
+}
+
+func (state *ParseState) handleDualDialogue(currentLine lex.Line, isCurrentLineDualSpeakerCandidate bool, i, totalLines int) {
+	// Handle dual dialogue closing
+	if state.inDualDialogue && state.shouldCloseDualDialogue(currentLine, isCurrentLineDualSpeakerCandidate, i, totalLines) {
+		state.out = append(state.out, lex.Line{Type: lex.TypeDualClose})
+		state.inDualDialogue = false
+	}
+
+	// Handle dual dialogue opening/next
+	if isCurrentLineDualSpeakerCandidate {
+		if !state.inDualDialogue {
+			state.insertDualDialogueOpen()
+			state.inDualDialogue = true
+			state.out = append(state.out, lex.Line{Type: lex.TypeDualNext})
+		} else {
+			// Close current dual dialogue and treat as regular speaker
+			state.out = append(state.out, lex.Line{Type: lex.TypeDualClose})
+			state.inDualDialogue = false
+		}
+	}
+}
+
+func (state *ParseState) shouldCloseDualDialogue(currentLine lex.Line, isCurrentLineDualSpeakerCandidate bool, i, totalLines int) bool {
+	switch currentLine.Type {
+	case lex.TypeScene, lex.TypeAction, lex.TypeTrans, lex.TypeCenter, "section", "synopse", lex.TypeNewPage, lex.TypeTitlePage, "metasection":
+		return true
+	case lex.TypeSpeaker:
+		return !isCurrentLineDualSpeakerCandidate
+	case lex.TypeEmpty:
+		return i == totalLines-1 // Last line
+	default:
+		return false
+	}
+}
+
+func (state *ParseState) insertDualDialogueOpen() {
+	foundOpenInsertPoint := false
+	for j := len(state.out) - 1; j >= 0; j-- {
+		if state.out[j].Type == lex.TypeSpeaker {
+			for k := j; k >= 0; k-- {
+				if state.out[k].Type == lex.TypeEmpty {
+					state.out = append(state.out[:k+1], append([]lex.Line{{Type: lex.TypeDualOpen}}, state.out[k+1:]...)...)
+					foundOpenInsertPoint = true
+					break
+				} else if k == 0 {
+					state.out = append([]lex.Line{{Type: lex.TypeDualOpen}}, state.out...)
+					foundOpenInsertPoint = true
+					break
+				}
+			}
+			if foundOpenInsertPoint {
+				break
+			}
+		}
+	}
+}
+
+func (state *ParseState) shouldAppendLine(currentLine lex.Line, trimmedSpaceRow string, i, totalLines int) bool {
+	// Don't append the final sentinel empty line if it just closed dual dialogue
+	if i == totalLines-1 && trimmedSpaceRow == "" && state.inDualDialogue {
+		return false
+	}
+	// Append final sentinel if no dual dialogue was open (for tests)
+	if i == totalLines-1 && trimmedSpaceRow == "" && !state.inDualDialogue {
+		return true
+	}
+	return true
+}
+
+func (state *ParseState) updateDialogueContext(currentLine lex.Line) {
+	if currentLine.IsDialogueElement() {
+		state.inDialogueContext = true
+	} else if currentLine.Type == lex.TypeEmpty {
+		// Revert speaker to action if followed only by empty line
+		if len(state.out) >= 2 && state.out[len(state.out)-2].Type == lex.TypeSpeaker && !state.inDualDialogue {
+			state.out[len(state.out)-2].Type = lex.TypeAction
+			state.inDialogueContext = false
+		} else {
+			state.inDialogueContext = false
+		}
+	} else {
+		state.inDialogueContext = false
+	}
 }

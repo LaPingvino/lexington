@@ -13,105 +13,144 @@ type FountainWriter struct {
 	SceneConfig []string // Configuration for scene headers
 }
 
+// WriteState holds the state needed during writing
+type WriteState struct {
+	titlepage string
+	writer    io.Writer
+	config    []string
+}
+
 // Write converts the internal lex.Screenplay format to a Fountain file.
 // It implements the writer.Writer interface.
 func (f *FountainWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
-	// The parser adds an empty line at the end which we don't want to write out
-	// if it would create a superfluous trailing newline. This makes the writer
-	// the inverse of the parser.
-	if len(screenplay) > 0 && screenplay[len(screenplay)-1].Type == "empty" {
-		screenplay = screenplay[:len(screenplay)-1]
+	// Remove trailing empty line if present
+	screenplay = f.trimTrailingEmpty(screenplay)
+
+	state := &WriteState{
+		titlepage: "start",
+		writer:    w,
+		config:    f.SceneConfig,
 	}
 
-	titlepage := "start"
 	for _, line := range screenplay {
-		element := line.Type
-		if titlepage == "start" && line.Type != "titlepage" {
-			titlepage = ""
-		}
-		if titlepage != "" {
-			element = titlepage
-		}
-		switch element {
-		case "start":
-			titlepage = "titlepage"
-		case "titlepage":
-			if line.Type == "metasection" {
-				continue
-			}
-			if line.Type == "newpage" {
-				_, err := fmt.Fprintln(w, "")
-				if err != nil {
-					return err
-				}
-				titlepage = ""
-				continue
-			}
-			_, err := fmt.Fprintf(w, "%s: %s\n", line.Type, line.Contents)
-			if err != nil {
-				return err
-			}
-		case "newpage":
-			_, err := fmt.Fprintln(w, "===")
-			if err != nil {
-				return err
-			}
-		case "empty":
-			_, err := fmt.Fprintln(w, "")
-			if err != nil {
-				return err
-			}
-		case "speaker":
-			if line.Contents != strings.ToUpper(line.Contents) {
-				_, err := fmt.Fprint(w, "@")
-				if err != nil {
-					return err
-				}
-			}
-			_, err := fmt.Fprintln(w, line.Contents)
-			if err != nil {
-				return err
-			}
-		case "scene":
-			var supported bool
-			for _, prefix := range f.SceneConfig { // Use f.SceneConfig
-				if strings.HasPrefix(line.Contents, prefix+" ") ||
-					strings.HasPrefix(line.Contents, prefix+".") {
-					supported = true
-				}
-			}
-			if !supported {
-				_, err := fmt.Fprint(w, ".")
-				if err != nil {
-					return err
-				}
-			}
-			_, err := fmt.Fprintln(w, line.Contents)
-			if err != nil {
-				return err
-			}
-		case "lyrics":
-			_, err := fmt.Fprintf(w, "~%s\n", line.Contents)
-			if err != nil {
-				return err
-			}
-		case "action":
-			if line.Contents == strings.ToUpper(line.Contents) {
-				_, err := fmt.Fprint(w, "!")
-				if err != nil {
-					return err
-				}
-			}
-			_, err := fmt.Fprintln(w, line.Contents)
-			if err != nil {
-				return err
-			}
-		default:
-			_, err := fmt.Fprintln(w, line.Contents)
-			if err != nil {
-				return err
-			}
+		if err := state.writeLine(line); err != nil {
+			return err
 		}
 	}
+
 	return nil
+}
+
+func (f *FountainWriter) trimTrailingEmpty(screenplay lex.Screenplay) lex.Screenplay {
+	if len(screenplay) > 0 && screenplay[len(screenplay)-1].Type == "empty" {
+		return screenplay[:len(screenplay)-1]
+	}
+	return screenplay
+}
+
+func (state *WriteState) writeLine(line lex.Line) error {
+	element := line.Type
+	if state.titlepage == "start" && line.Type != "titlepage" {
+		state.titlepage = ""
+	}
+	if state.titlepage != "" {
+		element = state.titlepage
+	}
+
+	switch element {
+	case "start":
+		state.titlepage = "titlepage"
+		return nil
+	case "titlepage":
+		return state.writeTitlePageLine(line)
+	case "newpage":
+		return state.writeNewPage()
+	case "empty":
+		return state.writeEmpty()
+	case "speaker":
+		return state.writeSpeaker(line)
+	case "scene":
+		return state.writeScene(line)
+	case "lyrics":
+		return state.writeLyrics(line)
+	case "action":
+		return state.writeAction(line)
+	default:
+		return state.writeDefault(line)
+	}
+}
+
+func (state *WriteState) writeTitlePageLine(line lex.Line) error {
+	if line.Type == "metasection" {
+		return nil
+	}
+	if line.Type == "newpage" {
+		if _, err := fmt.Fprintln(state.writer, ""); err != nil {
+			return err
+		}
+		state.titlepage = ""
+		return nil
+	}
+	_, err := fmt.Fprintf(state.writer, "%s: %s\n", line.Type, line.Contents)
+	return err
+}
+
+func (state *WriteState) writeNewPage() error {
+	_, err := fmt.Fprintln(state.writer, "===")
+	return err
+}
+
+func (state *WriteState) writeEmpty() error {
+	_, err := fmt.Fprintln(state.writer, "")
+	return err
+}
+
+func (state *WriteState) writeSpeaker(line lex.Line) error {
+	if line.Contents != strings.ToUpper(line.Contents) {
+		if _, err := fmt.Fprint(state.writer, "@"); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprintln(state.writer, line.Contents)
+	return err
+}
+
+func (state *WriteState) writeScene(line lex.Line) error {
+	if !state.isSceneSupported(line.Contents) {
+		if _, err := fmt.Fprint(state.writer, "."); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprintln(state.writer, line.Contents)
+	return err
+}
+
+func (state *WriteState) isSceneSupported(contents string) bool {
+	for _, prefix := range state.config {
+		if strings.HasPrefix(contents, prefix+" ") ||
+			strings.HasPrefix(contents, prefix+".") {
+			return true
+		}
+	}
+	return false
+}
+
+func (state *WriteState) writeLyrics(line lex.Line) error {
+	_, err := fmt.Fprintf(state.writer, "~%s\n", line.Contents)
+	return err
+}
+
+func (state *WriteState) writeAction(line lex.Line) error {
+	if line.Contents == strings.ToUpper(line.Contents) {
+		if _, err := fmt.Fprint(state.writer, "!"); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprintln(state.writer, line.Contents)
+	return err
+}
+
+func (state *WriteState) writeDefault(line lex.Line) error {
+	_, err := fmt.Fprintln(state.writer, line.Contents)
+	return err
 }
