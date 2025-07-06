@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -14,10 +16,29 @@ import (
 	"github.com/lapingvino/lexington/latex" // New import for the LaTeX writer
 	"github.com/lapingvino/lexington/lex"
 	"github.com/lapingvino/lexington/linter"
+	"github.com/lapingvino/lexington/markdown" // New import for the Markdown writer
 	"github.com/lapingvino/lexington/pdf"
 	"github.com/lapingvino/lexington/rules"
 	"github.com/lapingvino/lexington/writer"
 )
+
+// pandocFormats lists the formats that are delegated to the pandoc command.
+var pandocFormats = map[string]bool{
+	"epub":      true,
+	"mobi":      true,
+	"docx":      true,
+	"odt":       true,
+	"rtf":       true,
+	"markdown":  true,
+	"rst":       true,
+	"json":      true,
+	"native":    true,
+	"man":       true,
+	"textile":   true,
+	"mediawiki": true,
+	"org":       true,
+	"asciidoc":  true,
+}
 
 func main() {
 	start := time.Now()
@@ -33,7 +54,7 @@ func main() {
 	input := flag.String("i", "-", "Input from provided filename. - means standard input.")
 	output := flag.String("o", "-", "Output to provided filename. - means standard output.")
 	from := flag.String("from", "", "Input file type. Choose from fountain, lex, fdx.")
-	to := flag.String("to", "", "Output file type. Choose from pdf, lex, fountain, fdx, html, latex.")
+	to := flag.String("to", "", "Output file type. Choose from pdf, lex, fountain, fdx, html, latex, or external formats requiring pandoc: epub, mobi, docx, odt, rtf, markdown, rst, json, native, man, textile, mediawiki, org, asciidoc.")
 	lint := flag.Bool("lint", false, "Run the Fountain linter on the input file")
 	templatePath := flag.String("template", "", "Path to a custom template file (e.g., for HTML, FDX, or LaTeX output).") // New flag
 	help := flag.Bool("help", false, "Show this help message")
@@ -177,8 +198,38 @@ func main() {
 	case "latex":
 		outputWriter = &latex.LaTeXWriter{Template: *templatePath, Elements: conf.Elements[*elements]}
 	default:
-		log.Printf("%s is not a supported output type. Choose from: pdf, lex, fountain, fdx, html, latex.\n", *to)
-		return
+		// Check if the format is one that should be handled by pandoc.
+		if pandocFormats[*to] {
+			pandoc, err := exec.LookPath("pandoc")
+			if err != nil {
+				log.Printf("Error: '%s' output requires pandoc, but it could not be found in your system's PATH.", *to)
+				return
+			}
+
+			// Convert the screenplay to Markdown format in memory.
+			var markdownBuffer bytes.Buffer
+			markdownWriter := &markdown.MarkdownWriter{}
+			err = markdownWriter.Write(&markdownBuffer, i)
+			if err != nil {
+				log.Printf("Error converting to Markdown format for pandoc: %v", err)
+				return
+			}
+
+			// Prepare and run the pandoc command.
+			cmd := exec.Command(pandoc, "--from=markdown", "--to="+*to, "-o", *output)
+			cmd.Stdin = &markdownBuffer
+			cmd.Stderr = os.Stderr // Pipe pandoc's errors to our stderr.
+
+			log.Printf("Running pandoc to create %s...", *output)
+			err = cmd.Run()
+			if err != nil {
+				log.Printf("Error executing pandoc command: %v", err)
+			}
+			return
+		} else {
+			log.Printf("%s is not a supported output type. Choose from: pdf, lex, fountain, fdx, html, latex, or external formats requiring pandoc: epub, mobi, docx, odt, rtf, markdown, rst, json, native, man, textile, mediawiki, org, asciidoc.\n", *to)
+			return
+		}
 	}
 
 	// Execute the write operation using the interface
