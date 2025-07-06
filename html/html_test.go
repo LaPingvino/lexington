@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/lapingvino/lexington/lex"
+	"github.com/lapingvino/lexington/rules"
 )
 
 // TestHTMLWrite checks if the HTML writer generates a valid HTML document
@@ -29,7 +30,7 @@ func TestHTMLWrite(t *testing.T) {
 
 	// 2. Write the screenplay to an in-memory buffer.
 	var buffer bytes.Buffer
-	writer := &HTMLWriter{}
+	writer := &HTMLWriter{Elements: rules.Default}
 	err := writer.Write(&buffer, screenplay)
 	if err != nil {
 		t.Fatalf("HTMLWriter.Write returned an unexpected error: %v", err)
@@ -77,7 +78,7 @@ func TestEmptyScreenplay(t *testing.T) {
 	var screenplay lex.Screenplay // Empty screenplay
 	var buffer bytes.Buffer
 
-	writer := &HTMLWriter{}
+	writer := &HTMLWriter{Elements: rules.Default}
 	err := writer.Write(&buffer, screenplay)
 	if err != nil {
 		t.Fatalf("HTMLWriter.Write returned an unexpected error for an empty screenplay: %v", err)
@@ -106,7 +107,7 @@ func TestDualDialogueHTML(t *testing.T) {
 	}
 
 	var buffer bytes.Buffer
-	writer := &HTMLWriter{}
+	writer := &HTMLWriter{Elements: rules.Default}
 	err := writer.Write(&buffer, screenplay)
 	if err != nil {
 		t.Fatalf("HTMLWriter.Write returned an unexpected error: %v", err)
