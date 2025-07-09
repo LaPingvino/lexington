@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2025-07-09
+
+### Bug Fixes
+- **Title Page Processing**: Fixed title page element processing to work without explicit TypeTitlePage marker
+  - Title and author metadata now correctly extracted for epub/pandoc output from all fountain files
+  - Added support for additional title page elements: Source, Contact, Draft date, Notes, Copyright
+  - Removed dependency on inTitlePage state that was preventing some fountain files from working correctly
+  - Ensures proper metadata extraction for pandoc-based outputs (epub, mobi, docx, etc.)
+
 ## [1.2.0] - 2025-07-09
 
 ### New Features
