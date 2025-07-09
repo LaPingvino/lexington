@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-07-09
+
+### New Features
+- **Enhanced Markdown Writer**: Improved dialogue block formatting with blockquote markers
+  - Dialogue elements (speaker names, dialogue lines, parentheticals) are now grouped in blockquotes
+  - Action lines remain separate from dialogue blocks for better visual distinction
+  - Uses `> ` prefix for all dialogue elements creating clear visual hierarchy
+
+### Bug Fixes
+- **Dual Dialogue HTML**: Fixed width styling in dual dialogue HTML output (removed double %% in CSS)
+
+### Testing
+- **Complete Test Coverage**: Added comprehensive test suite for markdown writer
+  - Tests for dialogue block formatting, dual dialogue, inline markup processing
+  - Edge case handling for empty screenplays, title pages, and special elements
+  - 100% test coverage for all markdown writer functionality
+
 ## [1.1.0] - 2025-07-06
 
 ### Major Features
