@@ -376,6 +376,54 @@ func TestTitlePageElements(t *testing.T) {
 	}
 }
 
+// TestTitlePageElementsWithoutMarker tests that title page elements work without TypeTitlePage marker
+func TestTitlePageElementsWithoutMarker(t *testing.T) {
+	screenplay := lex.Screenplay{
+		lex.Line{Type: "Title", Contents: "Standalone Title"},
+		lex.Line{Type: "Author", Contents: "Standalone Author"},
+		lex.Line{Type: "Credit", Contents: "A story by"},
+		lex.Line{Type: "Source", Contents: "Based on true events"},
+		lex.Line{Type: "Contact", Contents: "contact@example.com"},
+		lex.Line{Type: "metasection"},
+		lex.Line{Type: lex.TypeScene, Contents: "INT. ROOM - DAY"},
+	}
+
+	var buffer bytes.Buffer
+	writer := &MarkdownWriter{}
+	err := writer.Write(&buffer, screenplay)
+	if err != nil {
+		t.Fatalf("MarkdownWriter.Write returned an unexpected error: %v", err)
+	}
+
+	markdownOutput := buffer.String()
+
+	checks := []struct {
+		name     string
+		substr   string
+		expected bool
+	}{
+		{"Title formatting", "# Standalone Title", true},
+		{"Author formatting", "**Standalone Author**", true},
+		{"Credit formatting", "*A story by*", true},
+		{"Source formatting", "Based on true events", true},
+		{"Contact formatting", "contact@example.com", true},
+		{"Meta separator", "---", true},
+		{"Scene after title page", "## INT. ROOM - DAY", true},
+	}
+
+	for _, check := range checks {
+		t.Run(check.name, func(t *testing.T) {
+			actual := strings.Contains(markdownOutput, check.substr)
+			if actual != check.expected {
+				t.Errorf("strings.Contains(%q) = %v, want %v", check.substr, actual, check.expected)
+				if !check.expected {
+					t.Logf("Full Markdown output:\n%s", markdownOutput)
+				}
+			}
+		})
+	}
+}
+
 // TestSpecialElements tests sections, synopsis, and other special elements
 func TestSpecialElements(t *testing.T) {
 	screenplay := lex.Screenplay{
