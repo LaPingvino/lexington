@@ -13,9 +13,13 @@ import (
 const (
 	newPageMarker     = "\n\\newpage\n\n"
 	metaSeparator     = "---\n\n"
-	dualDialogueOpen  = "<div style=\"display: flex; justify-content: space-between;\">\n<div style=\"width: 48%%;\">\n\n"
-	dualDialogueNext  = "</div>\n<div style=\"width: 48%%;\">\n\n"
+	dualDialogueOpen  = "<div style=\"display: flex; justify-content: space-between;\">\n<div style=\"width: 48%;\">\n\n"
+	dualDialogueNext  = "</div>\n<div style=\"width: 48%;\">\n\n"
 	dualDialogueClose = "</div>\n</div>\n\n"
+
+	// Blockquote markers for dialogue blocks
+	dialogueBlockStart = "> "
+	dialogueBlockEnd   = "\n"
 )
 
 // Inline markup patterns for Markdown output
@@ -67,9 +71,10 @@ func (m *MarkdownWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 
 // markdownState holds the state during markdown conversion
 type markdownState struct {
-	writer         io.Writer
-	inTitlePage    bool
-	inDualDialogue bool
+	writer          io.Writer
+	inTitlePage     bool
+	inDualDialogue  bool
+	inDialogueBlock bool
 }
 
 // processLine processes a single line based on its type
@@ -173,6 +178,9 @@ func (s *markdownState) processTitlePageElement(line lex.Line, format string) er
 
 // processActionLine handles action lines
 func (s *markdownState) processActionLine(line lex.Line) error {
+	if err := s.endDialogueBlock(); err != nil {
+		return err
+	}
 	if strings.TrimSpace(line.Contents) != "" {
 		return s.writeFormatted("%s\n\n", processInlineMarkup(line.Contents))
 	}
@@ -181,30 +189,42 @@ func (s *markdownState) processActionLine(line lex.Line) error {
 
 // processSpeakerLine handles speaker lines
 func (s *markdownState) processSpeakerLine(line lex.Line) error {
-	if s.inDualDialogue {
-		return s.writeFormatted("**%s**  \n", strings.ToUpper(processInlineMarkup(line.Contents)))
+	if err := s.startDialogueBlock(); err != nil {
+		return err
 	}
-	return s.writeFormatted("**%s**\n\n", strings.ToUpper(processInlineMarkup(line.Contents)))
+	if s.inDualDialogue {
+		return s.writeFormatted("%s**%s**  \n", dialogueBlockStart, strings.ToUpper(processInlineMarkup(line.Contents)))
+	}
+	return s.writeFormatted("%s**%s**\n\n", dialogueBlockStart, strings.ToUpper(processInlineMarkup(line.Contents)))
 }
 
 // processDialogLine handles dialog and lyrics lines
 func (s *markdownState) processDialogLine(line lex.Line) error {
-	if s.inDualDialogue {
-		return s.writeFormatted("%s  \n", processInlineMarkup(line.Contents))
+	if err := s.startDialogueBlock(); err != nil {
+		return err
 	}
-	return s.writeFormatted("%s\n\n", processInlineMarkup(line.Contents))
+	if s.inDualDialogue {
+		return s.writeFormatted("%s%s  \n", dialogueBlockStart, processInlineMarkup(line.Contents))
+	}
+	return s.writeFormatted("%s%s\n\n", dialogueBlockStart, processInlineMarkup(line.Contents))
 }
 
 // processParenLine handles parenthetical lines
 func (s *markdownState) processParenLine(line lex.Line) error {
-	if s.inDualDialogue {
-		return s.writeFormatted("*%s*  \n", processInlineMarkup(line.Contents))
+	if err := s.startDialogueBlock(); err != nil {
+		return err
 	}
-	return s.writeFormatted("*%s*\n\n", processInlineMarkup(line.Contents))
+	if s.inDualDialogue {
+		return s.writeFormatted("%s*%s*  \n", dialogueBlockStart, processInlineMarkup(line.Contents))
+	}
+	return s.writeFormatted("%s*%s*\n\n", dialogueBlockStart, processInlineMarkup(line.Contents))
 }
 
 // processEmptyLine handles empty lines
 func (s *markdownState) processEmptyLine() error {
+	if err := s.endDialogueBlock(); err != nil {
+		return err
+	}
 	if !s.inDualDialogue {
 		return s.writeString("\n")
 	}
@@ -240,4 +260,21 @@ func (s *markdownState) writeFormatted(format string, args ...interface{}) error
 func (s *markdownState) writeString(str string) error {
 	_, err := fmt.Fprint(s.writer, str)
 	return err
+}
+
+// startDialogueBlock starts a dialogue block if not already in one
+func (s *markdownState) startDialogueBlock() error {
+	if !s.inDialogueBlock {
+		s.inDialogueBlock = true
+	}
+	return nil
+}
+
+// endDialogueBlock ends a dialogue block if currently in one
+func (s *markdownState) endDialogueBlock() error {
+	if s.inDialogueBlock {
+		s.inDialogueBlock = false
+		return s.writeString(dialogueBlockEnd)
+	}
+	return nil
 }
