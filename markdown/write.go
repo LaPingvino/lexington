@@ -96,7 +96,9 @@ func (s *markdownState) processLine(line lex.Line) error {
 // isTitlePageElement checks if the line type is a title page element
 func (s *markdownState) isTitlePageElement(lineType string) bool {
 	return lineType == lex.TypeTitlePage || lineType == "Title" ||
-		lineType == "Credit" || lineType == "Author" || lineType == "metasection"
+		lineType == "Credit" || lineType == "Author" || lineType == "metasection" ||
+		lineType == "Source" || lineType == "Contact" || lineType == "Draft date" ||
+		lineType == "Notes" || lineType == "Copyright"
 }
 
 // isDualDialogueMarker checks if the line type is a dual dialogue marker
@@ -116,6 +118,8 @@ func (s *markdownState) processTitlePageElements(line lex.Line) error {
 		return s.processTitlePageElement(line, "*%s*\n\n")
 	case "Author":
 		return s.processTitlePageElement(line, "**%s**\n\n")
+	case "Source", "Contact", "Draft date", "Notes", "Copyright":
+		return s.processTitlePageElement(line, "%s\n\n")
 	case "metasection":
 		s.inTitlePage = false
 		return s.writeString(metaSeparator)
@@ -170,10 +174,7 @@ func (s *markdownState) processContentElements(line lex.Line) error {
 
 // processTitlePageElement handles title page elements
 func (s *markdownState) processTitlePageElement(line lex.Line, format string) error {
-	if s.inTitlePage {
-		return s.writeFormatted(format, processInlineMarkup(line.Contents))
-	}
-	return nil
+	return s.writeFormatted(format, processInlineMarkup(line.Contents))
 }
 
 // processActionLine handles action lines
