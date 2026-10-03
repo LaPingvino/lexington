@@ -129,7 +129,11 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 
 		// Handle title page parsing
 		if state.titlepage {
-			if handled := state.handleTitlePage(row, trimmedSpaceRow, &currentLine); handled {
+			next := ""
+			if i+1 < len(toParse) {
+				next = strings.TrimRight(toParse[i+1], "\n\r")
+			}
+			if handled := state.handleTitlePage(row, trimmedSpaceRow, next, &currentLine); handled {
 				continue
 			}
 		}
@@ -172,8 +176,19 @@ func readAllLines(file io.Reader) []string {
 	return toParse
 }
 
-func (state *ParseState) handleTitlePage(row, trimmedSpaceRow string, currentLine *lex.Line) bool {
-	isKeyValLine := strings.Contains(row, ":") && !strings.HasPrefix(row, "   ")
+func (state *ParseState) handleTitlePage(row, trimmedSpaceRow, next string, currentLine *lex.Line) bool {
+	isKeyValLine := isTitleKeyValue(row, next)
+	isContinuation := isIndented(row) && trimmedSpaceRow != "" && state.titletag != ""
+
+	if isContinuation {
+		// An indented line continues the previous field's value
+		// ("Contact:" followed by address lines).
+		state.consecutiveEmptyLines = 0
+		currentLine.Type = state.titletag
+		currentLine.Contents = trimmedSpaceRow
+		state.out = append(state.out, *currentLine)
+		return true
+	}
 
 	// Check for consecutive empty lines
 	if trimmedSpaceRow == "" {
@@ -202,7 +217,7 @@ func (state *ParseState) handleTitlePage(row, trimmedSpaceRow string, currentLin
 
 	if isKeyValLine {
 		state.parseTitlePageKeyValue(row, currentLine)
-	} else {
+	} else if trimmedSpaceRow != "" {
 		currentLine.Type = state.titletag
 		currentLine.Contents = trimmedSpaceRow
 		state.hasTitlePageContent = true
@@ -214,6 +229,33 @@ func (state *ParseState) handleTitlePage(row, trimmedSpaceRow string, currentLin
 
 	state.out = append(state.out, *currentLine)
 	return true
+}
+
+// isIndented reports whether a line starts with a tab or three spaces,
+// which on the title page marks a continuation of the previous value.
+func isIndented(row string) bool {
+	return strings.HasPrefix(row, "\t") || strings.HasPrefix(row, "   ")
+}
+
+// isTitleKeyValue reports whether row is a "Key: value" title page field.
+// Script text that happens to contain a colon is not: a scene heading, or
+// an uppercase cue with nothing after the colon and no indented value on
+// the next line, such as "FADE IN:" opening the script.
+func isTitleKeyValue(row, next string) bool {
+	if isIndented(row) {
+		return false
+	}
+	key, value, ok := strings.Cut(row, ":")
+	if !ok || strings.TrimSpace(key) == "" {
+		return false
+	}
+	if isScene, _, _ := CheckScene(row); isScene {
+		return false
+	}
+	if strings.TrimSpace(value) != "" || key != strings.ToUpper(key) {
+		return true
+	}
+	return isIndented(next) && strings.TrimSpace(next) != ""
 }
 
 func (state *ParseState) parseTitlePageKeyValue(row string, currentLine *lex.Line) {
@@ -302,7 +344,7 @@ func (state *ParseState) checkInferredTypes(row, trimmedSpaceRow string) (lex.Li
 			isCurrentLineDualSpeakerCandidate = true
 			currentLine.Contents = strings.TrimRight(currentLine.Contents, " ^")
 		}
-	} else if len(row) > 1 && row[0] == '(' && row[len(row)-1] == ')' {
+	} else if len(trimmedSpaceRow) > 1 && strings.HasPrefix(trimmedSpaceRow, "(") && strings.HasSuffix(trimmedSpaceRow, ")") {
 		// Parenthetical
 		if state.inDialogueContext {
 			currentLine.Type = lex.TypeParen
