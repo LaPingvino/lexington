@@ -131,8 +131,10 @@ func paragraphType(t lex.ElementType) (pType string, ok bool) {
 		return FDXCharacter, true
 	case lex.TypeParen:
 		return FDXParenthetical, true
-	case lex.TypeDialog, lex.TypeLyrics:
+	case lex.TypeDialog:
 		return FDXDialogue, true
+	case lex.TypeLyrics:
+		return FDXLyrics, true
 	case lex.TypeTrans:
 		return FDXTransition, true
 	case lex.TypeEmpty, lex.TypeTitlePage, lex.TypeNewPage, "metasection", "section", "synopse", "note":
@@ -143,14 +145,19 @@ func paragraphType(t lex.ElementType) (pType string, ok bool) {
 	return FDXGeneral, true
 }
 
-// titleField reports whether a line type is one of the centred title
-// fields, as opposed to contact details and other notes.
-func titleField(t lex.ElementType) bool {
+// titleRole returns where a title page field goes: "title", "credit" or
+// "author" lines are centred; anything else (contact details, draft
+// date, source) is "other" and goes below them.
+func titleRole(t lex.ElementType) string {
 	switch strings.ToLower(string(t)) {
-	case "title", "credit", "author", "authors", "source":
-		return true
+	case "title":
+		return "title"
+	case "credit":
+		return "credit"
+	case "author", "authors":
+		return "author"
 	}
-	return false
+	return "other"
 }
 
 // buildDocument converts a screenplay into the FDX document structure.
@@ -225,7 +232,7 @@ func buildDocument(screenplay lex.Screenplay) FdxFile {
 // details, draft date) left-aligned below them. It returns the index of the
 // first line after the title page.
 func buildTitlePage(screenplay lex.Screenplay) (*FdxTitlePage, int) {
-	var centred, other []FdxParagraph
+	roles := map[string][]FdxParagraph{}
 	i := 1
 	for ; i < len(screenplay); i++ {
 		line := screenplay[i]
@@ -236,21 +243,32 @@ func buildTitlePage(screenplay lex.Screenplay) (*FdxTitlePage, int) {
 		if line.Type == "metasection" || line.Contents == "" {
 			continue
 		}
+		role := titleRole(line.Type)
 		p := FdxParagraph{Type: FDXGeneral, Texts: processInlineMarkup(line.Contents)}
-		if titleField(line.Type) {
+		if role != "other" {
 			p.Alignment = "Center"
-			centred = append(centred, p)
-		} else {
-			other = append(other, p)
 		}
+		roles[role] = append(roles[role], p)
 	}
 
+	// Title, a blank line, then credit and author: the usual layout, and
+	// the one ParseWithError reads back.
 	tp := &FdxTitlePage{}
-	tp.Content.Paragraphs = append(tp.Content.Paragraphs, centred...)
-	if len(centred) > 0 && len(other) > 0 {
-		tp.Content.Paragraphs = append(tp.Content.Paragraphs, FdxParagraph{Type: FDXGeneral})
+	add := func(ps ...FdxParagraph) { tp.Content.Paragraphs = append(tp.Content.Paragraphs, ps...) }
+	add(roles["title"]...)
+	if len(roles["credit"])+len(roles["author"]) > 0 {
+		if len(roles["title"]) > 0 {
+			add(FdxParagraph{Type: FDXGeneral, Alignment: "Center"})
+		}
+		add(roles["credit"]...)
+		add(roles["author"]...)
 	}
-	tp.Content.Paragraphs = append(tp.Content.Paragraphs, other...)
+	if len(roles["other"]) > 0 {
+		if len(tp.Content.Paragraphs) > 0 {
+			add(FdxParagraph{Type: FDXGeneral})
+		}
+		add(roles["other"]...)
+	}
 	return tp, i
 }
 

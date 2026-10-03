@@ -374,18 +374,44 @@ func (state *ParseState) handleDualDialogue(currentLine lex.Line, isCurrentLineD
 		state.inDualDialogue = false
 	}
 
-	// Handle dual dialogue opening/next
+	// A "NAME ^" speaker shares the screen with the dialogue block right
+	// before it. Without such a partner (or when that block is already the
+	// second half of a pair) it is ordinary dialogue.
 	if isCurrentLineDualSpeakerCandidate {
-		if !state.inDualDialogue {
-			state.insertDualDialogueOpen()
-			state.inDualDialogue = true
-			state.out = append(state.out, lex.Line{Type: lex.TypeDualNext})
-		} else {
-			// Close current dual dialogue and treat as regular speaker
+		if state.inDualDialogue {
 			state.out = append(state.out, lex.Line{Type: lex.TypeDualClose})
 			state.inDualDialogue = false
+			return
+		}
+		if start, ok := state.previousDialogueBlock(); ok {
+			state.out = append(state.out[:start], append(lex.Screenplay{{Type: lex.TypeDualOpen}}, state.out[start:]...)...)
+			state.out = append(state.out, lex.Line{Type: lex.TypeDualNext})
+			state.inDualDialogue = true
 		}
 	}
+}
+
+// previousDialogueBlock finds the dialogue block the output ends with
+// (speaker, then dialogue and parentheticals, then one blank line) and
+// returns the index of its speaker.
+func (state *ParseState) previousDialogueBlock() (int, bool) {
+	j := len(state.out) - 1
+	if j < 0 || state.out[j].Type != lex.TypeEmpty {
+		return 0, false
+	}
+	j--
+	lines := 0
+	for ; j >= 0; j-- {
+		switch state.out[j].Type {
+		case lex.TypeDialog, lex.TypeParen, lex.TypeLyrics:
+			lines++
+			continue
+		case lex.TypeSpeaker:
+			return j, lines > 0
+		}
+		break
+	}
+	return 0, false
 }
 
 func (state *ParseState) shouldCloseDualDialogue(currentLine lex.Line, isCurrentLineDualSpeakerCandidate bool,
@@ -400,29 +426,6 @@ func (state *ParseState) shouldCloseDualDialogue(currentLine lex.Line, isCurrent
 		return i == totalLines-1 // Last line
 	default:
 		return false
-	}
-}
-
-func (state *ParseState) insertDualDialogueOpen() {
-	foundOpenInsertPoint := false
-	for j := len(state.out) - 1; j >= 0; j-- {
-		if state.out[j].Type == lex.TypeSpeaker {
-			for k := j; k >= 0; k-- {
-				if state.out[k].Type == lex.TypeEmpty {
-					dualOpen := []lex.Line{{Type: lex.TypeDualOpen}}
-					state.out = append(state.out[:k+1], append(dualOpen, state.out[k+1:]...)...)
-					foundOpenInsertPoint = true
-					break
-				} else if k == 0 {
-					state.out = append([]lex.Line{{Type: lex.TypeDualOpen}}, state.out...)
-					foundOpenInsertPoint = true
-					break
-				}
-			}
-			if foundOpenInsertPoint {
-				break
-			}
-		}
 	}
 }
 

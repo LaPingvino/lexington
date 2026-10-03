@@ -105,7 +105,7 @@ func TestWriteScript(t *testing.T) {
 		t.Fatal("no title page")
 	}
 	title := strings.Join(summary(doc.TitlePage.Content.Paragraphs), "\n")
-	wantTitle := "General/Center:The Barn\nGeneral/Center:Written by\nGeneral/Center:Jane Smith\nGeneral:\nGeneral:1 Writer's Lane"
+	wantTitle := "General/Center:The Barn\nGeneral/Center:\nGeneral/Center:Written by\nGeneral/Center:Jane Smith\nGeneral:\nGeneral:1 Writer's Lane"
 	if title != wantTitle {
 		t.Errorf("title page:\n%s\nwant:\n%s", title, wantTitle)
 	}

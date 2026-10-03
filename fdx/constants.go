@@ -9,4 +9,5 @@ const (
 	FDXDialogue      = "Dialogue"
 	FDXTransition    = "Transition"
 	FDXGeneral       = "General"
+	FDXLyrics        = "Lyrics"
 )

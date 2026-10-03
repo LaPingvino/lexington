@@ -272,7 +272,11 @@ func parseInput(config *Config, conf rules.TOMLConf, input io.Reader) *lex.Scree
 	case internal.FormatFountain:
 		screenplay = fountain.Parse(conf.Scenes[config.SceneIn], input)
 	case internal.FormatFDX:
-		screenplay = fdx.Parse(input)
+		var err error
+		if screenplay, err = fdx.ParseWithError(input); err != nil {
+			log.Printf("Could not read FDX input: %v", err)
+			return nil
+		}
 	default:
 		log.Printf("%s is not a valid input type", config.From)
 		return nil
