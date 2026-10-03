@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-10-03
+
+### New Features
+- **FDX writer**: Final Draft documents now have `DocumentType="Script"`, a
+  `<TitlePage>` (title, credit and author centred, other fields below),
+  `<DualDialogue>` for dual dialogue, Final Draft style names
+  (`Italic`, `Bold+Italic`), `Alignment="Center"`, page breaks
+  (`StartsNewPage`) and `Lyrics` paragraphs. Blank lines between blocks no
+  longer become empty paragraphs; extra blank lines are kept. The default
+  output is written by the XML encoder; custom templates still work.
+- **FDX reader**: `fdx.ParseWithError` reports invalid files (the CLI now
+  says so instead of writing an empty script); the title page, dual
+  dialogue, bold/italic/underline, centred text, page breaks and lyrics are
+  read back, and blank lines are added between blocks for Fountain output.
+  Fountain -> FDX -> Fountain round trips are tested on all test scripts.
+
+### Bug Fixes
+- **Fountain title page**: `FADE IN:` after the title page or opening a
+  script is no longer dropped as an empty title field; a scene heading with
+  a colon no longer starts a title page; indented lines continue a field's
+  value (multi-line Title, Contact); leading blank lines no longer make an
+  empty first page.
+- **Fountain parser**: indented parentheticals are parentheticals, not
+  dialogue; indented forced transitions and centred text (`> FADE OUT.`)
+  are recognised; `NAME ^` pairs only with the dialogue block directly
+  before it.
+- **PDF**: title page fields other than title, credit and author (Contact,
+  Draft date, ...) are printed instead of hidden.
+- **HTML**: script text is escaped (a `<` or `&` broke the page); the whole
+  title page is shown; no empty page after the title page.
+
 ## [1.2.1] - 2025-07-09
 
 ### Bug Fixes
