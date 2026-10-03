@@ -20,6 +20,12 @@ var CourierBadiRegular []byte
 //go:embed CourierBadi-Italic.ttf
 var CourierBadiItalic []byte
 
+//go:embed CourierBadi-Bold.ttf
+var CourierBadiBold []byte
+
+//go:embed CourierBadi-BoldItalic.ttf
+var CourierBadiBoldItalic []byte
+
 // GetFont returns the font data for the specified font name and style
 func GetFont(name, style string) []byte {
 	switch name {
@@ -27,8 +33,10 @@ func GetFont(name, style string) []byte {
 		switch style {
 		case "I", "i":
 			return CourierBadiItalic
-		case "B", "b", "BI", "bi":
-			return CourierBadiRegular // Using regular for bold since we only have regular and italic
+		case "B", "b":
+			return CourierBadiBold
+		case "BI", "bi", "IB", "ib":
+			return CourierBadiBoldItalic
 		default:
 			return CourierBadiRegular
 		}
