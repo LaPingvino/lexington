@@ -27,6 +27,9 @@ var (
 
 // processInlineMarkup converts fountain-style inline markup to HTML
 func processInlineMarkup(text string) template.HTML {
+	// Script text is not HTML: escape it before adding markup tags
+	text = template.HTMLEscapeString(text)
+
 	// Only process if the text contains markup characters
 	if !strings.ContainsAny(text, "*_") {
 		return template.HTML(text)
@@ -122,6 +125,14 @@ body {
 .title-page p {
 	margin: 0.5em 0;
 }
+.title-meta {
+	align-self: flex-start;
+	text-align: left;
+	margin-top: 3in;
+}
+.title-meta p {
+	margin: 0;
+}
 .center {
 	text-align: center;
 	margin-left: {{.Config.CenterLeft}}in;
@@ -165,9 +176,10 @@ body {
 </head>
 <body>
 <div class="page">
+{{- $inTitle := false -}}{{- $inMeta := false -}}
 {{- range .Screenplay -}}
     {{- if eq .Type "titlepage" -}}
-<div class="title-page">{{-
+<div class="title-page">{{- $inTitle = true -}}{{-
     else if eq .Type "Title" -}}
 <h1>{{- processInlineMarkup .Contents -}}</h1>{{-
     else if eq .Type "Credit" -}}
@@ -175,9 +187,7 @@ body {
     else if eq .Type "Author" -}}
 <p>{{- processInlineMarkup .Contents -}}</p>{{-
     else if eq .Type "metasection" -}}
-</div>
-<div class="newpage"></div>
-<div class="page">{{-
+<div class="title-meta">{{- $inMeta = true -}}{{-
     else if eq .Type "scene" -}}
 <div class="scene-heading">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "action" "general" -}}
@@ -195,6 +205,8 @@ body {
     else if eq .Type "center" -}}
 <div class="center">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "newpage" -}}
+{{- if $inMeta -}}</div>{{- $inMeta = false -}}{{- end -}}
+{{- if $inTitle -}}</div>{{- $inTitle = false -}}{{- end -}}
 </div>
 <div class="newpage"></div>
 <div class="page">{{-
@@ -206,6 +218,8 @@ body {
 </td><td>{{-
     else if eq .Type "dualspeaker_close" -}}
 </td></tr></table>{{-
+    else if $inMeta -}}
+<p>{{- processInlineMarkup .Contents -}}</p>{{-
     else -}}{{- end -}}
 {{- end -}}
 </div>
