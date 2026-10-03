@@ -146,7 +146,7 @@ func paragraphType(t lex.ElementType) (pType string, ok bool) {
 }
 
 // titleRole returns where a title page field goes: "title", "credit" or
-// "author" lines are centred; anything else (contact details, draft
+// "author" lines are centered; anything else (contact details, draft
 // date, source) is "other" and goes below them.
 func titleRole(t lex.ElementType) string {
 	switch strings.ToLower(string(t)) {
@@ -160,6 +160,9 @@ func titleRole(t lex.ElementType) string {
 	return "other"
 }
 
+// alignCenter is Final Draft's Alignment value for centered paragraphs.
+const alignCenter = "Center"
+
 // buildDocument converts a screenplay into the FDX document structure.
 func buildDocument(screenplay lex.Screenplay) FdxFile {
 	doc := FdxFile{DocumentType: "Script", Template: "No", Version: "5"}
@@ -169,66 +172,89 @@ func buildDocument(screenplay lex.Screenplay) FdxFile {
 		doc.TitlePage, i = buildTitlePage(screenplay)
 	}
 
-	var dual *FdxDualDialogue
-	newPage := false
-	blanks := 0
-	for ; i < len(screenplay); i++ {
-		line := screenplay[i]
-		if line.Type == lex.TypeEmpty {
-			blanks++
-			continue
-		}
-		// One blank line separates blocks; each further one is an empty
-		// paragraph the writer put there on purpose.
-		for ; blanks > 1 && dual == nil; blanks-- {
-			doc.Content.Paragraphs = append(doc.Content.Paragraphs, FdxParagraph{Type: FDXAction, Texts: []FdxText{{}}})
-		}
-		blanks = 0
-
-		switch line.Type {
-		case lex.TypeNewPage:
-			newPage = true
-			continue
-		case lex.TypeDualOpen:
-			dual = &FdxDualDialogue{}
-			continue
-		case lex.TypeDualNext:
-			continue
-		case lex.TypeDualClose:
-			if dual != nil && len(dual.Paragraphs) > 0 {
-				doc.Content.Paragraphs = append(doc.Content.Paragraphs, FdxParagraph{DualDialogue: dual})
-			}
-			dual = nil
-			continue
-		}
-
-		pType, ok := paragraphType(line.Type)
-		if !ok {
-			continue
-		}
-		p := FdxParagraph{Type: pType, Texts: processInlineMarkup(line.Contents)}
-		if line.Type == lex.TypeCenter {
-			p.Alignment = "Center"
-		}
-		if dual != nil {
-			dual.Paragraphs = append(dual.Paragraphs, p)
-			continue
-		}
-		if newPage {
-			p.StartsNewPage = "Yes"
-			newPage = false
-		}
-		doc.Content.Paragraphs = append(doc.Content.Paragraphs, p)
+	b := docBuilder{doc: &doc}
+	for _, line := range screenplay[i:] {
+		b.add(line)
 	}
-	if dual != nil && len(dual.Paragraphs) > 0 {
-		doc.Content.Paragraphs = append(doc.Content.Paragraphs, FdxParagraph{DualDialogue: dual})
-	}
-
+	b.closeDual()
 	return doc
 }
 
+// docBuilder adds screenplay lines to an FDX document, keeping track of
+// blank lines, pending page breaks and open dual dialogue.
+type docBuilder struct {
+	doc     *FdxFile
+	dual    *FdxDualDialogue
+	newPage bool
+	blanks  int
+}
+
+func (b *docBuilder) add(line lex.Line) {
+	if line.Type == lex.TypeEmpty {
+		b.blanks++
+		return
+	}
+	b.flushBlanks()
+	if b.structural(line.Type) {
+		return
+	}
+
+	pType, ok := paragraphType(line.Type)
+	if !ok {
+		return
+	}
+	p := FdxParagraph{Type: pType, Texts: processInlineMarkup(line.Contents)}
+	if line.Type == lex.TypeCenter {
+		p.Alignment = alignCenter
+	}
+	if b.dual != nil {
+		b.dual.Paragraphs = append(b.dual.Paragraphs, p)
+		return
+	}
+	if b.newPage {
+		p.StartsNewPage = "Yes"
+		b.newPage = false
+	}
+	b.doc.Content.Paragraphs = append(b.doc.Content.Paragraphs, p)
+}
+
+// flushBlanks writes the blank lines before a block: one blank line
+// separates blocks; each further one is an empty paragraph the writer put
+// there on purpose.
+func (b *docBuilder) flushBlanks() {
+	for ; b.blanks > 1 && b.dual == nil; b.blanks-- {
+		b.doc.Content.Paragraphs = append(b.doc.Content.Paragraphs, FdxParagraph{Type: FDXAction, Texts: []FdxText{{}}})
+	}
+	b.blanks = 0
+}
+
+// structural handles page breaks and dual dialogue markers, reporting
+// whether the line was one.
+func (b *docBuilder) structural(t lex.ElementType) bool {
+	switch t {
+	case lex.TypeNewPage:
+		b.newPage = true
+	case lex.TypeDualOpen:
+		b.dual = &FdxDualDialogue{}
+	case lex.TypeDualNext:
+	case lex.TypeDualClose:
+		b.closeDual()
+	default:
+		return false
+	}
+	return true
+}
+
+// closeDual ends dual dialogue, adding it if it has any paragraphs.
+func (b *docBuilder) closeDual() {
+	if b.dual != nil && len(b.dual.Paragraphs) > 0 {
+		b.doc.Content.Paragraphs = append(b.doc.Content.Paragraphs, FdxParagraph{DualDialogue: b.dual})
+	}
+	b.dual = nil
+}
+
 // buildTitlePage turns the title page lines at the start of the screenplay
-// into a Final Draft title page: title fields centred, other fields (contact
+// into a Final Draft title page: title fields centered, other fields (contact
 // details, draft date) left-aligned below them. It returns the index of the
 // first line after the title page.
 func buildTitlePage(screenplay lex.Screenplay) (*FdxTitlePage, int) {
@@ -246,7 +272,7 @@ func buildTitlePage(screenplay lex.Screenplay) (*FdxTitlePage, int) {
 		role := titleRole(line.Type)
 		p := FdxParagraph{Type: FDXGeneral, Texts: processInlineMarkup(line.Contents)}
 		if role != "other" {
-			p.Alignment = "Center"
+			p.Alignment = alignCenter
 		}
 		roles[role] = append(roles[role], p)
 	}
@@ -258,7 +284,7 @@ func buildTitlePage(screenplay lex.Screenplay) (*FdxTitlePage, int) {
 	add(roles["title"]...)
 	if len(roles["credit"])+len(roles["author"]) > 0 {
 		if len(roles["title"]) > 0 {
-			add(FdxParagraph{Type: FDXGeneral, Alignment: "Center"})
+			add(FdxParagraph{Type: FDXGeneral, Alignment: alignCenter})
 		}
 		add(roles["credit"]...)
 		add(roles["author"]...)

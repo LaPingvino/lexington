@@ -105,7 +105,8 @@ func TestWriteScript(t *testing.T) {
 		t.Fatal("no title page")
 	}
 	title := strings.Join(summary(doc.TitlePage.Content.Paragraphs), "\n")
-	wantTitle := "General/Center:The Barn\nGeneral/Center:\nGeneral/Center:Written by\nGeneral/Center:Jane Smith\nGeneral:\nGeneral:1 Writer's Lane"
+	wantTitle := "General/Center:The Barn\nGeneral/Center:\nGeneral/Center:Written by\n" +
+		"General/Center:Jane Smith\nGeneral:\nGeneral:1 Writer's Lane"
 	if title != wantTitle {
 		t.Errorf("title page:\n%s\nwant:\n%s", title, wantTitle)
 	}
@@ -135,7 +136,8 @@ func TestWriteScript(t *testing.T) {
 
 func TestWriteWithTemplate(t *testing.T) {
 	tmpl := filepath.Join(t.TempDir(), "t.fdx")
-	if err := os.WriteFile(tmpl, []byte(`{{range .Paragraphs}}[{{.Type}}]{{range .Texts}}{{.Content}}{{end}}{{end}}`), 0o644); err != nil {
+	if err := os.WriteFile(tmpl, []byte(`{{range .Paragraphs}}[{{.Type}}]`+
+		`{{range .Texts}}{{.Content}}{{end}}{{end}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	var buf bytes.Buffer

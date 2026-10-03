@@ -14,7 +14,8 @@ func TestTitlePageMetaFieldsArePrinted(t *testing.T) {
 	if _, err := exec.LookPath("pdftotext"); err != nil {
 		t.Skip("pdftotext not available")
 	}
-	src := "Title: The Barn\nAuthor: Jane Smith\nContact:\n    Jane Smith\n    1 Writer's Lane\nDraft date: 1 May\n\nFADE IN:\n\nINT. BARN - DAY\n"
+	src := "Title: The Barn\nAuthor: Jane Smith\nContact:\n    Jane Smith\n" +
+		"    1 Writer's Lane\nDraft date: 1 May\n\nFADE IN:\n\nINT. BARN - DAY\n"
 	screenplay := fountain.Parse(rules.DefaultConf().Scenes["en"], strings.NewReader(src))
 
 	out := filepath.Join(t.TempDir(), "barn.pdf")

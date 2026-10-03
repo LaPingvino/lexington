@@ -50,7 +50,8 @@ func TestLeadingBlankLinesDoNotMakeATitlePage(t *testing.T) {
 }
 
 func TestTitlePageMultiLineValues(t *testing.T) {
-	src := "Title:\n    The Barn\n    A Story\nAuthor: Jane Smith\nContact:\n    Jane Smith\n\t1 Writer's Lane\nDraft date: 1 May\n\nINT. BARN - DAY\n"
+	src := "Title:\n    The Barn\n    A Story\nAuthor: Jane Smith\nContact:\n" +
+		"    Jane Smith\n\t1 Writer's Lane\nDraft date: 1 May\n\nINT. BARN - DAY\n"
 	got := types(src)
 	want := strings.Join([]string{
 		"titlepage=", "Title=The Barn", "Title=A Story", "Author=Jane Smith",
@@ -73,7 +74,8 @@ func TestTitlePageFieldsSeparatedByBlankLines(t *testing.T) {
 
 func TestIndentedDialogueElements(t *testing.T) {
 	// leading spaces on character, parenthetical and dialogue are ignored
-	src := "INT. BARN - DAY\n\n" + strings.Repeat(" ", 37) + "JOHN\n" + strings.Repeat(" ", 31) + "(beat)\n" + strings.Repeat(" ", 25) + "It's coming.\n"
+	src := "INT. BARN - DAY\n\n" + strings.Repeat(" ", 37) + "JOHN\n" + strings.Repeat(" ", 31) + "(beat)\n" +
+		"" + strings.Repeat(" ", 25) + "It's coming.\n"
 	got := types(src)
 	want := "scene=INT. BARN - DAY\nspeaker=JOHN\nparen=(beat)\ndialog=It's coming."
 	if got != want {
@@ -82,7 +84,8 @@ func TestIndentedDialogueElements(t *testing.T) {
 }
 
 func TestIndentedForcedTransition(t *testing.T) {
-	got := types("INT. BARN - DAY\n\nRain.\n\n" + strings.Repeat(" ", 60) + "> FADE OUT.\n\n" + strings.Repeat(" ", 20) + "> THE END <\n")
+	got := types("INT. BARN - DAY\n\nRain.\n\n" + strings.Repeat(" ", 60) + "> FADE OUT.\n" +
+		"\n" + strings.Repeat(" ", 20) + "> THE END <\n")
 	want := "scene=INT. BARN - DAY\naction=Rain.\ntrans=FADE OUT.\ncenter=THE END"
 	if got != want {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)

@@ -67,7 +67,10 @@ type FdxText struct {
 // internal lex.Screenplay format. A file that cannot be decoded gives an
 // empty screenplay; use ParseWithError to find out why.
 func Parse(file io.Reader) lex.Screenplay {
-	out, _ := ParseWithError(file)
+	out, err := ParseWithError(file)
+	if err != nil {
+		return nil
+	}
 	return out
 }
 
@@ -134,7 +137,7 @@ func parseParagraph(p FdxParagraph) lex.Line {
 	switch {
 	case contents == "" && line.Type == lex.TypeAction:
 		line.Type = lex.TypeEmpty
-	case p.Alignment == "Center" && line.Type == lex.TypeAction:
+	case p.Alignment == alignCenter && line.Type == lex.TypeAction:
 		line.Type = lex.TypeCenter
 	}
 	return line
@@ -167,8 +170,8 @@ func parseDualDialogue(ps []FdxParagraph) lex.Screenplay {
 var creditLine = regexp.MustCompile(`(?i)\bby:?$`)
 
 // parseTitlePage reads a Final Draft title page back into Fountain title
-// fields: the first group of centred lines is the title, a line ending in
-// "by" the credit, and the other centred lines the author; left-aligned
+// fields: the first group of centered lines is the title, a line ending in
+// "by" the credit, and the other centered lines the author; left-aligned
 // lines (contact details, draft date) become Contact fields.
 func parseTitlePage(ps []FdxParagraph) lex.Screenplay {
 	var title, credit, author, contact lex.Screenplay
@@ -180,7 +183,7 @@ func parseTitlePage(ps []FdxParagraph) lex.Screenplay {
 			if title != nil {
 				inTitle = false
 			}
-		case p.Alignment != "Center":
+		case p.Alignment != alignCenter:
 			contact = append(contact, lex.Line{Type: "Contact", Contents: text})
 		case creditLine.MatchString(text):
 			inTitle = false

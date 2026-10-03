@@ -346,7 +346,8 @@ func (state *ParseState) checkInferredTypes(row, trimmedSpaceRow string) (lex.Li
 			isCurrentLineDualSpeakerCandidate = true
 			currentLine.Contents = strings.TrimRight(currentLine.Contents, " ^")
 		}
-	} else if len(trimmedSpaceRow) > 1 && strings.HasPrefix(trimmedSpaceRow, "(") && strings.HasSuffix(trimmedSpaceRow, ")") {
+	} else if len(trimmedSpaceRow) > 1 && strings.HasPrefix(trimmedSpaceRow, "(") &&
+		strings.HasSuffix(trimmedSpaceRow, ")") {
 		// Parenthetical
 		if state.inDialogueContext {
 			currentLine.Type = lex.TypeParen

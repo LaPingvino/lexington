@@ -9,7 +9,8 @@ const parseSample = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <FinalDraft DocumentType="Script" Template="No" Version="5">
   <Content>
     <Paragraph Type="Scene Heading"><Text>INT. BARN - DAY</Text></Paragraph>
-    <Paragraph Type="Action"><Text>Rain </Text><Text Style="Italic">hammers</Text><Text> the </Text><Text Style="Bold+Underline">roof</Text><Text>.</Text></Paragraph>
+    <Paragraph Type="Action"><Text>Rain </Text><Text
+      Style="Italic">hammers</Text><Text> the </Text><Text Style="Bold+Underline">roof</Text><Text>.</Text></Paragraph>
     <Paragraph Type="Character"><Text>JOHN</Text></Paragraph>
     <Paragraph Type="Dialogue"><Text>It's </Text><Text Style="Bold+Italic">coming</Text><Text>.</Text></Paragraph>
     <Paragraph Type="Lyrics"><Text>La la la</Text></Paragraph>

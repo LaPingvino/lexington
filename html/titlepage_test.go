@@ -20,7 +20,8 @@ func render(t *testing.T, src string) string {
 }
 
 func TestTitlePageMetaFields(t *testing.T) {
-	page := render(t, "Title: The Barn\nAuthor: Jane Smith\nContact:\n    Jane Smith\n    1 Lane\nDraft date: 1 May\n\nFADE IN:\n\nINT. BARN - DAY\n")
+	page := render(t, "Title: The Barn\nAuthor: Jane Smith\nContact:\n    Jane Smith\n"+
+		"    1 Lane\nDraft date: 1 May\n\nFADE IN:\n\nINT. BARN - DAY\n")
 	meta := `<div class="title-meta"><p>Jane Smith</p><p>1 Lane</p><p>1 May</p></div>`
 	if !strings.Contains(page, meta) {
 		t.Errorf("missing title meta block %q in:\n%s", meta, page)

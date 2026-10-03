@@ -40,7 +40,10 @@ func significant(sp lex.Screenplay) []string {
 }
 
 func TestFountainFDXRoundTrip(t *testing.T) {
-	files, _ := filepath.Glob("../testdata/input/*.fountain")
+	files, err := filepath.Glob("../testdata/input/*.fountain")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(files) == 0 {
 		t.Fatal("no test scripts found")
 	}
@@ -53,8 +56,8 @@ func TestFountainFDXRoundTrip(t *testing.T) {
 			original := fountain.Parse(scenes, bytes.NewReader(src))
 
 			var fdxDoc bytes.Buffer
-			if err := (&FDXWriter{}).Write(&fdxDoc, original); err != nil {
-				t.Fatal(err)
+			if werr := (&FDXWriter{}).Write(&fdxDoc, original); werr != nil {
+				t.Fatal(werr)
 			}
 			back, err := ParseWithError(&fdxDoc)
 			if err != nil {
