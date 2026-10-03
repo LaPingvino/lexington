@@ -38,7 +38,9 @@ func CheckScene(row string) (bool, string, string) {
 func CheckCrow(row string) (bool, string, string) {
 	var crow bool
 	var el string
-	row = strings.ToUpper(row)
+	// leading spaces are not significant: an indented "> FADE OUT." is
+	// still a forced transition
+	row = strings.ToUpper(strings.TrimSpace(row))
 	if strings.HasPrefix(row, ">") || strings.HasSuffix(row, " TO:") {
 		crow = true
 		el = "trans"

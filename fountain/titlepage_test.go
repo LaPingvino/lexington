@@ -80,3 +80,11 @@ func TestIndentedDialogueElements(t *testing.T) {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
 }
+
+func TestIndentedForcedTransition(t *testing.T) {
+	got := types("INT. BARN - DAY\n\nRain.\n\n" + strings.Repeat(" ", 60) + "> FADE OUT.\n\n" + strings.Repeat(" ", 20) + "> THE END <\n")
+	want := "scene=INT. BARN - DAY\naction=Rain.\ntrans=FADE OUT.\ncenter=THE END"
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
