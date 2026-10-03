@@ -23,6 +23,10 @@ type PDFWriter struct {
 	Elements   rules.Set
 }
 
+// elementMeta is the format for title page fields other than the title,
+// credit and author.
+const elementMeta = "meta"
+
 type Tree struct {
 	PDF          *gofpdf.Fpdf
 	Rules        rules.Set
@@ -61,7 +65,7 @@ func (t *Tree) Render() {
 			continue
 		}
 
-		if block == internal.ElementTitle {
+		if block == internal.ElementTitle || block == elementMeta {
 			row.Type = block
 		}
 		t.pr(row.Type, row.Contents)
@@ -96,9 +100,11 @@ func (t *Tree) handleSpecialCases(row lex.Line, block *string, lastsection *int)
 		t.PDF.SetTitle(row.Contents, true)
 		return false
 	case "metasection":
-		*block = ""
+		// Fields after the title block (Contact, Draft date, ...) go to
+		// the bottom of the title page in the meta format.
+		*block = elementMeta
 		t.PDF.SetY(-2)
-		return false
+		return true
 	case "dualspeaker_open":
 		t.DualDialogue = true
 		t.DualColumn = 0
