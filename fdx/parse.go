@@ -12,21 +12,39 @@ import (
 
 // FdxFile represents the top-level <FinalDraft> element.
 type FdxFile struct {
-	XMLName xml.Name   `xml:"FinalDraft"`
-	Content FdxContent `xml:"Content"`
+	XMLName      xml.Name      `xml:"FinalDraft"`
+	DocumentType string        `xml:"DocumentType,attr,omitempty"`
+	Template     string        `xml:"Template,attr,omitempty"`
+	Version      string        `xml:"Version,attr,omitempty"`
+	Content      FdxContent    `xml:"Content"`
+	TitlePage    *FdxTitlePage `xml:"TitlePage,omitempty"`
 }
 
-// FdxContent represents the <Content> element, which contains paragraphs.
+// FdxContent represents a <Content> element, which contains paragraphs.
 type FdxContent struct {
-	XMLName    xml.Name       `xml:"Content"`
 	Paragraphs []FdxParagraph `xml:"Paragraph"`
 }
 
-// FdxParagraph represents a <Paragraph> element, which can be a scene heading, action, etc.
+// FdxTitlePage represents the <TitlePage> element.
+type FdxTitlePage struct {
+	Content FdxContent `xml:"Content"`
+}
+
+// FdxParagraph represents a <Paragraph> element, which can be a scene
+// heading, action, etc. A paragraph wrapping a <DualDialogue> has no type.
 type FdxParagraph struct {
-	XMLName xml.Name  `xml:"Paragraph"`
-	Type    string    `xml:"Type,attr"`
-	Texts   []FdxText `xml:"Text"`
+	XMLName       xml.Name         `xml:"Paragraph"`
+	Type          string           `xml:"Type,attr,omitempty"`
+	Alignment     string           `xml:"Alignment,attr,omitempty"`
+	StartsNewPage string           `xml:"StartsNewPage,attr,omitempty"`
+	Texts         []FdxText        `xml:"Text"`
+	DualDialogue  *FdxDualDialogue `xml:"DualDialogue,omitempty"`
+}
+
+// FdxDualDialogue holds the paragraphs of two characters speaking at once:
+// the first character's paragraphs followed by the second's.
+type FdxDualDialogue struct {
+	Paragraphs []FdxParagraph `xml:"Paragraph"`
 }
 
 // FdxText represents a <Text> element which contains the actual script content.
@@ -85,8 +103,23 @@ func Parse(file io.Reader) (out lex.Screenplay) {
 		}
 
 		line.Contents = fullContent
+		// Final Draft spaces blocks itself; Fountain needs a blank line
+		// before each scene heading, action, character and transition.
+		if startsBlock(line.Type) && len(out) > 0 {
+			out = append(out, lex.Line{Type: lex.TypeEmpty})
+		}
 		out = append(out, line)
 	}
 
 	return out
+}
+
+// startsBlock reports whether an element begins a new block, as opposed to
+// continuing a character's dialogue (or being an empty paragraph itself).
+func startsBlock(t lex.ElementType) bool {
+	switch t {
+	case lex.TypeParen, lex.TypeDialog, lex.TypeEmpty:
+		return false
+	}
+	return true
 }

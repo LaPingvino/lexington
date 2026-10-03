@@ -25,23 +25,6 @@ type FDXWriter struct {
 	TemplatePath string // Path to a custom FDX template file
 }
 
-const defaultFDXTemplate = `<?xml version="1.0" encoding="UTF-8"?>
-<FinalDraft Version="1.0">
-  <Content>
-{{range .Paragraphs}}    <Paragraph Type="{{.Type}}">
-{{range .Texts}}      <Text` +
-	`{{if .AdornmentStyle}} AdornmentStyle="{{.AdornmentStyle}}"{{end}}` +
-	`{{if .Background}} Background="{{.Background}}"{{end}}` +
-	`{{if .Color}} Color="{{.Color}}"{{end}}` +
-	`{{if .Font}} Font="{{.Font}}"{{end}}` +
-	`{{if .RevisionID}} RevisionID="{{.RevisionID}}"{{end}}` +
-	`{{if .Size}} Size="{{.Size}}"{{end}}` +
-	`{{if .Style}} Style="{{.Style}}"{{end}}>{{.Content}}</Text>
-{{end}}    </Paragraph>
-{{end}}  </Content>
-</FinalDraft>
-`
-
 // markupMatch represents a found markup pattern
 type markupMatch struct {
 	start      int
@@ -53,20 +36,24 @@ type markupMatch struct {
 func findEarliestMarkup(text string) *markupMatch {
 	var earliest *markupMatch
 
-	patterns := map[string]*regexp.Regexp{
-		"bolditalic": bolditalic,
-		"bold":       bold,
-		"italic":     italic,
-		"underline":  underline,
+	// checked in order, so on a tie the longer marker wins
+	patterns := []struct {
+		markupType string
+		pattern    *regexp.Regexp
+	}{
+		{"bolditalic", bolditalic},
+		{"bold", bold},
+		{"italic", italic},
+		{"underline", underline},
 	}
 
-	for markupType, pattern := range patterns {
-		if match := pattern.FindStringIndex(text); match != nil {
+	for _, p := range patterns {
+		if match := p.pattern.FindStringIndex(text); match != nil {
 			if earliest == nil || match[0] < earliest.start {
 				earliest = &markupMatch{
 					start:      match[0],
 					end:        match[1],
-					markupType: markupType,
+					markupType: p.markupType,
 				}
 			}
 		}
@@ -75,30 +62,12 @@ func findEarliestMarkup(text string) *markupMatch {
 	return earliest
 }
 
-// createStyledText creates an FdxText with the appropriate styling
-func createStyledText(content, markupType string) FdxText {
-	baseText := FdxText{
-		Content:    escapeXML(content),
-		Background: "#FFFFFFFFFFFF",
-		Color:      "#000000000000",
-		Font:       "Courier",
-		RevisionID: "0",
-		Size:       "12",
-	}
-
-	switch markupType {
-	case "bolditalic", "bold":
-		baseText.AdornmentStyle = "0"
-		baseText.Style = "Bold"
-	case "italic":
-		baseText.AdornmentStyle = "-1"
-		baseText.Style = ""
-	case "underline":
-		baseText.AdornmentStyle = "0"
-		baseText.Style = "Underline"
-	}
-
-	return baseText
+// fdxStyles maps Fountain emphasis to Final Draft's Style attribute.
+var fdxStyles = map[string]string{
+	"bolditalic": "Bold+Italic",
+	"bold":       "Bold",
+	"italic":     "Italic",
+	"underline":  "Underline",
 }
 
 // extractContent extracts the content from markup based on type
@@ -117,10 +86,11 @@ func extractContent(text, markupType string) string {
 	}
 }
 
-// processInlineMarkup converts fountain-style inline markup to FDX Text elements
+// processInlineMarkup converts fountain-style inline markup to FDX Text
+// elements. The text is not XML-escaped; the XML encoder does that.
 func processInlineMarkup(text string) []FdxText {
 	if !strings.ContainsAny(text, "*_") {
-		return []FdxText{{Content: escapeXML(text)}}
+		return []FdxText{{Content: text}}
 	}
 
 	var result []FdxText
@@ -129,102 +99,212 @@ func processInlineMarkup(text string) []FdxText {
 	for len(remaining) > 0 {
 		match := findEarliestMarkup(remaining)
 		if match == nil {
-			if len(remaining) > 0 {
-				result = append(result, FdxText{Content: escapeXML(remaining)})
-			}
+			result = append(result, FdxText{Content: remaining})
 			break
 		}
 
-		// Add text before the markup as normal text
 		if match.start > 0 {
-			result = append(result, FdxText{Content: escapeXML(remaining[:match.start])})
+			result = append(result, FdxText{Content: remaining[:match.start]})
 		}
 
-		// Extract content and create styled text
 		matchedText := remaining[match.start:match.end]
-		content := extractContent(matchedText, match.markupType)
-		styledText := createStyledText(content, match.markupType)
-		result = append(result, styledText)
+		result = append(result, FdxText{
+			Content: extractContent(matchedText, match.markupType),
+			Style:   fdxStyles[match.markupType],
+		})
 
-		// Move to the text after this markup
 		remaining = remaining[match.end:]
 	}
 
 	return result
 }
 
+// paragraphType maps a lex element type to a Final Draft paragraph type.
+// ok is false for lines that have no paragraph of their own.
+func paragraphType(t lex.ElementType) (pType string, ok bool) {
+	switch t {
+	case lex.TypeScene:
+		return FDXSceneHeading, true
+	case lex.TypeAction, lex.TypeCenter:
+		return FDXAction, true
+	case lex.TypeSpeaker:
+		return FDXCharacter, true
+	case lex.TypeParen:
+		return FDXParenthetical, true
+	case lex.TypeDialog, lex.TypeLyrics:
+		return FDXDialogue, true
+	case lex.TypeTrans:
+		return FDXTransition, true
+	case lex.TypeEmpty, lex.TypeTitlePage, lex.TypeNewPage, "metasection", "section", "synopse", "note":
+		// Final Draft spaces elements itself; blank lines (handled in
+		// buildDocument) and structure markers have no paragraph.
+		return "", false
+	}
+	return FDXGeneral, true
+}
+
+// titleField reports whether a line type is one of the centred title
+// fields, as opposed to contact details and other notes.
+func titleField(t lex.ElementType) bool {
+	switch strings.ToLower(string(t)) {
+	case "title", "credit", "author", "authors", "source":
+		return true
+	}
+	return false
+}
+
+// buildDocument converts a screenplay into the FDX document structure.
+func buildDocument(screenplay lex.Screenplay) FdxFile {
+	doc := FdxFile{DocumentType: "Script", Template: "No", Version: "5"}
+
+	i := 0
+	if len(screenplay) > 0 && screenplay[0].Type == lex.TypeTitlePage {
+		doc.TitlePage, i = buildTitlePage(screenplay)
+	}
+
+	var dual *FdxDualDialogue
+	newPage := false
+	blanks := 0
+	for ; i < len(screenplay); i++ {
+		line := screenplay[i]
+		if line.Type == lex.TypeEmpty {
+			blanks++
+			continue
+		}
+		// One blank line separates blocks; each further one is an empty
+		// paragraph the writer put there on purpose.
+		for ; blanks > 1 && dual == nil; blanks-- {
+			doc.Content.Paragraphs = append(doc.Content.Paragraphs, FdxParagraph{Type: FDXAction, Texts: []FdxText{{}}})
+		}
+		blanks = 0
+
+		switch line.Type {
+		case lex.TypeNewPage:
+			newPage = true
+			continue
+		case lex.TypeDualOpen:
+			dual = &FdxDualDialogue{}
+			continue
+		case lex.TypeDualNext:
+			continue
+		case lex.TypeDualClose:
+			if dual != nil && len(dual.Paragraphs) > 0 {
+				doc.Content.Paragraphs = append(doc.Content.Paragraphs, FdxParagraph{DualDialogue: dual})
+			}
+			dual = nil
+			continue
+		}
+
+		pType, ok := paragraphType(line.Type)
+		if !ok {
+			continue
+		}
+		p := FdxParagraph{Type: pType, Texts: processInlineMarkup(line.Contents)}
+		if line.Type == lex.TypeCenter {
+			p.Alignment = "Center"
+		}
+		if dual != nil {
+			dual.Paragraphs = append(dual.Paragraphs, p)
+			continue
+		}
+		if newPage {
+			p.StartsNewPage = "Yes"
+			newPage = false
+		}
+		doc.Content.Paragraphs = append(doc.Content.Paragraphs, p)
+	}
+	if dual != nil && len(dual.Paragraphs) > 0 {
+		doc.Content.Paragraphs = append(doc.Content.Paragraphs, FdxParagraph{DualDialogue: dual})
+	}
+
+	return doc
+}
+
+// buildTitlePage turns the title page lines at the start of the screenplay
+// into a Final Draft title page: title fields centred, other fields (contact
+// details, draft date) left-aligned below them. It returns the index of the
+// first line after the title page.
+func buildTitlePage(screenplay lex.Screenplay) (*FdxTitlePage, int) {
+	var centred, other []FdxParagraph
+	i := 1
+	for ; i < len(screenplay); i++ {
+		line := screenplay[i]
+		if line.Type == lex.TypeNewPage {
+			i++
+			break
+		}
+		if line.Type == "metasection" || line.Contents == "" {
+			continue
+		}
+		p := FdxParagraph{Type: FDXGeneral, Texts: processInlineMarkup(line.Contents)}
+		if titleField(line.Type) {
+			p.Alignment = "Center"
+			centred = append(centred, p)
+		} else {
+			other = append(other, p)
+		}
+	}
+
+	tp := &FdxTitlePage{}
+	tp.Content.Paragraphs = append(tp.Content.Paragraphs, centred...)
+	if len(centred) > 0 && len(other) > 0 {
+		tp.Content.Paragraphs = append(tp.Content.Paragraphs, FdxParagraph{Type: FDXGeneral})
+	}
+	tp.Content.Paragraphs = append(tp.Content.Paragraphs, other...)
+	return tp, i
+}
+
 // Write converts the internal lex.Screenplay format to an FDX XML file.
 // It implements the writer.Writer interface.
 func (f *FDXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
-	var fdxFile FdxFile
-
-	for _, line := range screenplay {
-		// Skip structural lex types that don't directly map to FDX paragraphs
-		switch line.Type {
-		case "titlepage", "metasection", "newpage", "section", "synopse":
-			continue
-		}
-
-		var pType string
-		// Map internal lex types to FDX Paragraph types.
-		switch line.Type {
-		case lex.TypeScene:
-			pType = FDXSceneHeading
-		case lex.TypeAction, lex.TypeCenter: // Assuming 'center' can be treated as 'Action' for FDX export
-			pType = FDXAction
-		case lex.TypeEmpty:
-			// An empty line in Fountain is often an empty Action paragraph in FDX.
-			pType = FDXAction
-		case lex.TypeSpeaker:
-			pType = FDXCharacter
-		case lex.TypeParen:
-			pType = FDXParenthetical
-		case lex.TypeDialog, lex.TypeLyrics:
-			pType = FDXDialogue
-		case lex.TypeTrans:
-			pType = FDXTransition
-		case lex.TypeDualOpen, lex.TypeDualNext, lex.TypeDualClose:
-			// Dual dialogue is complex in FDX and might require a more sophisticated
-			// transformation than a simple text template can provide.
-			// For this basic template, we'll skip these markers for now,
-			// or treat them as actions/general text if content is present.
-			// A full FDX dual dialogue implementation would involve nested structures.
-			continue
-		default:
-			// Use "General" as a fallback for any unrecognized types.
-			pType = FDXGeneral
-		}
-
-		// Process inline markup to create multiple text elements
-		texts := processInlineMarkup(line.Contents)
-
-		paragraph := FdxParagraph{
-			Type:  pType,
-			Texts: texts,
-		}
-
-		fdxFile.Content.Paragraphs = append(fdxFile.Content.Paragraphs, paragraph)
-	}
-
-	var tmpl *template.Template
-	var err error
+	doc := buildDocument(screenplay)
 
 	if f.TemplatePath != "" {
-		tmpl, err = template.ParseFiles(f.TemplatePath)
-		if err != nil {
-			return fmt.Errorf("failed to parse FDX template file %s: %w", f.TemplatePath, err)
-		}
-	} else {
-		tmpl, err = template.New("fdxScreenplay").Parse(defaultFDXTemplate)
-		if err != nil {
-			return fmt.Errorf("failed to parse default FDX template: %w", err)
-		}
+		return f.writeTemplate(w, doc)
 	}
 
-	// Execute the template with the constructed FdxFile data.
-	// We need to pass fdxFile.Content as the top-level data for the template
-	// because the template expects a slice of Paragraphs.
-	return tmpl.Execute(w, fdxFile.Content)
+	if _, err := io.WriteString(w, `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>`+"\n"); err != nil {
+		return err
+	}
+	enc := xml.NewEncoder(w)
+	enc.Indent("", "  ")
+	if err := enc.Encode(doc); err != nil {
+		return fmt.Errorf("failed to encode FDX: %w", err)
+	}
+	_, err := io.WriteString(w, "\n")
+	return err
+}
+
+// writeTemplate renders a custom template. Templates get the document's
+// Content with XML-escaped text; dual dialogue is flattened into the
+// paragraph list, as templates cannot recurse.
+func (f *FDXWriter) writeTemplate(w io.Writer, doc FdxFile) error {
+	tmpl, err := template.ParseFiles(f.TemplatePath)
+	if err != nil {
+		return fmt.Errorf("failed to parse FDX template file %s: %w", f.TemplatePath, err)
+	}
+
+	var content FdxContent
+	for _, p := range doc.Content.Paragraphs {
+		if p.DualDialogue != nil {
+			for _, dp := range p.DualDialogue.Paragraphs {
+				content.Paragraphs = append(content.Paragraphs, escapeParagraph(dp))
+			}
+			continue
+		}
+		content.Paragraphs = append(content.Paragraphs, escapeParagraph(p))
+	}
+	return tmpl.Execute(w, content)
+}
+
+func escapeParagraph(p FdxParagraph) FdxParagraph {
+	texts := make([]FdxText, len(p.Texts))
+	for i, t := range p.Texts {
+		t.Content = escapeXML(t.Content)
+		texts[i] = t
+	}
+	p.Texts = texts
+	return p
 }
 
 // escapeXML escapes characters that have special meaning in XML.

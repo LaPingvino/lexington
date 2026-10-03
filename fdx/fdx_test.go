@@ -75,20 +75,30 @@ func TestParse(t *testing.T) {
 
 	screenplay := Parse(file)
 
+	// Final Draft spaces blocks itself; the parser adds the blank line
+	// Fountain needs before each block, and keeps the explicit empty
+	// paragraph before the last action.
 	expected := lex.Screenplay{
 		lex.Line{Type: lex.TypeScene, Contents: "INT. HOUSE - DAY"},
+		lex.Line{Type: lex.TypeEmpty},
 		lex.Line{Type: lex.TypeSpeaker, Contents: "MARY"},
 		lex.Line{Type: lex.TypeDialog, Contents: "I can't believe how easy it is to write in Fountain."},
+		lex.Line{Type: lex.TypeEmpty},
 		lex.Line{Type: lex.TypeSpeaker, Contents: "TOM"},
 		lex.Line{Type: lex.TypeParen, Contents: "(typing)"},
 		lex.Line{Type: lex.TypeDialog, Contents: "Look! I just made a parenthetical!"},
+		lex.Line{Type: lex.TypeEmpty},
 		lex.Line{Type: lex.TypeAction, Contents: "SOMETHING HAPPENS!"},
+		lex.Line{Type: lex.TypeEmpty},
 		lex.Line{Type: lex.TypeAction, Contents: "(what? I don't know...)"},
+		lex.Line{Type: lex.TypeEmpty},
 		lex.Line{Type: lex.TypeScene, Contents: "EXT. GARDEN"},
+		lex.Line{Type: lex.TypeEmpty},
 		lex.Line{Type: lex.TypeSpeaker, Contents: "TOM"},
 		lex.Line{Type: lex.TypeDialog, Contents: "What am I doing here now?"},
 		lex.Line{Type: lex.TypeDialog, Contents: "To be honest, I have absolutely no idea!"},
-		lex.Line{Type: lex.TypeEmpty, Contents: ""},
+		lex.Line{Type: lex.TypeEmpty},
+		lex.Line{Type: lex.TypeEmpty},
 		lex.Line{Type: lex.TypeAction, Contents: "And that means really no idea!"},
 	}
 
