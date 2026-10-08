@@ -116,3 +116,55 @@ func TestTitlePage(t *testing.T) {
 		t.Error("scene page taken for the title page")
 	}
 }
+
+func TestHOCRLines(t *testing.T) {
+	// 100 dpi: a heading and the two columns of dual dialogue, which
+	// Tesseract gives as separate lines on one baseline
+	hocr := `<div class='ocr_page'>
+<span class='ocr_line' title="bbox 150 100 400 112; baseline 0 0">
+<span class='ocrx_word' title='bbox 150 100 180 112; x_wconf 95'>INT.</span>
+<span class='ocrx_word' title='bbox 190 100 250 112; x_wconf 95'>HOUSE</span></span>
+<span class='ocr_line' title="bbox 250 200 290 212"><span class='ocrx_word' title='bbox 250 200 290 212'>ANNA</span></span>
+<span class='ocr_line' title="bbox 550 201 590 212"><span class='ocrx_word' title='bbox 550 201 590 212'>BRAM</span></span>
+<span class='ocr_line' title="bbox 200 220 300 232"><span class='ocrx_word' title='bbox 200 220 230 232'>Tom &amp;</span><span class='ocrx_word' title='bbox 240 220 300 232'><strong>Jerry</strong></span></span>
+</div>`
+	ls := hocrLines(1, hocr, 100)
+	var got []string
+	for _, l := range ls {
+		var rs []string
+		for _, r := range l.Runs {
+			rs = append(rs, r.Text)
+		}
+		got = append(got, strings.Join(rs, " | "))
+	}
+	if strings.Join(got, "\n") != "INT. HOUSE\nANNA | BRAM\nTom & Jerry" {
+		t.Errorf("lines:\n%s", strings.Join(got, "\n"))
+	}
+	if ls[0].Runs[0].X != 1.5 || ls[1].Runs[1].X != 5.5 {
+		t.Errorf("positions: %+v", ls)
+	}
+}
+
+// A scanned script (images only) reads back with OCR, if tesseract is
+// installed.
+func TestScannedScript(t *testing.T) {
+	ts, ok := InstalledTesseract()
+	if !ok {
+		t.Skip("no tesseract")
+	}
+	if _, err := ReadFile("testdata/scanned-tv-episode.pdf"); err == nil {
+		t.Error("a scan without OCR should be an error")
+	}
+	got, err := ReadFileWith("testdata/scanned-tv-episode.pdf", Options{OCR: ts})
+	if err != nil {
+		t.Fatal(err)
+	}
+	src, _ := os.ReadFile("../examples/tv-episode.fountain")
+	want := fountainOf(t, fountain.Parse(scenes, strings.NewReader(string(src))))
+	// Tesseract recognises some scene numbers in the margins, not all
+	noNumbers := regexp.MustCompile(` #\d+#`)
+	want = noNumbers.ReplaceAllString(want, "")
+	if a := noNumbers.ReplaceAllString(fountainOf(t, got), ""); a != want {
+		t.Errorf("read back:\n%s\n\nwant:\n%s", a, want)
+	}
+}

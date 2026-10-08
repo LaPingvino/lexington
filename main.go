@@ -302,7 +302,12 @@ func parseInput(config *Config, conf rules.TOMLConf, input io.Reader) *lex.Scree
 			log.Printf("Could not read the PDF: %v", err)
 			return nil
 		}
-		if screenplay, err = pdfin.Read(bytes.NewReader(data), int64(len(data))); err != nil {
+		// scanned pages are OCRed with tesseract, if it is installed
+		var opts pdfin.Options
+		if t, ok := pdfin.InstalledTesseract(); ok {
+			opts.OCR = t
+		}
+		if screenplay, err = pdfin.ReadWith(bytes.NewReader(data), int64(len(data)), opts); err != nil {
 			log.Printf("Could not read the PDF: %v", err)
 			return nil
 		}

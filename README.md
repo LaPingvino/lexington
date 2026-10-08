@@ -150,7 +150,8 @@ and (CONT'D) at page breaks:
 lexington -i script.pdf -o script.fountain
 ```
 
-The PDF must contain text: a scanned script needs OCR first.
+A scanned script (only images) is read with OCR when tesseract is
+installed; programs can pass any OCR (`pdfin.Options`).
 
 ### Word and LibreOffice (DOCX, ODT)
 

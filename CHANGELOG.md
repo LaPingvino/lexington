@@ -34,7 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lines by the gaps, wrapped lines joined; dual dialogue, scene numbers
   in the margins, the title page and forced page breaks are recognised;
   page numbers, (MORE), CONTINUED and the repeated NAME (CONT'D) at page
-  breaks are dropped. Text PDFs only: a scanned script needs OCR first.
+  breaks are dropped. Scanned scripts are read with OCR
+  (`pdfin.Options.OCR`, hOCR in): the page images (JPEG, fax, plain
+  pixels) go to tesseract when it is installed (`pdfin.Tesseract`, the
+  command line uses it), or to any other OCR, such as the built-in
+  WebAssembly one of the `ocrwasm` module.
   The PDF reading is github.com/ledongthuc/pdf, vendored in
   internal/pdf with a fix for fonts that map the code 0x0A.
 - The **Fountain writer** keeps dual dialogue (`^`), centred text

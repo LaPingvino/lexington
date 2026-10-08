@@ -9,6 +9,7 @@
 package pdfin
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math"
@@ -61,6 +62,12 @@ func hasLetter(s string) bool {
 
 // ReadFile reads the screenplay in a PDF file.
 func ReadFile(path string) (lex.Screenplay, error) {
+	return ReadFileWith(path, Options{})
+}
+
+// ReadFileWith reads the screenplay in a PDF file, OCRing scanned pages
+// if opts has an OCR.
+func ReadFileWith(path string, opts Options) (lex.Screenplay, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -70,11 +77,17 @@ func ReadFile(path string) (lex.Screenplay, error) {
 	if err != nil {
 		return nil, err
 	}
-	return Read(f, st.Size())
+	return ReadWith(f, st.Size(), opts)
 }
 
 // Read reads the screenplay in a PDF.
-func Read(r io.ReaderAt, size int64) (s lex.Screenplay, err error) {
+func Read(r io.ReaderAt, size int64) (lex.Screenplay, error) {
+	return ReadWith(r, size, Options{})
+}
+
+// ReadWith reads the screenplay in a PDF, OCRing scanned pages if opts
+// has an OCR.
+func ReadWith(r io.ReaderAt, size int64, opts Options) (s lex.Screenplay, err error) {
 	defer func() {
 		if p := recover(); p != nil { // the PDF library panics on some files
 			err = fmt.Errorf("reading the PDF: %v", p)
@@ -94,7 +107,22 @@ func Read(r io.ReaderAt, size int64) (s lex.Screenplay, err error) {
 		if box := p.V.Key("MediaBox"); box.Len() == 4 {
 			width = box.Index(2).Float64() / 72
 		}
-		pages = append(pages, lines(i, p))
+		ls := lines(i, p)
+		if len(ls) == 0 && opts.OCR != nil { // a scanned page
+			img, err := pageImage(p)
+			if err != nil {
+				return nil, fmt.Errorf("page %d: %v", i, err)
+			}
+			hocr, err := opts.OCR.HOCR(context.Background(), img)
+			if err != nil {
+				return nil, fmt.Errorf("page %d: %v", i, err)
+			}
+			ls = hocrLines(i, hocr, float64(img.Bounds().Dx())/width)
+		}
+		pages = append(pages, ls)
+		if opts.Progress != nil {
+			opts.Progress(i, doc.NumPage())
+		}
 	}
 	if len(pages) == 0 {
 		return nil, fmt.Errorf("no pages")

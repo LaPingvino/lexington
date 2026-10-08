@@ -860,6 +860,21 @@ func (v Value) Reader() io.ReadCloser {
 	return io.NopCloser(rd)
 }
 
+// RawReader returns the data of the stream v as stored, decrypted but
+// not decoded: for images in formats the PDF filters do not decode
+// (DCTDecode is JPEG, CCITTFaxDecode is fax).
+func (v Value) RawReader() io.Reader {
+	x, ok := v.data.(stream)
+	if !ok {
+		return &errorReadCloser{fmt.Errorf("stream not present")}
+	}
+	var rd io.Reader = io.NewSectionReader(v.r.f, x.offset, v.Key("Length").Int64())
+	if v.r.key != nil {
+		rd = decryptStream(v.r.key, v.r.useAES, x.ptr, rd)
+	}
+	return rd
+}
+
 func applyFilter(rd io.Reader, name string, param Value) io.Reader {
 	switch name {
 	default:
