@@ -132,7 +132,9 @@ func TestDualDialogue(t *testing.T) {
 	bram, _ := find(lines, lex.TypeSpeaker, "BRAM")
 	dirk, _ := find(lines, lex.TypeSpeaker, "DIRK")
 	me, _ := find(lines, lex.TypeDialog, "Nor me")
-	if bram.Column != 1 || dirk.Column != 2 || dirk.Indent != bram.Indent+DualGap || me.Indent != DualGap || me.Width != DualWidth {
+	// the columns of afterwriting, Better Fountain and screenplain:
+	// dialogue at 2" and 5", the speaker 5 characters in
+	if bram.Column != 1 || dirk.Column != 2 || bram.Indent != 10 || dirk.Indent != 40 || me.Indent != 35 || me.Width != 25 {
 		t.Errorf("dual columns: bram %+v dirk %+v nor me %+v", bram, dirk, me)
 	}
 	if carol, _ := find(lines, lex.TypeSpeaker, "CAROL"); carol.Column != 0 || carol.Indent != 22 {

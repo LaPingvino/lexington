@@ -23,10 +23,15 @@ const (
 	CharsPerInch = 10
 )
 
-// Dual dialogue's columns, in characters: their width and how far the
-// second starts from the first.
+// Dual dialogue's columns, in characters from the action's margin, as
+// afterwriting, Better Fountain and screenplain print them (2.5" columns
+// at 2" and 5" from the page's edge): where the first starts, their
+// width, and how far the second starts from the first. Within a column
+// the dual rules' left margins, counted from 1", indent the paren (3)
+// and the speaker (5).
 const (
-	DualWidth = 20
+	DualStart = 5
+	DualWidth = 25
 	DualGap   = 30
 )
 
@@ -135,11 +140,9 @@ func Lay(s lex.Screenplay, set rules.Set) []Line {
 		indent := int(math.Round((f.Left - base) * CharsPerInch))
 		width := int(math.Round((PageWidth - f.Left - f.Right) * CharsPerInch))
 		if column != 0 {
-			// two columns, as the PDF writer has them: 2 inches wide, at
-			// the action's margin and 3 inches further; the dual rules'
-			// left margins (from 1 inch) indent within the column
+			// two columns side by side (see DualStart)
 			off := int(math.Round(math.Max(0, f.Left-1.0) * CharsPerInch))
-			indent = off + (column-1)*DualGap
+			indent = DualStart + off + (column-1)*DualGap
 			width = DualWidth - off
 		}
 		align := byte('L')

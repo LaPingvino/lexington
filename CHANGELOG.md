@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   elements come from the same rules as the PDF writer.
   `Line.Padded()` gives the line as fixed-width text.
 
+### Fixed
+- **Dual dialogue** in PDFs was printed too far left: the dialogue of
+  the left column started at 1" from the page's edge, left of the 1.5"
+  margin. The columns are now those of afterwriting, Better Fountain and
+  screenplain: 2.5" wide at 2" and 5", with the dual rules' left
+  margins counted from 1" (dialogue at the column's edge, paren 0.3",
+  speaker 0.5" in). Lines wrap within their column (the speaker and
+  paren no longer run 0.3-0.5" past it, and styled lines no longer wrap
+  at the page's margin across the other column), and the block is
+  followed by the usual blank line only.
+
 ## [1.4.0] - 2026-10-03
 
 ### New Features

@@ -197,10 +197,16 @@ func (t *Tree) flushDualDialogue() {
 	// Left column: 1.5" to 3.5" (2" width)
 	// Right column: 4.5" to 6.5" (2" width)
 	// This provides proper separation and readable columns
-	leftColStart := 1.5
-	leftColWidth := 2.0
-	rightColStart := 4.5
-	rightColWidth := 2.0
+	// The columns of afterwriting, Better Fountain and screenplain: 2.5"
+	// wide, at 2" and 5" from the page's edge (the right one ends at the
+	// 1" margin); the dual rules' left margins, counted from 1", indent
+	// within a column (dialogue 0, paren 0.3", speaker 0.5"). Lexington
+	// had them at 1.5" and 4.5" with the margins counted from 1.5", which
+	// put the dialogue left of the page's margin.
+	leftColStart := 2.0
+	leftColWidth := 2.5
+	rightColStart := 5.0
+	rightColWidth := 2.5
 
 	// Render left column using precise positioning
 	leftCurrentY := startY
@@ -219,8 +225,8 @@ func (t *Tree) flushDualDialogue() {
 		}
 
 		// Position text in left column
-		t.PDF.SetXY(leftColStart+format.Left-1.5, leftCurrentY)
-		leftCurrentY += t.renderDualDialogueLine(format, line.Contents, leftColWidth)
+		t.PDF.SetXY(leftColStart+format.Left-1.0, leftCurrentY)
+		leftCurrentY += t.renderDualDialogueLine(format, line.Contents, leftColWidth-(format.Left-1.0))
 	}
 
 	// Render right column using precise positioning
@@ -240,8 +246,8 @@ func (t *Tree) flushDualDialogue() {
 		}
 
 		// Position text in right column
-		t.PDF.SetXY(rightColStart+format.Left-1.5, rightCurrentY)
-		rightCurrentY += t.renderDualDialogueLine(format, line.Contents, rightColWidth)
+		t.PDF.SetXY(rightColStart+format.Left-1.0, rightCurrentY)
+		rightCurrentY += t.renderDualDialogueLine(format, line.Contents, rightColWidth-(format.Left-1.0))
 	}
 
 	// Set final position to the maximum of both columns
@@ -249,7 +255,7 @@ func (t *Tree) flushDualDialogue() {
 	if rightCurrentY > finalY {
 		finalY = rightCurrentY
 	}
-	t.PDF.SetY(finalY + 0.3) // Add spacing after dual dialogue
+	t.PDF.SetY(finalY) // the blank line after the block follows as usual
 
 	// Restore original margins
 	t.PDF.SetLeftMargin(origLeftMargin)
@@ -304,9 +310,15 @@ func (t Tree) renderDualDialogueLine(format rules.Format, text string, columnWid
 			text = "<center>" + text + "</center>"
 		}
 
-		// For HTML-styled text, use current position and write directly
+		// HTML-styled text wraps at the margins: keep it in its column
+		x, y0 := t.PDF.GetX(), t.PDF.GetY()
+		left, top, right, _ := t.PDF.GetMargins()
+		pageWidth, _ := t.PDF.GetPageSize()
+		t.PDF.SetMargins(x, top, pageWidth-x-columnWidth)
 		t.HTML.Write(lineHeight, text)
-		return lineHeight
+		t.PDF.Ln(lineHeight)
+		t.PDF.SetMargins(left, top, right)
+		return t.PDF.GetY() - y0
 	}
 
 	// For regular text, use MultiCell with constrained width
