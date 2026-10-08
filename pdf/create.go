@@ -38,7 +38,33 @@ type Tree struct {
 }
 
 func (t Tree) pr(a string, text string) {
-	linePrint(t.PDF, t.Rules.Get(a), t.HTML, t.Rules.Get(a).Prefix+text+t.Rules.Get(a).Postfix)
+	f := t.Rules.Get(a)
+	switch a {
+	case "section":
+		text = lex.SectionText(text)
+	case "scene":
+		var number string
+		if text, number = lex.SceneNumber(text); number != "" {
+			t.sceneNumber(f, number)
+		}
+	}
+	linePrint(t.PDF, f, t.HTML, f.Prefix+text+f.Postfix)
+}
+
+// sceneNumber prints a scene's number in both margins, on the line the
+// heading is about to be printed on.
+func (t Tree) sceneNumber(f rules.Format, number string) {
+	y := t.PDF.GetY()
+	pageWidth, _ := t.PDF.GetPageSize()
+	left, top, right, _ := t.PDF.GetMargins()
+	defer t.PDF.SetMargins(left, top, right)
+	t.PDF.SetFont(font.GetFontName(f.Font), "", f.Size)
+	t.PDF.SetMargins(0, top, 0)
+	t.PDF.SetXY(f.Left-0.85, y)
+	t.PDF.CellFormat(0.6, 0.165, number, "", 0, "R", false, 0, "")
+	t.PDF.SetXY(pageWidth-f.Right+0.25, y)
+	t.PDF.CellFormat(0.6, 0.165, number, "", 0, "L", false, 0, "")
+	t.PDF.SetXY(0, y)
 }
 
 func (t *Tree) Render() {
@@ -142,7 +168,7 @@ func (t *Tree) processBookmarkContent(row lex.Line, lastsection int) (string, in
 		contents = strings.TrimLeft(contents, " ")
 	case "scene":
 		level = lastsection + 1
-		contents = row.Contents
+		contents, _ = lex.SceneNumber(row.Contents)
 	}
 
 	return contents, level

@@ -1,6 +1,11 @@
 // The lex format is basically a parse tree for screenplays, which enables quick debugging.
 package lex
 
+import (
+	"regexp"
+	"strings"
+)
+
 // Type aliases for better readability
 type (
 	ElementType = string
@@ -46,4 +51,20 @@ func (l Line) IsDualDialogueMarker() bool {
 // IsEmpty returns true if the line has no content or is an empty type
 func (l Line) IsEmpty() bool {
 	return l.Type == TypeEmpty || l.Contents == ""
+}
+
+var sceneNumber = regexp.MustCompile(`\s*#([^#\s]+)#\s*$`)
+
+// SceneNumber splits Fountain's scene number off a scene heading:
+// "INT. HOUSE - DAY #1A#" is "INT. HOUSE - DAY" and "1A".
+func SceneNumber(heading string) (string, string) {
+	if m := sceneNumber.FindStringSubmatchIndex(heading); m != nil {
+		return heading[:m[0]], heading[m[2]:m[3]]
+	}
+	return heading, ""
+}
+
+// SectionText is a section's title, without the #s of its level.
+func SectionText(section string) string {
+	return strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(section), "#"))
 }

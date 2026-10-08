@@ -91,3 +91,17 @@ func TestIndentedForcedTransition(t *testing.T) {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
 }
+
+// A section or forced scene heading with a colon after the title page is
+// script, not a title page field.
+func TestTitlePageEndsAtMarkupWithColon(t *testing.T) {
+	s := Parse([]string{"INT", "EXT"}, strings.NewReader("Title: T\nDraft date: today\n\n# Part 1: the kitchen\n\n.SCENE 1: NIGHT\n"))
+	var types []string
+	for _, l := range s {
+		types = append(types, string(l.Type)+"="+string(l.Contents))
+	}
+	got := strings.Join(types, " | ")
+	if !strings.Contains(got, "section=# Part 1: the kitchen") || !strings.Contains(got, "scene=SCENE 1: NIGHT") {
+		t.Errorf("%s", got)
+	}
+}

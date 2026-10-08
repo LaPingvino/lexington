@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   paren no longer run 0.3-0.5" past it, and styled lines no longer wrap
   at the page's margin across the other column), and the block is
   followed by the usual blank line only.
+- **Scene numbers** (`INT. HOUSE - DAY #1A#`) are printed in both
+  margins of the PDF, as in other screenwriting software, instead of as
+  part of the heading; the layout has them as `Line.SceneNumber`.
+- **Sections** print without their `#`s.
+- A section or forced scene heading with a colon right after the title
+  page (`# Part 1: the kitchen`) was taken for a title page field.
 
 ## [1.4.0] - 2026-10-03
 

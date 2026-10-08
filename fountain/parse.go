@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"io"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/LaPingvino/lexington/internal"
 	"github.com/LaPingvino/lexington/lex"
@@ -249,6 +251,11 @@ func isTitleKeyValue(row, next string) bool {
 	}
 	key, value, ok := strings.Cut(row, ":")
 	if !ok || strings.TrimSpace(key) == "" {
+		return false
+	}
+	// a key is a word ("Draft date"), not Fountain markup: "# Act 1: the
+	// kitchen" is a section, ".SCENE 1: NIGHT" a forced scene heading
+	if r, _ := utf8.DecodeRuneInString(key); !unicode.IsLetter(r) && !unicode.IsDigit(r) {
 		return false
 	}
 	if isScene, _, _ := CheckScene(row); isScene {

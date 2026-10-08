@@ -98,3 +98,18 @@ speaker: TOM
 		t.Logf("Expected:\n%s\n", expected)
 	}
 }
+
+func TestSceneNumberAndSectionText(t *testing.T) {
+	for _, c := range [][3]string{
+		{"INT. HOUSE - DAY #1A#", "INT. HOUSE - DAY", "1A"},
+		{"INT. HOUSE - DAY", "INT. HOUSE - DAY", ""},
+		{"EXT. ROAD #I-1.2#  ", "EXT. ROAD", "I-1.2"},
+	} {
+		if h, n := SceneNumber(c[0]); h != c[1] || n != c[2] {
+			t.Errorf("SceneNumber(%q) = %q, %q", c[0], h, n)
+		}
+	}
+	if s := SectionText("## Act Two "); s != "Act Two" {
+		t.Errorf("SectionText: %q", s)
+	}
+}

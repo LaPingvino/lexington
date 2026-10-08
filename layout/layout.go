@@ -61,6 +61,9 @@ type Line struct {
 	PageBreak bool
 	// Column of dual dialogue: 0 none, 1 left, 2 right.
 	Column int
+	// SceneNumber of a scene heading (Fountain's #1A#), printed in the
+	// margins; on the heading's first line only.
+	SceneNumber string
 }
 
 // Text is the line's text without styles.
@@ -133,7 +136,14 @@ func Lay(s lex.Screenplay, set rules.Set) []Line {
 		if f.Hide && block == "" {
 			continue
 		}
-		text := strings.TrimSpace(f.Prefix + string(row.Contents) + f.Postfix)
+		contents, number := string(row.Contents), ""
+		switch t {
+		case lex.TypeScene:
+			contents, number = lex.SceneNumber(contents)
+		case "section":
+			contents = lex.SectionText(contents)
+		}
+		text := strings.TrimSpace(f.Prefix + contents + f.Postfix)
 		if t == lex.TypeScene || t == lex.TypeSpeaker {
 			text = strings.ToUpper(text)
 		}
@@ -152,7 +162,9 @@ func Lay(s lex.Screenplay, set rules.Set) []Line {
 		style := Span{Bold: strings.Contains(f.Style, "b"), Italic: strings.Contains(f.Style, "i"),
 			Underline: strings.Contains(f.Style, "u")}
 		for _, spans := range wrap(emphasis(text, style), width) {
-			out = append(out, Line{Type: t, Block: block, Indent: indent, Width: width, Align: align, Spans: spans, Column: column})
+			out = append(out, Line{Type: t, Block: block, Indent: indent, Width: width, Align: align, Spans: spans, Column: column,
+				SceneNumber: number})
+			number = ""
 		}
 	}
 	return out
