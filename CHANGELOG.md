@@ -59,6 +59,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The layout counts from the set's leftmost margin, so elements left of
   the action's (radio's names) no longer give negative indents.
 - An unknown `-e` set is an error instead of an empty PDF.
+- **Fonts** in the PDF: the rules' `Font` was ignored (always Courier).
+  Now Helvetica (Arial), Times and Courier name the PDF's standard
+  fonts, for Western European text (a line with other characters stays
+  in Courier Badi), and a `.ttf`/`.otf` path loads that font with its
+  -Bold/-Italic/-BoldItalic siblings. The default lyrics are in
+  Helvetica, as the default rules always had it.
 
 ## [1.4.0] - 2026-10-03
 

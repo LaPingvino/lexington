@@ -35,6 +35,7 @@ type Tree struct {
 	DualDialogue bool       // Track if we're in dual dialogue mode
 	DualColumn   int        // Track which column we're in (0 = left, 1 = right)
 	DualBuffer   []lex.Line // Buffer for dual dialogue elements
+	Fonts        *fonts     // the rules' fonts (nil: Courier only)
 }
 
 func (t Tree) pr(a string, text string) {
@@ -48,7 +49,7 @@ func (t Tree) pr(a string, text string) {
 			t.sceneNumber(f, number)
 		}
 	}
-	linePrint(t.PDF, f, t.HTML, f.Prefix+text+f.Postfix)
+	t.linePrint(f, f.Prefix+text+f.Postfix)
 }
 
 // sceneNumber prints a scene's number in both margins, on the line the
@@ -58,7 +59,8 @@ func (t Tree) sceneNumber(f rules.Format, number string) {
 	pageWidth, _ := t.PDF.GetPageSize()
 	left, top, right, _ := t.PDF.GetMargins()
 	defer t.PDF.SetMargins(left, top, right)
-	t.PDF.SetFont(font.GetFontName(f.Font), "", f.Size)
+	fontName, number := t.Fonts.font(f.Font, number)
+	t.PDF.SetFont(fontName, "", f.Size)
 	t.PDF.SetMargins(0, top, 0)
 	t.PDF.SetXY(f.Left-0.85, y)
 	t.PDF.CellFormat(0.6, 0.165, number, "", 0, "R", false, 0, "")
@@ -288,9 +290,9 @@ func (t *Tree) flushDualDialogue() {
 	t.PDF.SetRightMargin(origRightMargin)
 }
 
-func linePrint(pdf *gofpdf.Fpdf, format rules.Format, html gofpdf.HTMLBasicType, text string) {
-	// Map configuration font names to PDF font names
-	fontName := font.GetFontName(format.Font)
+func (t Tree) linePrint(format rules.Format, text string) {
+	pdf, html := t.PDF, t.HTML
+	fontName, text := t.Fonts.font(format.Font, text)
 
 	pdf.SetFont(fontName, format.Style, format.Size)
 	pdf.SetX(0)
@@ -318,8 +320,7 @@ func linePrint(pdf *gofpdf.Fpdf, format rules.Format, html gofpdf.HTMLBasicType,
 
 // renderDualDialogueLine renders a single line of dual dialogue and returns the height consumed
 func (t Tree) renderDualDialogueLine(format rules.Format, text string, columnWidth float64) float64 {
-	// Map configuration font names to PDF font names
-	fontName := font.GetFontName(format.Font)
+	fontName, text := t.Fonts.font(format.Font, text)
 
 	t.PDF.SetFont(fontName, format.Style, format.Size)
 	text = strings.TrimRight(text, "\r\n")
@@ -386,6 +387,7 @@ func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		DualDialogue: false,
 		DualColumn:   0,
 		DualBuffer:   []lex.Line{},
+		Fonts:        newFonts(pdf),
 	}
 	f.Render()
 	err := pdf.OutputFileAndClose(p.OutputFile) // Use the OutputFile from the PDFWriter struct
