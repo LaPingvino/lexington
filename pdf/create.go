@@ -21,7 +21,14 @@ import (
 type PDFWriter struct {
 	OutputFile string
 	Elements   rules.Set
+	// Page is the paper: "letter" (the default), "a4" or "a5". The rules
+	// are for Letter; on other paper their positions scale with the
+	// page's width (and the title page's with its height).
+	Page string
 }
+
+// pages are the paper sizes by name, as gofpdf names them.
+var pages = map[string]string{"letter": "Letter", "a4": "A4", "a5": "A5"}
 
 // elementMeta is the format for title page fields other than the title,
 // credit and author.
@@ -36,6 +43,22 @@ type Tree struct {
 	DualColumn   int        // Track which column we're in (0 = left, 1 = right)
 	DualBuffer   []lex.Line // Buffer for dual dialogue elements
 	Fonts        *fonts     // the rules' fonts (nil: Courier only)
+	Scale        float64    // of horizontal positions: the page's width to Letter's (0: 1)
+	VScale       float64    // of vertical ones
+}
+
+func (t Tree) sc() float64 {
+	if t.Scale == 0 {
+		return 1
+	}
+	return t.Scale
+}
+
+func (t Tree) vsc() float64 {
+	if t.VScale == 0 {
+		return 1
+	}
+	return t.VScale
 }
 
 func (t Tree) pr(a string, text string) {
@@ -122,7 +145,7 @@ func (t *Tree) handleSpecialCases(row lex.Line, block *string, lastsection *int)
 		return true
 	case "titlepage":
 		*block = internal.ElementTitle
-		t.PDF.SetY(4)
+		t.PDF.SetY(4 * t.vsc())
 		return false
 	case "title", "Title":
 		t.PDF.SetTitle(row.Contents, true)
@@ -218,8 +241,9 @@ func (t *Tree) flushDualDialogue() {
 	startY := t.PDF.GetY()
 
 	// Store original margins for restoration
-	origLeftMargin := 1.5
-	origRightMargin := 1.0
+	sc := t.sc()
+	origLeftMargin := 1.5 * sc
+	origRightMargin := 1.0 * sc
 
 	// Industry standard dual dialogue column positions:
 	// Left column: 1.5" to 3.5" (2" width)
@@ -231,10 +255,10 @@ func (t *Tree) flushDualDialogue() {
 	// within a column (dialogue 0, paren 0.3", speaker 0.5"). Lexington
 	// had them at 1.5" and 4.5" with the margins counted from 1.5", which
 	// put the dialogue left of the page's margin.
-	leftColStart := 2.0
-	leftColWidth := 2.5
-	rightColStart := 5.0
-	rightColWidth := 2.5
+	leftColStart := 2.0 * sc
+	leftColWidth := 2.5 * sc
+	rightColStart := 5.0 * sc
+	rightColWidth := 2.5 * sc
 
 	// Render left column using precise positioning
 	leftCurrentY := startY
@@ -253,8 +277,8 @@ func (t *Tree) flushDualDialogue() {
 		}
 
 		// Position text in left column
-		t.PDF.SetXY(leftColStart+format.Left-1.0, leftCurrentY)
-		leftCurrentY += t.renderDualDialogueLine(format, line.Contents, leftColWidth-(format.Left-1.0))
+		t.PDF.SetXY(leftColStart+format.Left-1.0*sc, leftCurrentY)
+		leftCurrentY += t.renderDualDialogueLine(format, line.Contents, leftColWidth-(format.Left-1.0*sc))
 	}
 
 	// Render right column using precise positioning
@@ -274,8 +298,8 @@ func (t *Tree) flushDualDialogue() {
 		}
 
 		// Position text in right column
-		t.PDF.SetXY(rightColStart+format.Left-1.0, rightCurrentY)
-		rightCurrentY += t.renderDualDialogueLine(format, line.Contents, rightColWidth-(format.Left-1.0))
+		t.PDF.SetXY(rightColStart+format.Left-1.0*sc, rightCurrentY)
+		rightCurrentY += t.renderDualDialogueLine(format, line.Contents, rightColWidth-(format.Left-1.0*sc))
 	}
 
 	// Set final position to the maximum of both columns
@@ -366,7 +390,24 @@ func (t Tree) renderDualDialogueLine(format rules.Format, text string, columnWid
 // Note: For PDF, the 'w io.Writer' argument is currently ignored as gofpdf
 // requires a file path for output. The output file path is taken from PDFWriter.OutputFile.
 func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
-	pdf := gofpdf.New("P", "in", "Letter", "")
+	size, ok := pages[strings.ToLower(p.Page)]
+	if !ok {
+		size = "Letter"
+	}
+	pdf := gofpdf.New("P", "in", size, "")
+	width, height := pdf.GetPageSize()
+	elements := p.Elements
+	if elements == nil {
+		elements = rules.Default
+	}
+	if size != "Letter" { // the rules' positions, scaled to the page
+		scaled := rules.Set{}
+		for k, f := range elements {
+			f.Left, f.Right = f.Left*width/8.5, f.Right*width/8.5
+			scaled[k] = f
+		}
+		elements = scaled
+	}
 
 	// Load fonts using modern embed approach
 	pdf.AddUTF8FontFromBytes("CourierPrime", "", font.GetFont("CourierPrime", ""))
@@ -381,13 +422,15 @@ func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	pdf.SetXY(1, 1)
 	f := &Tree{
 		PDF:          pdf,
-		Rules:        p.Elements, // Use the Elements from the PDFWriter struct
+		Rules:        elements,
 		F:            screenplay, // Use the screenplay passed to the Write method
 		HTML:         pdf.HTMLBasicNew(),
 		DualDialogue: false,
 		DualColumn:   0,
 		DualBuffer:   []lex.Line{},
 		Fonts:        newFonts(pdf),
+		Scale:        width / 8.5,
+		VScale:       height / 11,
 	}
 	f.Render()
 	err := pdf.OutputFileAndClose(p.OutputFile) // Use the OutputFile from the PDFWriter struct

@@ -48,3 +48,16 @@ func TestLyricsInHelvetica(t *testing.T) {
 		t.Error("no Helvetica in the PDF")
 	}
 }
+
+// Other paper than Letter: the page's size, the rules scaled to it.
+func TestPaperSize(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "a5.pdf")
+	s := fountain.Parse(nil, strings.NewReader("INT. ROOM - DAY\n\nANNA\nHello.\n"))
+	if err := (&PDFWriter{OutputFile: out, Page: "a5"}).Write(nil, s); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(out)
+	if !strings.Contains(string(b), "595.28") || strings.Contains(string(b), " 792.00") {
+		t.Error("not an A5 page")
+	}
+}

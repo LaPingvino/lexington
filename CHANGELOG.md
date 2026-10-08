@@ -33,7 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   margin, page numbers from the first page after the title page, dual
   dialogue as a borderless table. `-page letter|a4|a5` sets the paper;
   a preset can suggest one (the musical: A5, a folded booklet), and
-  positions scale with the page's width.
+  positions scale with the page's width. The PDF takes `-page` too
+  (`PDFWriter.Page`).
 - `layout.Paragraphs`: the printed elements before they are broken into
   lines, for writers that leave that to a word processor.
 - Toki Pona scene headings (`tok`).

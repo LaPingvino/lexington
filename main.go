@@ -153,7 +153,7 @@ func parseFlags() *Config {
 	flag.StringVar(&config.Elements, "e", "default",
 		"Element settings to use: a preset (see -presets) or a set from the settings file.")
 	flag.StringVar(&config.Page, "page", "",
-		"Paper size for docx and odt: letter, a4 or a5 (default: the preset's suggestion, else letter).")
+		"Paper size for pdf, docx and odt: letter, a4 or a5 (default: the preset's suggestion, else letter).")
 	flag.BoolVar(&config.ListPresets, "presets", false, "List the presets for -e (stage play, radio, ...).")
 	flag.StringVar(&config.Input, "i", "-", "Input from provided filename. - means standard input.")
 	flag.StringVar(&config.Output, "o", "-", "Output to provided filename. - means standard output.")
@@ -364,7 +364,7 @@ func createWriter(config *Config, conf rules.TOMLConf) writer.Writer {
 			log.Println("Cannot write PDF to standard output. Please provide an output filename (e.g., -o output.pdf).")
 			return nil
 		}
-		return &pdf.PDFWriter{OutputFile: config.Output, Elements: conf.Elements[config.Elements]}
+		return &pdf.PDFWriter{OutputFile: config.Output, Elements: conf.Elements[config.Elements], Page: pageFor(config)}
 	case internal.FormatLex:
 		return &lex.LexWriter{}
 	case internal.FormatFountain:
