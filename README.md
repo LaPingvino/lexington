@@ -2,7 +2,6 @@
 
 [![CI](https://github.com/LaPingvino/lexington/actions/workflows/ci.yml/badge.svg)](https://github.com/LaPingvino/lexington/actions/workflows/ci.yml)
 [![Release](https://github.com/LaPingvino/lexington/actions/workflows/release.yml/badge.svg)](https://github.com/LaPingvino/lexington/actions/workflows/release.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/lapingvino/lexington)](https://goreportcard.com/report/github.com/lapingvino/lexington)
 [![License](https://img.shields.io/github/license/lapingvino/lexington)](LICENSE)
 
 **Lexington** is a professional command-line tool for screenwriters that converts between multiple screenplay formats with industry-standard formatting. Built with modern Go and featuring comprehensive dual dialogue support.

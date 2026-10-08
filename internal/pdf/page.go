@@ -859,9 +859,38 @@ func (p Page) Content() Content {
 
 	var rect []Rect
 	var gstack []gstate
-	Interpret(strm, func(stk *Stack, op string) {
+	// the resources of what is being drawn: the page's, or a form's
+	res := p.Resources()
+	depth := 0
+	var do func(stk *Stack, op string)
+	do = func(stk *Stack, op string) {
 		args := popArgs(stk)
 		switch op {
+		case "Do": // draw an XObject: a form's text is the page's too
+			if len(args) != 1 || depth >= 8 {
+				return
+			}
+			xo := res.Key("XObject").Key(args[0].Name())
+			if xo.Key("Subtype").Name() != "Form" {
+				return
+			}
+			savedG, savedRes, savedEnc := g, res, enc
+			if r := xo.Key("Resources"); r.Kind() == Dict {
+				res = r
+			}
+			if m := xo.Key("Matrix"); m.Len() == 6 {
+				var fm matrix
+				for i := 0; i < 6; i++ {
+					fm[i/2][i%2] = m.Index(i).Float64()
+				}
+				fm[2][2] = 1
+				g.CTM = fm.mul(g.CTM)
+			}
+			depth++
+			Interpret(xo, do)
+			depth--
+			g, res, enc = savedG, savedRes, savedEnc
+
 		default:
 			// if DebugOn {
 			// 	fmt.Println(op, args)
@@ -949,7 +978,7 @@ func (p Page) Content() Content {
 				panic("bad TL")
 			}
 			f := args[0].Name()
-			g.Tf = p.Font(f)
+			g.Tf = Font{res.Key("Font").Key(f), nil}
 			enc = g.Tf.Encoder()
 			if enc == nil {
 				if DebugOn {
@@ -1036,7 +1065,8 @@ func (p Page) Content() Content {
 			}
 			g.Th = args[0].Float64() / 100
 		}
-	})
+	}
+	Interpret(strm, do)
 	return Content{text, rect}
 }
 

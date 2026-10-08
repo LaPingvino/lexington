@@ -40,7 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   command line uses it), or to any other OCR, such as the built-in
   WebAssembly one of the `ocrwasm` module.
   The PDF reading is github.com/ledongthuc/pdf, vendored in
-  internal/pdf with a fix for fonts that map the code 0x0A.
+  internal/pdf with fixes: fonts that map the code 0x0A, 40-bit RC4
+  encryption (old PDFs that only restrict copying), text drawn in form
+  XObjects. A page that cannot be read is left out (and reported)
+  instead of failing the import; running headers and footers are
+  dropped.
 - The **Fountain writer** keeps dual dialogue (`^`), centred text
   (`>...<`) and transitions that need `>`; dual dialogue lost its `^`
   and gained blank lines.

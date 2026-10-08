@@ -1119,7 +1119,9 @@ func cryptKey(key []byte, useAES bool, ptr objptr) []byte {
 	if useAES {
 		h.Write([]byte("sAlT"))
 	}
-	return h.Sum(nil)
+	// PDF 32000-1 §7.6.2, algorithm 1: the first n+5 bytes, at most 16
+	// (the whole sum broke 40-bit RC4)
+	return h.Sum(nil)[:min(len(key)+5, 16)]
 }
 
 func decryptString(key []byte, useAES bool, ptr objptr, x string) string {

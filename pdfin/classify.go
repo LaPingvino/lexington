@@ -27,9 +27,10 @@ func classify(pages [][]line, width float64) lex.Screenplay {
 		out = append(out, title...)
 		start = 1
 	}
+	running := runningLines(pages[start:])
 	var body []line
 	for _, p := range pages[start:] {
-		body = append(body, cleanPage(p)...)
+		body = append(body, cleanPage(p, running)...)
 	}
 	if len(body) == 0 {
 		return out
@@ -193,33 +194,41 @@ func actionMargin(ls []line) float64 {
 	return xs[0]
 }
 
-// lineStep is the usual distance between lines (12 pt for Courier 12).
+// lineStep is the usual distance between lines (12 pt for Courier 12):
+// the most common gap, or half of it if that is common too (then the
+// most common gap is a blank line).
 func lineStep(ls []line) float64 {
-	var gaps []float64
+	counts := map[int]int{} // gaps in hundredths of an inch
 	for i := 1; i < len(ls); i++ {
-		if g := ls[i].Y - ls[i-1].Y; ls[i].Page == ls[i-1].Page && g > 0.05 {
-			gaps = append(gaps, g)
+		if g := ls[i].Y - ls[i-1].Y; ls[i].Page == ls[i-1].Page && g > 0.08 && g < 0.6 {
+			counts[int(math.Round(g*100))]++
 		}
 	}
-	if len(gaps) == 0 {
+	near := func(g int) int { return counts[g-1] + counts[g] + counts[g+1] }
+	best, n := 0, 0
+	for g := range counts {
+		if c := near(g); c > n || (c == n && g < best) {
+			best, n = g, c
+		}
+	}
+	if best == 0 {
 		return 1.0 / 6
 	}
-	// the smallest gap that comes back: lines without a blank between
-	sort.Float64s(gaps)
-	for i := 0; i+1 < len(gaps); i++ {
-		if gaps[i+1]-gaps[i] < 0.02 {
-			return gaps[i]
-		}
+	if half := (best + 1) / 2; near(half) > 0 && near(half)*4 >= n && half >= 9 {
+		best = half
 	}
-	return gaps[0]
+	return float64(best) / 100
 }
 
 // cleanPage leaves out what is not the script: page numbers, (MORE),
 // CONTINUED; scene numbers in the margins go to the end of their heading.
-func cleanPage(ls []line) []line {
+func cleanPage(ls []line, running map[string]bool) []line {
 	var out []line
 	for i, l := range ls {
 		t := l.text()
+		if running[runningKey(l)] {
+			continue
+		}
 		top := i < 2 && l.Y < 0.9
 		bottom := i >= len(ls)-2 && l.Y > 10.0
 		switch {
@@ -363,4 +372,44 @@ func hasCredit(ls []line, width float64) bool {
 		}
 	}
 	return n >= 3
+}
+
+// runningKey is a line near the top or bottom of the page without its
+// numbers, to find running headers and footers ("BLUE DRAFT 4.28.11 3.").
+func runningKey(l line) string {
+	if l.Y > 1.0 && l.Y < 10.0 {
+		return ""
+	}
+	k := strings.Map(func(r rune) rune {
+		if r >= '0' && r <= '9' || r == ' ' || r == '.' {
+			return -1
+		}
+		return r
+	}, strings.ToUpper(l.text()))
+	if k == "" {
+		return ""
+	}
+	return k
+}
+
+// runningLines are the running headers and footers: lines at the top or
+// bottom that come back on a third of the pages or more.
+func runningLines(pages [][]line) map[string]bool {
+	counts := map[string]int{}
+	for _, p := range pages {
+		seen := map[string]bool{}
+		for _, l := range p {
+			if k := runningKey(l); k != "" && !seen[k] {
+				seen[k] = true
+				counts[k]++
+			}
+		}
+	}
+	out := map[string]bool{}
+	for k, n := range counts {
+		if n >= 3 && n*3 >= len(pages) {
+			out[k] = true
+		}
+	}
+	return out
 }

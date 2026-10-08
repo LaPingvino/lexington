@@ -7,3 +7,11 @@ every text object.
 
 Value.RawReader was added: a stream's data as stored, for the image
 formats the filters do not decode (JPEG, CCITT fax), for pdfin's OCR.
+
+cryptKey used the whole MD5 sum as an object's key; the spec takes the
+first n+5 bytes (at most 16), so files with 40-bit RC4 encryption (an
+empty user password, common in old PDFs) did not decrypt.
+
+Page.Content follows Form XObjects (Do), with their matrix and
+resources: text drawn in forms (as some PDF makers do for every page)
+was missing.

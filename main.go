@@ -307,6 +307,7 @@ func parseInput(config *Config, conf rules.TOMLConf, input io.Reader) *lex.Scree
 		if t, ok := pdfin.InstalledTesseract(); ok {
 			opts.OCR = t
 		}
+		opts.Skipped = func(page int, err error) { log.Printf("Left out page %d: %v", page, err) }
 		if screenplay, err = pdfin.ReadWith(bytes.NewReader(data), int64(len(data)), opts); err != nil {
 			log.Printf("Could not read the PDF: %v", err)
 			return nil

@@ -98,6 +98,7 @@ func ReadWith(r io.ReaderAt, size int64, opts Options) (s lex.Screenplay, err er
 		return nil, err
 	}
 	var pages [][]line
+	var firstErr error
 	width := 8.5
 	for i := 1; i <= doc.NumPage(); i++ {
 		p := doc.Page(i)
@@ -107,17 +108,16 @@ func ReadWith(r io.ReaderAt, size int64, opts Options) (s lex.Screenplay, err er
 		if box := p.V.Key("MediaBox"); box.Len() == 4 {
 			width = box.Index(2).Float64() / 72
 		}
-		ls := lines(i, p)
-		if len(ls) == 0 && opts.OCR != nil { // a scanned page
-			img, err := pageImage(p)
-			if err != nil {
-				return nil, fmt.Errorf("page %d: %v", i, err)
+		ls, err := readPage(i, p, width, opts)
+		if err != nil {
+			// a page that cannot be read is left out, not the script
+			if firstErr == nil {
+				firstErr = fmt.Errorf("page %d: %v", i, err)
 			}
-			hocr, err := opts.OCR.HOCR(context.Background(), img)
-			if err != nil {
-				return nil, fmt.Errorf("page %d: %v", i, err)
+			if opts.Skipped != nil {
+				opts.Skipped(i, err)
 			}
-			ls = hocrLines(i, hocr, float64(img.Bounds().Dx())/width)
+			continue
 		}
 		pages = append(pages, ls)
 		if opts.Progress != nil {
@@ -125,6 +125,9 @@ func ReadWith(r io.ReaderAt, size int64, opts Options) (s lex.Screenplay, err er
 		}
 	}
 	if len(pages) == 0 {
+		if firstErr != nil {
+			return nil, firstErr
+		}
 		return nil, fmt.Errorf("no pages")
 	}
 	all := 0
@@ -135,6 +138,28 @@ func ReadWith(r io.ReaderAt, size int64, opts Options) (s lex.Screenplay, err er
 		return nil, fmt.Errorf("the PDF has no text: a scanned script needs OCR")
 	}
 	return classify(pages, width), nil
+}
+
+// readPage is a page's lines: its text, or what OCR reads in its scan.
+func readPage(i int, p pdf.Page, width float64, opts Options) (ls []line, err error) {
+	defer func() {
+		if r := recover(); r != nil { // the PDF library panics on broken data
+			err = fmt.Errorf("%v", r)
+		}
+	}()
+	ls = lines(i, p)
+	if len(ls) == 0 && opts.OCR != nil { // a scanned page
+		img, err := pageImage(p)
+		if err != nil {
+			return nil, err
+		}
+		hocr, err := opts.OCR.HOCR(context.Background(), img)
+		if err != nil {
+			return nil, err
+		}
+		ls = hocrLines(i, hocr, float64(img.Bounds().Dx())/width)
+	}
+	return ls, nil
 }
 
 // lines are a page's text lines, top to bottom.
@@ -217,7 +242,7 @@ func lines(page int, p pdf.Page) []line {
 
 var (
 	pageNumber  = regexp.MustCompile(`^\(?\d+[A-Z]?\.?\)?$`)
-	sceneNumber = regexp.MustCompile(`^[0-9]+[A-Z]{0,2}\.?$`)
+	sceneNumber = regexp.MustCompile(`^[A-Z]?[0-9]+[A-Z]{0,3}\.?$`)
 	more        = regexp.MustCompile(`^\(MORE\)$`)
 	contd       = regexp.MustCompile(`\s*\((CONT'D|CONT’D|CONTINUED|cont'd)\)\s*$`)
 	continued   = regexp.MustCompile(`^\(?CONTINUED[:)]?\)?$|^CONTINUED: ?(\(\d+\))?$`)

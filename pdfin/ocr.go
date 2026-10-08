@@ -28,6 +28,10 @@ type Options struct {
 	OCR OCR
 	// Progress, if set, is told how many of the pages are read.
 	Progress func(done, pages int)
+	// Skipped, if set, is told of a page that could not be read (a broken
+	// stream, a scan in a format that cannot be decoded); the script is
+	// read without it.
+	Skipped func(page int, err error)
 }
 
 // Tesseract is the tesseract program as OCR, for -l Language ("eng"
