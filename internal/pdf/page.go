@@ -992,7 +992,7 @@ func (p Page) Content() Content {
 					g.Tm = matrix{{1, 0, 0}, {0, 1, 0}, {tx, 0, 1}}.mul(g.Tm)
 				}
 			}
-			// (no "\n" marker here: see README.md)
+			// (no "\n" marker here: see PATCH.txt)
 
 		case "TL": // set text leading
 			if len(args) != 1 {

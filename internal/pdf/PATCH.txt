@@ -1,0 +1,6 @@
+This is github.com/ledongthuc/pdf (v0.0.0-20260907135840-6c8c28e0e8a0,
+BSD licence, see LICENSE), vendored for pdfin with one change:
+Page.Content no longer adds a "\n" after each TJ array. That marker was
+decoded through the current font, and in fonts that map the code 0x0A
+(LibreOffice's subsets, for instance) it became a letter at the end of
+every text object.
