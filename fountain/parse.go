@@ -345,8 +345,10 @@ func (state *ParseState) checkInferredTypes(row, trimmedSpaceRow string) (lex.Li
 	var isCurrentLineDualSpeakerCandidate bool
 
 	charcheck := strings.Split(row, "(")
-	if len(charcheck) > 0 && strings.ToUpper(charcheck[0]) == charcheck[0] && strings.TrimSpace(charcheck[0]) != "" {
-		// Speaker name (all caps)
+	if !state.inDialogueContext && len(charcheck) > 0 && strings.ToUpper(charcheck[0]) == charcheck[0] &&
+		strings.TrimSpace(charcheck[0]) != "" {
+		// Speaker name (all caps); within a speech an all-caps line is
+		// dialogue (a shout, a sung lyric, SFX's KRAKOOM!)
 		currentLine.Type = lex.TypeSpeaker
 		currentLine.Contents = trimmedSpaceRow
 		if strings.HasSuffix(currentLine.Contents, "^") {

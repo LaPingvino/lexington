@@ -1,0 +1,42 @@
+Name = "Comic script (full script)"
+Description = """
+A full comic script in the common American way (Dark Horse's guide, \
+Antony Johnston's templates; there is no real standard): each page a \
+forced scene heading (.PAGE ONE) after ===, panel descriptions as \
+action (Panel 1. ...), captions, SFX and balloons as characters, \
+indented with a colon, for the artist and the letterer."""
+
+[Elements.scene]
+Left = 1.5
+Right = 1.0
+Style = "bu"
+
+[Elements.action]
+Left = 1.5
+Right = 1.0
+
+[Elements.speaker]
+Left = 2.5
+Right = 1.0
+Style = "b"
+Postfix = ":"
+
+[Elements.dialog]
+Left = 2.5
+Right = 1.5
+
+[Elements.paren]
+Left = 2.5
+Right = 1.5
+Style = "i"
+
+[Elements.section]
+Left = 1.5
+Right = 1.0
+Style = "b"
+Align = "C"
+
+[Elements.trans]
+Left = 1.5
+Right = 1.0
+Align = "R"

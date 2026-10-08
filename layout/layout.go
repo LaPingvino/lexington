@@ -51,7 +51,8 @@ type Line struct {
 	// Block is "title" or "meta" on the title page, otherwise "".
 	Block string
 	// Indent and Width are the line's column and width in characters,
-	// counted from the action's left margin.
+	// counted from the leftmost margin of the set (the action's in a
+	// screenplay).
 	Indent, Width int
 	// Align is 'L', 'C' or 'R', within Indent and Width.
 	Align byte
@@ -96,7 +97,14 @@ func Lay(s lex.Screenplay, set rules.Set) []Line {
 	if set == nil {
 		set = rules.Default
 	}
+	// characters count from the leftmost margin of the set's elements
+	// (the action's in a screenplay; radio puts names further left)
 	base := set.Get("action").Left
+	for k, f := range set {
+		if !strings.HasPrefix(k, "dual") && !f.Hide && f.Left < base {
+			base = f.Left
+		}
+	}
 	var out []Line
 	block, column := "", 0
 	for _, row := range s {

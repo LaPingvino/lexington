@@ -1,0 +1,53 @@
+Name = "Musical (stage and school)"
+Description = """
+A stage play with songs, after the musical theatre guidelines of the \
+Dramatists Guild and NMI: names centred, dialogue across the page, \
+stage directions in parentheses, lyrics indented (type them in capitals \
+with ~), song headings centred in bold underline (> 3. TITLE <, with \
+3A for a reprise or playoff)."""
+
+[Elements.speaker]
+Left = 1.5
+Right = 1.0
+Align = "C"
+
+[Elements.dialog]
+Left = 1.5
+Right = 1.0
+
+[Elements.paren]
+Left = 3.5
+Right = 2.0
+
+[Elements.action]
+Left = 3.0
+Right = 1.0
+Prefix = "("
+Postfix = ")"
+
+[Elements.lyrics]
+Left = 2.0
+Right = 1.0
+
+[Elements.center]
+Left = 1.5
+Right = 1.0
+Style = "bu"
+Align = "C"
+
+[Elements.scene]
+Left = 1.5
+Right = 1.0
+Style = "u"
+Align = "C"
+
+[Elements.section]
+Left = 1.5
+Right = 1.0
+Style = "b"
+Align = "C"
+
+[Elements.trans]
+Left = 3.0
+Right = 1.0
+Align = "R"

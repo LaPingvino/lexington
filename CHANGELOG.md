@@ -17,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   two columns. The margins, alignment, style, prefix, postfix and hidden
   elements come from the same rules as the PDF writer.
   `Line.Padded()` gives the line as fixed-width text.
+- **Presets** for other kinds of scripts, with `-e`: `stageplay` and
+  `stageplay-uk`, `musical`, `radio` (BBC radio drama, hoorspel),
+  `comic` (full script), `bd` (bande dessinée), `transcript`, and
+  `inverse`, the "Character: text" layout from 2022. They need no
+  configuration file (one can still override them by name); `-presets`
+  lists them, `rules.Presets` gives them to programs. Each is a small
+  TOML file in `rules/presets`. docs/presets.md describes them and how
+  to write each kind of script, with examples in `examples/` (also a
+  TV episode).
+- Toki Pona scene headings (`tok`).
 
 ### Fixed
 - **Dual dialogue** in PDFs was printed too far left: the dialogue of
@@ -34,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sections** print without their `#`s.
 - A section or forced scene heading with a colon right after the title
   page (`# Part 1: the kitchen`) was taken for a title page field.
+- An all-caps line in a speech (`GOTCHA!`, `KRAKOOM!`) was taken for
+  a new character instead of dialogue.
+- The layout counts from the set's leftmost margin, so elements left of
+  the action's (radio's names) no longer give negative indents.
+- An unknown `-e` set is an error instead of an empty PDF.
 
 ## [1.4.0] - 2026-10-03
 

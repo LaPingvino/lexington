@@ -1,0 +1,43 @@
+Name = "Stage play (US)"
+Description = """
+The manuscript format of American play publishers and competitions: \
+character names centred, dialogue across the page, stage directions \
+indented in italics, acts (Fountain sections, # ACT ONE) and scenes \
+centred. Write scene headings as forced ones (.SCENE 1) or sections."""
+
+[Elements.speaker]
+Left = 1.5
+Right = 1.0
+Align = "C"
+
+[Elements.dialog]
+Left = 1.5
+Right = 1.0
+
+[Elements.action]
+Left = 3.0
+Right = 1.0
+Style = "i"
+
+[Elements.paren]
+Left = 3.0
+Right = 1.0
+Style = "i"
+
+[Elements.scene]
+Left = 1.5
+Right = 1.0
+Style = "bu"
+Align = "C"
+
+[Elements.section]
+Left = 1.5
+Right = 1.0
+Style = "b"
+Align = "C"
+
+[Elements.trans]
+Left = 3.0
+Right = 1.0
+Style = "i"
+Align = "R"

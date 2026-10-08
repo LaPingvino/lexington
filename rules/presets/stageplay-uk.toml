@@ -1,0 +1,36 @@
+Name = "Stage play (UK)"
+Description = """
+The British stage play layout of the BBC Writersroom's template: names \
+with a colon at the left, the speech indented, stage directions \
+further in (type them in capitals), acts and scenes at the left. \
+Lexington puts the name and the speech on separate lines."""
+
+[Elements.speaker]
+Left = 1.0
+Right = 1.0
+Postfix = ":"
+
+[Elements.dialog]
+Left = 2.5
+Right = 1.0
+
+[Elements.paren]
+Left = 2.5
+Right = 1.0
+
+[Elements.action]
+Left = 3.5
+Right = 1.0
+
+[Elements.scene]
+Left = 1.0
+Right = 1.0
+
+[Elements.section]
+Left = 1.0
+Right = 1.0
+Style = "b"
+
+[Elements.trans]
+Left = 3.5
+Right = 1.0

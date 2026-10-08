@@ -1,0 +1,46 @@
+Name = "Radio drama (BBC, hoorspel)"
+Description = """
+The BBC Writersroom's radio drama layout (hoorspel, Hörspiel): names \
+with a colon at the left, the speech indented, sound effects, music, \
+scene headings and transitions underlined further in, so actors and the \
+studio see at once what is heard. Type directions in capitals; \
+Lexington puts the name and the speech on separate lines."""
+
+[Elements.speaker]
+Left = 1.0
+Right = 1.0
+Postfix = ":"
+
+[Elements.dialog]
+Left = 3.0
+Right = 1.0
+
+[Elements.paren]
+Left = 3.0
+Right = 1.0
+
+[Elements.action]
+Left = 3.5
+Right = 1.0
+Style = "u"
+
+[Elements.scene]
+Left = 3.5
+Right = 1.0
+Style = "u"
+
+[Elements.trans]
+Left = 3.5
+Right = 1.0
+Style = "u"
+
+[Elements.section]
+Left = 1.0
+Right = 1.0
+Style = "b"
+Align = "C"
+
+[Elements.lyrics]
+Left = 3.0
+Right = 1.0
+Style = "i"

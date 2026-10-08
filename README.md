@@ -109,15 +109,20 @@ Font = "CourierPrime"
 Size = 12.0
 ```
 
-### Pre-defined Styles
+### Presets: stage plays, radio, comics and more
 
-- **default**: Standard screenplay format with industry-standard margins
-- **compact**: Tighter margins suitable for web display or smaller pages
+Besides the screenplay (`default`), Lexington has presets for other
+kinds of scripts: US and UK stage plays, musicals, radio drama
+(hoorspel), comics, bande dessinée, transcripts, and the "Character:
+text" layout `inverse`. They work without a configuration file:
 
-Use a pre-defined style:
 ```bash
-lexington -i script.fountain -o script.html -to html -e compact
+lexington -presets
+lexington -e musical -i musical.fountain -o musical.pdf
 ```
+
+See [docs/presets.md](docs/presets.md) for each, how to write such a
+script in Fountain, and [examples/](examples) for a sample of every kind.
 
 ## Output Formats
 

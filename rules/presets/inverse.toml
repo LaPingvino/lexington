@@ -1,0 +1,58 @@
+Name = "Inverse (Character: text)"
+Description = """
+Names and dialogue at the left margin, the name in bold italic with a \
+colon, action and parentheticals indented in italics: easy to read and \
+comfortable for big chunks of dialogue, as in rehearsal scripts, \
+readings and plays with long speeches."""
+
+[Elements.action]
+Left = 2.0
+Right = 1.5
+Style = "i"
+
+[Elements.speaker]
+Left = 1.5
+Right = 1.5
+Style = "bi"
+Postfix = ":"
+
+[Elements.dialog]
+Left = 1.75
+Right = 1.0
+
+[Elements.paren]
+Left = 2.0
+Right = 1.5
+Style = "i"
+
+[Elements.scene]
+Left = 1.55
+Right = 1.0
+Style = "bu"
+Prefix = "> "
+
+[Elements.section]
+Left = 1.55
+Right = 1.0
+Style = "b"
+Align = "C"
+Prefix = "[ "
+Postfix = " ]"
+
+[Elements.title]
+Left = 1.5
+Right = 1.0
+Style = "bu"
+Align = "C"
+
+[Elements.meta]
+Left = 1.5
+Right = 1.0
+Style = "i"
+
+[Elements.lyrics]
+Left = 2.0
+Right = 2.0
+Style = "i"
+Prefix = "~ "
+Postfix = " ~"

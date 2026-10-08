@@ -40,6 +40,7 @@ const (
 	KeyMeta        ConfigKey = "meta"
 	KeyCenter      ConfigKey = "center"
 	KeyLyrics      ConfigKey = "lyrics"
+	KeySection     ConfigKey = "section"
 )
 
 // String returns the string representation of the key
@@ -52,7 +53,7 @@ func (k ConfigKey) IsValid() bool {
 	switch k {
 	case KeyAction, KeySpeaker, KeyDialog, KeyScene, KeyParen, KeyTrans,
 		KeyNote, KeyAllCaps, KeyEmpty, KeyDualSpeaker, KeyDualDialog,
-		KeyDualParen, KeyTitle, KeyMeta, KeyCenter, KeyLyrics:
+		KeyDualParen, KeyTitle, KeyMeta, KeyCenter, KeyLyrics, KeySection:
 		return true
 	default:
 		return false

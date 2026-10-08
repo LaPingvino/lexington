@@ -1,0 +1,40 @@
+Name = "Transcript"
+Description = """
+Everything at the left margin, the speaker in bold with a colon, \
+remarks and actions in italics: for interviews, podcasts, documentary \
+and subtitle drafts, minutes and any text that is mostly who said what."""
+
+[Elements.speaker]
+Left = 1.5
+Right = 1.0
+Style = "b"
+Postfix = ":"
+
+[Elements.dialog]
+Left = 1.5
+Right = 1.0
+
+[Elements.paren]
+Left = 1.5
+Right = 1.0
+Style = "i"
+
+[Elements.action]
+Left = 1.5
+Right = 1.0
+Style = "i"
+
+[Elements.scene]
+Left = 1.5
+Right = 1.0
+Style = "b"
+
+[Elements.section]
+Left = 1.5
+Right = 1.0
+Style = "bu"
+
+[Elements.trans]
+Left = 1.5
+Right = 1.0
+Style = "i"

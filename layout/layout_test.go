@@ -6,6 +6,7 @@ import (
 
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 const sample = `Title: THE TEST
@@ -139,5 +140,19 @@ func TestDualDialogue(t *testing.T) {
 	}
 	if carol, _ := find(lines, lex.TypeSpeaker, "CAROL"); carol.Column != 0 || carol.Indent != 22 {
 		t.Errorf("carol %+v", carol)
+	}
+}
+
+// Every preset lays out, also those with elements left of the action's
+// margin (radio's names): no negative indents.
+func TestPresetsLayOut(t *testing.T) {
+	s := fountain.Parse([]string{"INT", "EXT"}, strings.NewReader(sample))
+	for _, p := range rules.Presets() {
+		for _, l := range Lay(s, p.Elements) {
+			if l.Indent < 0 || l.Width <= 0 && !l.PageBreak && l.Text() != "" {
+				t.Errorf("%s: %+v", p.Key, l)
+			}
+			_ = l.Padded()
+		}
 	}
 }

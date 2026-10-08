@@ -174,3 +174,18 @@ At the same time.`
 		}
 	}
 }
+
+// Within a speech an all-caps line is dialogue, not a new character.
+func TestAllCapsDialogue(t *testing.T) {
+	s := Parse([]string{"INT", "EXT"}, strings.NewReader("ANNA\nGOTCHA!\n\nSFX\nKRAKOOM!\n"))
+	var got []string
+	for _, l := range s {
+		if l.Type != lex.TypeEmpty {
+			got = append(got, string(l.Type)+"="+string(l.Contents))
+		}
+	}
+	want := "speaker=ANNA dialog=GOTCHA! speaker=SFX dialog=KRAKOOM!"
+	if strings.Join(got, " ") != want {
+		t.Errorf("got %v", got)
+	}
+}

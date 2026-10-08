@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -67,6 +68,7 @@ type Config struct {
 	Lint         bool
 	TemplatePath string
 	Help         bool
+	ListPresets  bool
 	ShowVersion  bool
 }
 
@@ -96,6 +98,10 @@ func main() {
 	log.Printf("Scenein: %s ; Sceneout: %s ;\n", config.SceneIn, config.SceneOut)
 
 	conf := rules.GetConf(config.ConfigFile)
+	if _, ok := conf.Elements[config.Elements]; !ok {
+		log.Printf("No element settings %q in %s or the presets (see -presets)", config.Elements, config.ConfigFile)
+		return
+	}
 	ioFiles, err := setupIO(config)
 	if err != nil {
 		log.Printf("Error setting up I/O: %v", err)
@@ -144,7 +150,9 @@ func parseFlags() *Config {
 		"Dump the default configuration to the location of --config to be adapted manually.")
 	flag.StringVar(&config.SceneIn, "scenein", "", "Configuration to use for scene header detection on input.")
 	flag.StringVar(&config.SceneOut, "sceneout", "", "Configuration to use for scene header detection on output.")
-	flag.StringVar(&config.Elements, "e", "default", "Element settings from settings file to use.")
+	flag.StringVar(&config.Elements, "e", "default",
+		"Element settings to use: a preset (see -presets) or a set from the settings file.")
+	flag.BoolVar(&config.ListPresets, "presets", false, "List the presets for -e (stage play, radio, ...).")
 	flag.StringVar(&config.Input, "i", "-", "Input from provided filename. - means standard input.")
 	flag.StringVar(&config.Output, "o", "-", "Output to provided filename. - means standard output.")
 	flag.StringVar(&config.From, "from", "", "Input file type. Choose from fountain, lex, fdx.")
@@ -164,6 +172,13 @@ func parseFlags() *Config {
 func handleEarlyExits(config *Config) bool {
 	if config.Help {
 		flag.PrintDefaults()
+		return true
+	}
+
+	if config.ListPresets {
+		for _, p := range rules.Presets() {
+			fmt.Printf("%-12s %s\n%-12s %s\n\n", p.Key, p.Name, "", p.Description)
+		}
 		return true
 	}
 
