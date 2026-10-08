@@ -19,6 +19,7 @@ type WriteState struct {
 	writer    io.Writer
 	config    []string
 	dualNext  bool // the next speaker is the second of dual dialogue (^)
+	titleKey  string // the title page field written last
 }
 
 // Write converts the internal lex.Screenplay format to a Fountain file.
@@ -113,6 +114,13 @@ func (state *WriteState) writeTitlePageLine(line lex.Line) error {
 		state.titlepage = ""
 		return nil
 	}
+	// a field over several lines (Contact: name, address) goes on with
+	// indented lines
+	if line.Type == state.titleKey {
+		_, err := fmt.Fprintf(state.writer, "    %s\n", line.Contents)
+		return err
+	}
+	state.titleKey = line.Type
 	_, err := fmt.Fprintf(state.writer, "%s: %s\n", line.Type, line.Contents)
 	return err
 }
