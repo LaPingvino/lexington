@@ -55,6 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sections** print without their `#`s.
 - A section or forced scene heading with a colon right after the title
   page (`# Part 1: the kitchen`) was taken for a title page field.
+- Fountain's **boneyard** (`/* ... */` on lines of their own) was
+  printed as action. It is now kept as `boneyard` lines, written back by
+  the Fountain writer and hidden by the others.
 - An all-caps line in a speech (`GOTCHA!`, `KRAKOOM!`) was taken for
   a new character instead of dialogue.
 - The layout counts from the set's leftmost margin, so elements left of

@@ -104,6 +104,7 @@ type ParseState struct {
 	scenes                []string
 	titlepage             bool
 	inDialogueContext     bool
+	inBoneyard            bool // within /* ... */
 	inDualDialogue        bool
 	titletag              string
 	consecutiveEmptyLines int
@@ -112,6 +113,10 @@ type ParseState struct {
 }
 
 // Parse converts a Fountain file into the internal lex.Screenplay format.
+// TypeBoneyard is a line of Fountain's boneyard (/* ... */): kept, not
+// printed.
+const TypeBoneyard = "boneyard"
+
 func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 	Scene = scenes
 
@@ -130,6 +135,19 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 
 		var currentLine lex.Line
 		var isCurrentLineDualSpeakerCandidate bool
+
+		// Fountain's boneyard: lines from one starting with /* up to the
+		// one with */ are kept as they are (for writing Fountain again)
+		// but not printed: the "boneyard" type has no rule, so it is hidden
+		if state.inBoneyard || strings.HasPrefix(trimmedSpaceRow, "/*") {
+			if !state.inBoneyard {
+				state.inBoneyard = !strings.Contains(trimmedSpaceRow[2:], "*/")
+			} else {
+				state.inBoneyard = !strings.Contains(trimmedSpaceRow, "*/")
+			}
+			state.out = append(state.out, lex.Line{Type: TypeBoneyard, Contents: row})
+			continue
+		}
 
 		// Handle title page parsing
 		if state.titlepage {

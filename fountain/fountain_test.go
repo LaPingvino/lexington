@@ -189,3 +189,25 @@ func TestAllCapsDialogue(t *testing.T) {
 		t.Errorf("got %v", got)
 	}
 }
+
+// Fountain's boneyard is kept for writing Fountain again, and hidden.
+func TestBoneyard(t *testing.T) {
+	src := "INT. A - DAY\n\nHi.\n\n/* Notes\nsecret\n*/\n\n/* one line */\nAfter.\n"
+	s := Parse([]string{"INT", "EXT"}, strings.NewReader(src))
+	var bone []string
+	for _, l := range s {
+		if l.Type == TypeBoneyard {
+			bone = append(bone, l.Contents)
+		}
+	}
+	if strings.Join(bone, "|") != "/* Notes|secret|*/|/* one line */" {
+		t.Errorf("boneyard %q", bone)
+	}
+	var out strings.Builder
+	if err := (&FountainWriter{}).Write(&out, s); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "/* Notes\nsecret\n*/") {
+		t.Errorf("not written back:\n%s", out.String())
+	}
+}
