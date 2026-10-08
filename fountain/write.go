@@ -18,6 +18,7 @@ type WriteState struct {
 	titlepage string
 	writer    io.Writer
 	config    []string
+	dualNext  bool // the next speaker is the second of dual dialogue (^)
 }
 
 // Write converts the internal lex.Screenplay format to a Fountain file.
@@ -28,7 +29,7 @@ func (f *FountainWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 
 	state := &WriteState{
 		titlepage: "start",
-		writer:    w,
+		writer:    &tailWriter{w: w},
 		config:    f.SceneConfig,
 	}
 
@@ -75,6 +76,27 @@ func (state *WriteState) writeLine(line lex.Line) error {
 		return state.writeLyrics(line)
 	case lex.TypeAction:
 		return state.writeAction(line)
+	case lex.TypeDualOpen, lex.TypeDualClose:
+		state.dualNext = false
+		return nil
+	case lex.TypeDualNext:
+		// a blank line between the two speeches, if there is none yet
+		state.dualNext = true
+		if t, ok := state.writer.(*tailWriter); ok && t.blank() {
+			return nil
+		}
+		return state.writeEmpty()
+	case lex.TypeCenter:
+		_, err := fmt.Fprintf(state.writer, ">%s<\n", strings.TrimSpace(line.Contents))
+		return err
+	case lex.TypeTrans:
+		// only "... TO:" is a transition by itself; others need the ">"
+		t := strings.TrimSpace(line.Contents)
+		if !strings.HasSuffix(strings.ToUpper(t), "TO:") && !strings.HasPrefix(t, ">") {
+			t = "> " + t
+		}
+		_, err := fmt.Fprintln(state.writer, t)
+		return err
 	default:
 		return state.writeDefault(line)
 	}
@@ -110,6 +132,11 @@ func (state *WriteState) writeSpeaker(line lex.Line) error {
 		if _, err := fmt.Fprint(state.writer, "@"); err != nil {
 			return err
 		}
+	}
+	if state.dualNext {
+		state.dualNext = false
+		_, err := fmt.Fprintln(state.writer, line.Contents+" ^")
+		return err
 	}
 	_, err := fmt.Fprintln(state.writer, line.Contents)
 	return err
@@ -154,3 +181,20 @@ func (state *WriteState) writeDefault(line lex.Line) error {
 	_, err := fmt.Fprintln(state.writer, line.Contents)
 	return err
 }
+
+// tailWriter remembers the end of what was written, to tell whether it
+// ends with a blank line.
+type tailWriter struct {
+	w    io.Writer
+	tail []byte
+}
+
+func (t *tailWriter) Write(p []byte) (int, error) {
+	t.tail = append(t.tail, p...)
+	if len(t.tail) > 2 {
+		t.tail = t.tail[len(t.tail)-2:]
+	}
+	return t.w.Write(p)
+}
+
+func (t *tailWriter) blank() bool { return string(t.tail) == "\n\n" }

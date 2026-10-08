@@ -26,6 +26,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TOML file in `rules/presets`. docs/presets.md describes them and how
   to write each kind of script, with examples in `examples/` (also a
   TV episode).
+- **PDF input** (`pdfin` package, `-from pdf` or a `.pdf` input): a
+  printed screenplay read back into a script, from Lexington, Final
+  Draft, Highland, Fade In, Word or LibreOffice PDFs. The elements are
+  told apart by their indents from the action's margin (dialogue,
+  parentheticals, names, transitions at the right, centred text), blank
+  lines by the gaps, wrapped lines joined; dual dialogue, scene numbers
+  in the margins, the title page and forced page breaks are recognised;
+  page numbers, (MORE), CONTINUED and the repeated NAME (CONT'D) at page
+  breaks are dropped. Text PDFs only: a scanned script needs OCR first.
+  The PDF reading is github.com/ledongthuc/pdf, vendored in
+  internal/pdf with a fix for fonts that map the code 0x0A.
+- The **Fountain writer** keeps dual dialogue (`^`), centred text
+  (`>...<`) and transitions that need `>`; dual dialogue lost its `^`
+  and gained blank lines.
 - **DOCX and ODT** written natively (`office` package), no pandoc
   needed: every element a named paragraph style (Scene Heading,
   Character, Dialogue, ...) for easy restyling in Word or LibreOffice,

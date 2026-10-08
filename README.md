@@ -138,6 +138,20 @@ script in Fountain, and [examples/](examples) for a sample of every kind.
 - **LaTeX to PDF**: Uses pdflatex/xelatex for high-quality typesetting (requires LaTeX)
 - Industry-standard page layouts and proper spacing
 
+### Reading PDFs
+
+Lexington reads a printed screenplay back into a script: from its own
+PDFs and those of Final Draft, Highland, Fade In, Word or LibreOffice.
+It tells the elements apart by their indents, recognises dual dialogue,
+scene numbers and the title page, and leaves out page numbers, (MORE)
+and (CONT'D) at page breaks:
+
+```bash
+lexington -i script.pdf -o script.fountain
+```
+
+The PDF must contain text: a scanned script needs OCR first.
+
 ### Word and LibreOffice (DOCX, ODT)
 
 Lexington writes `.docx` and `.odt` itself, without pandoc, ready to be

@@ -24,6 +24,7 @@ import (
 	"github.com/LaPingvino/lexington/markdown"
 	"github.com/LaPingvino/lexington/office"
 	"github.com/LaPingvino/lexington/pdf"
+	"github.com/LaPingvino/lexington/pdfin"
 	"github.com/LaPingvino/lexington/rules"
 	"github.com/LaPingvino/lexington/writer"
 )
@@ -157,7 +158,7 @@ func parseFlags() *Config {
 	flag.BoolVar(&config.ListPresets, "presets", false, "List the presets for -e (stage play, radio, ...).")
 	flag.StringVar(&config.Input, "i", "-", "Input from provided filename. - means standard input.")
 	flag.StringVar(&config.Output, "o", "-", "Output to provided filename. - means standard output.")
-	flag.StringVar(&config.From, "from", "", "Input file type. Choose from fountain, lex, fdx.")
+	flag.StringVar(&config.From, "from", "", "Input file type. Choose from fountain, lex, fdx, pdf.")
 	flag.StringVar(&config.To, "to", "",
 		"Output file type. Choose from pdf, lex, fountain, fdx, html, latex, docx, odt, or external formats requiring pandoc: "+
 			"epub, mobi, rtf, markdown, rst, json, native, man, textile, mediawiki, org, asciidoc, "+
@@ -292,6 +293,17 @@ func parseInput(config *Config, conf rules.TOMLConf, input io.Reader) *lex.Scree
 		var err error
 		if screenplay, err = fdx.ParseWithError(input); err != nil {
 			log.Printf("Could not read FDX input: %v", err)
+			return nil
+		}
+	case "pdf":
+		// a PDF is read at random places, so it is read whole first
+		data, err := io.ReadAll(input)
+		if err != nil {
+			log.Printf("Could not read the PDF: %v", err)
+			return nil
+		}
+		if screenplay, err = pdfin.Read(bytes.NewReader(data), int64(len(data))); err != nil {
+			log.Printf("Could not read the PDF: %v", err)
 			return nil
 		}
 	default:
