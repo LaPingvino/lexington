@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### New Features
+- **Layout** (`layout` package): a screenplay laid out as printed lines,
+  for front-ends that draw it themselves (Accolade's preview, a
+  terminal): each line with its column and width in characters (Courier,
+  ten to the inch, from the action's left margin), its alignment, and
+  its text as styled spans (Fountain's bold, italic and underline); page
+  breaks; the title page's title block and meta block; dual dialogue as
+  two columns. The margins, alignment, style, prefix, postfix and hidden
+  elements come from the same rules as the PDF writer.
+  `Line.Padded()` gives the line as fixed-width text.
+
 ## [1.4.0] - 2026-10-03
 
 ### New Features
