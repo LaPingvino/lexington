@@ -22,6 +22,7 @@ import (
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/linter"
 	"github.com/LaPingvino/lexington/markdown"
+	"github.com/LaPingvino/lexington/office"
 	"github.com/LaPingvino/lexington/pdf"
 	"github.com/LaPingvino/lexington/rules"
 	"github.com/LaPingvino/lexington/writer"
@@ -38,8 +39,6 @@ var (
 var pandocFormats = map[string]bool{
 	"epub":      true,
 	"mobi":      true,
-	"docx":      true,
-	"odt":       true,
 	"rtf":       true,
 	"markdown":  true,
 	"rst":       true,
@@ -69,6 +68,7 @@ type Config struct {
 	TemplatePath string
 	Help         bool
 	ListPresets  bool
+	Page         string
 	ShowVersion  bool
 }
 
@@ -152,13 +152,15 @@ func parseFlags() *Config {
 	flag.StringVar(&config.SceneOut, "sceneout", "", "Configuration to use for scene header detection on output.")
 	flag.StringVar(&config.Elements, "e", "default",
 		"Element settings to use: a preset (see -presets) or a set from the settings file.")
+	flag.StringVar(&config.Page, "page", "",
+		"Paper size for docx and odt: letter, a4 or a5 (default: the preset's suggestion, else letter).")
 	flag.BoolVar(&config.ListPresets, "presets", false, "List the presets for -e (stage play, radio, ...).")
 	flag.StringVar(&config.Input, "i", "-", "Input from provided filename. - means standard input.")
 	flag.StringVar(&config.Output, "o", "-", "Output to provided filename. - means standard output.")
 	flag.StringVar(&config.From, "from", "", "Input file type. Choose from fountain, lex, fdx.")
 	flag.StringVar(&config.To, "to", "",
-		"Output file type. Choose from pdf, lex, fountain, fdx, html, latex, or external formats requiring pandoc: "+
-			"epub, mobi, docx, odt, rtf, markdown, rst, json, native, man, textile, mediawiki, org, asciidoc, "+
+		"Output file type. Choose from pdf, lex, fountain, fdx, html, latex, docx, odt, or external formats requiring pandoc: "+
+			"epub, mobi, rtf, markdown, rst, json, native, man, textile, mediawiki, org, asciidoc, "+
 			"htmlpdf, latexpdf.")
 	flag.BoolVar(&config.Lint, "lint", false, "Run the Fountain linter on the input file")
 	flag.StringVar(&config.TemplatePath, "template", "",
@@ -329,8 +331,8 @@ func convertOutput(ctx context.Context, config *Config, conf rules.TOMLConf, out
 
 	outputWriter := createWriter(config, conf)
 	if outputWriter == nil {
-		log.Printf("%s is not a supported output type. Choose from: pdf, lex, fountain, fdx, html, latex, "+
-			"or external formats requiring pandoc: epub, mobi, docx, odt, rtf, markdown, rst, json, native, "+
+		log.Printf("%s is not a supported output type. Choose from: pdf, lex, fountain, fdx, html, latex, docx, odt, "+
+			"or external formats requiring pandoc: epub, mobi, rtf, markdown, rst, json, native, "+
 			"man, textile, mediawiki, org, asciidoc, htmlpdf, latexpdf.\n", config.To)
 		return nil
 	}
@@ -342,6 +344,17 @@ func convertOutput(ctx context.Context, config *Config, conf rules.TOMLConf, out
 	default:
 		return outputWriter.Write(output, screenplay)
 	}
+}
+
+// pageFor is the paper size: -page, or the one the preset suggests.
+func pageFor(config *Config) string {
+	if config.Page != "" {
+		return config.Page
+	}
+	if p, ok := rules.GetPreset(config.Elements); ok {
+		return p.Page
+	}
+	return ""
 }
 
 func createWriter(config *Config, conf rules.TOMLConf) writer.Writer {
@@ -362,6 +375,10 @@ func createWriter(config *Config, conf rules.TOMLConf) writer.Writer {
 		return &html.HTMLWriter{Elements: conf.Elements[config.Elements]}
 	case internal.FormatLaTeX:
 		return &latex.LaTeXWriter{Template: config.TemplatePath, Elements: conf.Elements[config.Elements]}
+	case "docx":
+		return &office.DOCXWriter{Elements: conf.Elements[config.Elements], Page: pageFor(config)}
+	case "odt":
+		return &office.ODTWriter{Elements: conf.Elements[config.Elements], Page: pageFor(config)}
 	default:
 		return nil
 	}

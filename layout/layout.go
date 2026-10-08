@@ -92,34 +92,76 @@ func (l Line) Padded() string {
 	return strings.Repeat(" ", l.Indent+pad) + text
 }
 
-// Lay lays out a screenplay with a set of rules (rules.Default if nil).
-func Lay(s lex.Screenplay, set rules.Set) []Line {
+// Paragraph is an element of the script as it is printed, before it is
+// broken into lines: for writers that leave that to a word processor
+// (DOCX, ODT) or lay it out themselves.
+type Paragraph struct {
+	// Type is the element (lex.TypeAction, ...); "" for an empty line
+	// or a page break.
+	Type lex.ElementType
+	// Block is "title" or "meta" on the title page, otherwise "".
+	Block string
+	// Key is the rule the paragraph follows: its type, the block on the
+	// title page, "dualspeaker" etc. in dual dialogue.
+	Key string
+	// Left and Right are the margins in inches from the edges of a US
+	// Letter page (PageWidth); in dual dialogue, those of its column.
+	Left, Right float64
+	// Align is 'L', 'C' or 'R'.
+	Align byte
+	// Spans are the text, styled; none for an empty line.
+	Spans []Span
+	// PageBreak: a new page starts here.
+	PageBreak bool
+	// Column of dual dialogue: 0 none, 1 left, 2 right.
+	Column int
+	// SceneNumber of a scene heading (Fountain's #1A#).
+	SceneNumber string
+}
+
+// Text is the paragraph's text without styles.
+func (p Paragraph) Text() string {
+	return Line{Spans: p.Spans}.Text()
+}
+
+// Margin is the leftmost margin of a set's elements, in inches: the
+// action's in a screenplay, further left in radio (its names).
+func Margin(set rules.Set) float64 {
 	if set == nil {
 		set = rules.Default
 	}
-	// characters count from the leftmost margin of the set's elements
-	// (the action's in a screenplay; radio puts names further left)
 	base := set.Get("action").Left
 	for k, f := range set {
 		if !strings.HasPrefix(k, "dual") && !f.Hide && f.Left < base {
 			base = f.Left
 		}
 	}
-	var out []Line
+	return base
+}
+
+// Paragraphs are a screenplay's printed elements with a set of rules
+// (rules.Default if nil): hidden elements left out, prefixes and
+// postfixes added, scene headings and names in capitals, Fountain's
+// emphasis as styled spans.
+func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
+	if set == nil {
+		set = rules.Default
+	}
+	var out []Paragraph
 	block, column := "", 0
 	for _, row := range s {
 		t := row.Type
 		switch t {
 		case lex.TypeNewPage:
 			block = ""
-			out = append(out, Line{PageBreak: true})
+			out = append(out, Paragraph{PageBreak: true})
 			continue
 		case lex.TypeTitlePage:
 			block = "title"
 			continue
 		case "metasection":
 			block = "meta"
-			out = append(out, Line{Block: block})
+			out = append(out, Paragraph{Block: block})
 			continue
 		case lex.TypeDualOpen:
 			column = 1
@@ -131,7 +173,7 @@ func Lay(s lex.Screenplay, set rules.Set) []Line {
 			column = 0
 			continue
 		case lex.TypeEmpty:
-			out = append(out, Line{Block: block, Column: column})
+			out = append(out, Paragraph{Block: block, Column: column})
 			continue
 		}
 		key := string(t)
@@ -155,13 +197,13 @@ func Lay(s lex.Screenplay, set rules.Set) []Line {
 		if t == lex.TypeScene || t == lex.TypeSpeaker {
 			text = strings.ToUpper(text)
 		}
-		indent := int(math.Round((f.Left - base) * CharsPerInch))
-		width := int(math.Round((PageWidth - f.Left - f.Right) * CharsPerInch))
+		left, right := f.Left, f.Right
 		if column != 0 {
-			// two columns side by side (see DualStart)
-			off := int(math.Round(math.Max(0, f.Left-1.0) * CharsPerInch))
-			indent = DualStart + off + (column-1)*DualGap
-			width = DualWidth - off
+			// two columns side by side (see DualStart); the dual rules'
+			// left margins, from 1", indent within a column
+			start := Margin(rules.Default) + float64(DualStart+(column-1)*DualGap)/CharsPerInch
+			left = start + math.Max(0, f.Left-1.0)
+			right = PageWidth - start - float64(DualWidth)/CharsPerInch
 		}
 		align := byte('L')
 		if a := strings.ToUpper(f.Align); a == "C" || a == "R" {
@@ -169,9 +211,31 @@ func Lay(s lex.Screenplay, set rules.Set) []Line {
 		}
 		style := Span{Bold: strings.Contains(f.Style, "b"), Italic: strings.Contains(f.Style, "i"),
 			Underline: strings.Contains(f.Style, "u")}
-		for _, spans := range wrap(emphasis(text, style), width) {
-			out = append(out, Line{Type: t, Block: block, Indent: indent, Width: width, Align: align, Spans: spans, Column: column,
-				SceneNumber: number})
+		out = append(out, Paragraph{Type: t, Block: block, Key: key, Left: left, Right: right, Align: align,
+			Spans: emphasis(text, style), Column: column, SceneNumber: number})
+	}
+	return out
+}
+
+// Lay lays out a screenplay with a set of rules (rules.Default if nil).
+func Lay(s lex.Screenplay, set rules.Set) []Line {
+	base := Margin(set)
+	var out []Line
+	for _, p := range Paragraphs(s, set) {
+		switch {
+		case p.PageBreak:
+			out = append(out, Line{PageBreak: true})
+			continue
+		case p.Type == "":
+			out = append(out, Line{Block: p.Block, Column: p.Column})
+			continue
+		}
+		indent := int(math.Round((p.Left - base) * CharsPerInch))
+		width := int(math.Round((PageWidth - p.Left - p.Right) * CharsPerInch))
+		number := p.SceneNumber
+		for _, spans := range wrap(p.Spans, width) {
+			out = append(out, Line{Type: p.Type, Block: p.Block, Indent: indent, Width: width, Align: p.Align,
+				Spans: spans, Column: p.Column, SceneNumber: number})
 			number = ""
 		}
 	}

@@ -24,6 +24,8 @@ type Preset struct {
 	Name        string
 	Description string
 	Elements    Set
+	// Page is the paper size it suggests for documents ("a5"), or "".
+	Page string
 }
 
 // ScreenplayPreset is the key of the default, the screenplay.
@@ -45,8 +47,8 @@ func loadPresets() []Preset {
 	}
 	for _, f := range files {
 		var p struct {
-			Name, Description string
-			Elements          Set
+			Name, Description, Page string
+			Elements                Set
 		}
 		if _, err := toml.DecodeFS(presetFiles, path.Join("presets", f.Name()), &p); err != nil {
 			panic(fmt.Sprintf("preset %s: %v", f.Name(), err))
@@ -63,6 +65,7 @@ func loadPresets() []Preset {
 			Name:        p.Name,
 			Description: strings.Join(strings.Fields(p.Description), " "),
 			Elements:    set,
+			Page:        p.Page,
 		})
 	}
 	sort.SliceStable(list[1:], func(i, j int) bool { return list[1+i].Name < list[1+j].Name })

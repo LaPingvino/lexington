@@ -26,6 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TOML file in `rules/presets`. docs/presets.md describes them and how
   to write each kind of script, with examples in `examples/` (also a
   TV episode).
+- **DOCX and ODT** written natively (`office` package), no pandoc
+  needed: every element a named paragraph style (Scene Heading,
+  Character, Dialogue, ...) for easy restyling in Word or LibreOffice,
+  the rules' margins, alignment and styles, scene numbers at the right
+  margin, page numbers from the first page after the title page, dual
+  dialogue as a borderless table. `-page letter|a4|a5` sets the paper;
+  a preset can suggest one (the musical: A5, a folded booklet), and
+  positions scale with the page's width.
+- `layout.Paragraphs`: the printed elements before they are broken into
+  lines, for writers that leave that to a word processor.
 - Toki Pona scene headings (`tok`).
 
 ### Fixed

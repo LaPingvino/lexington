@@ -138,6 +138,21 @@ script in Fountain, and [examples/](examples) for a sample of every kind.
 - **LaTeX to PDF**: Uses pdflatex/xelatex for high-quality typesetting (requires LaTeX)
 - Industry-standard page layouts and proper spacing
 
+### Word and LibreOffice (DOCX, ODT)
+
+Lexington writes `.docx` and `.odt` itself, without pandoc, ready to be
+edited further: every kind of element is a paragraph style of its own
+(Scene Heading, Action, Character, Dialogue, Parenthetical, ...), so
+changing a style changes the whole script, and dual dialogue is a
+borderless table. The margins, styles and alignment are those of the
+element settings or preset, on US Letter, A4 or A5 (`-page`):
+
+```bash
+lexington -i script.fountain -o script.docx
+lexington -e musical -i show.fountain -o show.odt   # A5, the musical's suggestion
+lexington -page a4 -i script.fountain -o script.docx
+```
+
 ### EPUB Output
 - Metadata integration (title, author, etc.)
 - Chapter structure preservation

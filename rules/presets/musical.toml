@@ -4,7 +4,9 @@ A stage play with songs, after the musical theatre guidelines of the \
 Dramatists Guild and NMI: names centred, dialogue across the page, \
 stage directions in parentheses, lyrics indented (type them in capitals \
 with ~), song headings centred in bold underline (> 3. TITLE <, with \
-3A for a reprise or playoff)."""
+3A for a reprise or playoff). Documents (docx, odt) default to A5, a \
+booklet when folded."""
+Page = "a5"
 
 [Elements.speaker]
 Left = 1.5
