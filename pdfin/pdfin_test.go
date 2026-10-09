@@ -1,6 +1,9 @@
 package pdfin
 
 import (
+	"context"
+	"errors"
+	"image"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -168,3 +171,22 @@ func TestScannedScript(t *testing.T) {
 		t.Errorf("read back:\n%s\n\nwant:\n%s", a, want)
 	}
 }
+
+// A cancelled read stops, with the context's error; until then every page
+// is counted, so the count reaches the end.
+func TestReadCancelAndProgress(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var counts []int
+	_, err := ReadFileWith("testdata/scanned-tv-episode.pdf", Options{OCR: fakeOCR{}, Context: ctx, Progress: func(done, pages int) {
+		counts = append(counts, done)
+		cancel()
+	}})
+	if !errors.Is(err, context.Canceled) || len(counts) != 1 {
+		t.Errorf("cancelled: %v after %v", err, counts)
+	}
+}
+
+// fakeOCR reads nothing.
+type fakeOCR struct{}
+
+func (fakeOCR) HOCR(context.Context, image.Image) (string, error) { return "", nil }

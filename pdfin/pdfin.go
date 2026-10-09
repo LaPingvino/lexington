@@ -100,7 +100,14 @@ func ReadWith(r io.ReaderAt, size int64, opts Options) (s lex.Screenplay, err er
 	var pages [][]line
 	var firstErr error
 	width := 8.5
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	for i := 1; i <= doc.NumPage(); i++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		p := doc.Page(i)
 		if p.V.IsNull() {
 			continue
@@ -108,7 +115,14 @@ func ReadWith(r io.ReaderAt, size int64, opts Options) (s lex.Screenplay, err er
 		if box := p.V.Key("MediaBox"); box.Len() == 4 {
 			width = box.Index(2).Float64() / 72
 		}
-		ls, err := readPage(i, p, width, opts)
+		ls, err := readPage(ctx, i, p, width, opts)
+		// every page counts, read or not, so the count reaches the end
+		if opts.Progress != nil {
+			opts.Progress(i, doc.NumPage())
+		}
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		if err != nil {
 			// a page that cannot be read is left out, not the script
 			if firstErr == nil {
@@ -120,9 +134,6 @@ func ReadWith(r io.ReaderAt, size int64, opts Options) (s lex.Screenplay, err er
 			continue
 		}
 		pages = append(pages, ls)
-		if opts.Progress != nil {
-			opts.Progress(i, doc.NumPage())
-		}
 	}
 	if len(pages) == 0 {
 		if firstErr != nil {
@@ -141,7 +152,7 @@ func ReadWith(r io.ReaderAt, size int64, opts Options) (s lex.Screenplay, err er
 }
 
 // readPage is a page's lines: its text, or what OCR reads in its scan.
-func readPage(i int, p pdf.Page, width float64, opts Options) (ls []line, err error) {
+func readPage(ctx context.Context, i int, p pdf.Page, width float64, opts Options) (ls []line, err error) {
 	defer func() {
 		if r := recover(); r != nil { // the PDF library panics on broken data
 			err = fmt.Errorf("%v", r)
@@ -153,7 +164,7 @@ func readPage(i int, p pdf.Page, width float64, opts Options) (ls []line, err er
 		if err != nil {
 			return nil, err
 		}
-		hocr, err := opts.OCR.HOCR(context.Background(), img)
+		hocr, err := opts.OCR.HOCR(ctx, img)
 		if err != nil {
 			return nil, err
 		}

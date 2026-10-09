@@ -32,6 +32,9 @@ type Options struct {
 	// stream, a scan in a format that cannot be decoded); the script is
 	// read without it.
 	Skipped func(page int, err error)
+	// Context, if set, stops the reading when it is done (a Cancel
+	// button): reading returns its error.
+	Context context.Context
 }
 
 // Tesseract is the tesseract program as OCR, for -l Language ("eng"
