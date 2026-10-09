@@ -147,7 +147,7 @@ func elementOf(l line, next *line, margin, width float64, prev lex.ElementType) 
 	inSpeech := prev == lex.TypeSpeaker || prev == lex.TypeParen || prev == lex.TypeDialog
 	switch {
 	case d < 0.3 && l.upper() && (scenePrefix.MatchString(text) || (l.bold() && len(text) < 60)):
-		return lex.TypeScene, text
+		return lex.TypeScene, ocrComma.ReplaceAllString(text, "$1.")
 	case l.upper() && d > 2.5 && (transition.MatchString(text) || l.end() > right-0.4):
 		return lex.TypeTrans, text
 	case d >= nameFrom && d < nameTo && l.upper() && !inSpeechEnd(text) && next != nil &&

@@ -141,7 +141,8 @@ func hocrLines(page int, hocr string, dpi float64) []line {
 	// line (scene numbers in the margins, dual dialogue's columns)
 	var merged []line
 	for _, l := range out {
-		if n := len(merged); n > 0 && l.Y-merged[n-1].Y < 0.06 {
+		// (a margin's scene number can sit a little off the line)
+		if n := len(merged); n > 0 && l.Y-merged[n-1].Y < 0.1 {
 			m := &merged[n-1]
 			m.Runs = append(m.Runs, l.Runs...)
 			sort.SliceStable(m.Runs, func(i, j int) bool { return m.Runs[i].X < m.Runs[j].X })

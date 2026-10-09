@@ -259,7 +259,9 @@ var (
 	more        = regexp.MustCompile(`^\(MORE\)$`)
 	contd       = regexp.MustCompile(`\s*\((CONT'D|CONT’D|CONTINUED|cont'd)\)\s*$`)
 	continued   = regexp.MustCompile(`^\(?CONTINUED[:)]?\)?$|^CONTINUED: ?(\(\d+\))?$`)
-	scenePrefix = regexp.MustCompile(`^(INT|EXT|EST|INT\.?/EXT|EXT\.?/INT|I/E)[ .]`)
+	// a comma for the full stop: as OCR often reads it
+	scenePrefix = regexp.MustCompile(`^(INT|EXT|EST|INT\.?/EXT|EXT\.?/INT|I/E)[ .,]`)
+	ocrComma    = regexp.MustCompile(`^(INT|EXT|EST|I/E),`)
 	transition  = regexp.MustCompile(`(TO:|TO BLACK\.|OUT\.|IN:)$`)
 	creditLine  = regexp.MustCompile(`(?i)^(written by|screenplay by|teleplay by|story by|by|an? .* by)$`)
 	dateLike    = regexp.MustCompile(`(?i)\b(19|20)\d\d\b|\b(draft|revis)`)
