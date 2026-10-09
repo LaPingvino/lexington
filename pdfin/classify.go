@@ -187,7 +187,9 @@ func actionMargin(ls []line) float64 {
 	}
 	sort.Float64s(xs)
 	for _, x := range xs {
-		if counts[x] >= max(2, len(ls)/20) {
+		// enough lines that stray marks in the margin (an OCR layer's
+		// noise, line numbers) are not taken for it
+		if counts[x] >= max(2, len(ls)/7) {
 			return x
 		}
 	}

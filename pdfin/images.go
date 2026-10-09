@@ -10,6 +10,8 @@ import (
 
 	"golang.org/x/image/ccitt"
 
+	"github.com/LaPingvino/lexington/internal/jbig2"
+
 	"github.com/LaPingvino/lexington/internal/pdf"
 )
 
@@ -67,7 +69,31 @@ func decodeImage(x pdf.Value) (img image.Image, err error) {
 			return nil, err
 		}
 		return gray, nil
-	case "JBIG2Decode", "JPXDecode":
+	case "JBIG2Decode":
+		data, err := io.ReadAll(x.RawReader())
+		if err != nil {
+			return nil, err
+		}
+		var globals []byte
+		if g := params.Key("JBIG2Globals"); g.Kind() == pdf.Stream {
+			if globals, err = io.ReadAll(g.Reader()); err != nil {
+				return nil, err
+			}
+		}
+		gray, err := jbig2.Decode(data, globals, w, h)
+		if err != nil {
+			return nil, err
+		}
+		// ink is black, unless the PDF turns its samples round: a Decode
+		// of [1 0], or a palette whose first entry is light (some scanners
+		// store the paper as 1s)
+		if paperIsZero(x) {
+			for i := range gray.Pix {
+				gray.Pix[i] = 255 - gray.Pix[i]
+			}
+		}
+		return gray, nil
+	case "JPXDecode":
 		return nil, fmt.Errorf("the scan is in %s, which cannot be read yet", filter.Name())
 	}
 	// plain pixels, perhaps Flate-compressed
@@ -137,4 +163,44 @@ func pngOf(img image.Image) ([]byte, error) {
 	var b bytes.Buffer
 	err := encodePNG(&b, img)
 	return b.Bytes(), err
+}
+
+// paperIsZero reports whether a 1-bit image's 0 samples are the paper
+// (light) rather than the ink: through its Decode array or its palette.
+func paperIsZero(x pdf.Value) bool {
+	inverted := false
+	if d := x.Key("Decode"); d.Len() == 2 && d.Index(0).Float64() > d.Index(1).Float64() {
+		inverted = true
+	}
+	cs := x.Key("ColorSpace")
+	if cs.Kind() != pdf.Array || cs.Len() < 4 || cs.Index(0).Name() != "Indexed" {
+		return inverted
+	}
+	var lookup []byte
+	switch l := cs.Index(3); l.Kind() {
+	case pdf.String:
+		lookup = []byte(l.RawString())
+	case pdf.Stream:
+		lookup, _ = io.ReadAll(l.Reader())
+	}
+	n := components(cs.Index(1)) // bytes per palette entry
+	if n < 1 || len(lookup) < 2*n {
+		return inverted
+	}
+	light := func(e []byte) int {
+		sum := 0
+		for _, b := range e {
+			sum += int(b)
+		}
+		if n == 4 { // CMYK: ink makes it dark
+			return 255 - sum/4
+		}
+		return sum / n
+	}
+	// sample 0 is the palette's first entry (after Decode)
+	first, second := lookup[:n], lookup[n:2*n]
+	if inverted {
+		first, second = second, first
+	}
+	return light(first) > light(second)
 }

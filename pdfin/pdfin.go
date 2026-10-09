@@ -225,6 +225,19 @@ func lines(page int, p pdf.Page) []line {
 			r.End = est
 		}
 		sort.SliceStable(runs, func(a, b int) bool { return runs[a].X < runs[b].X })
+		// runs that overlap or nearly touch are one (words of an OCR text
+		// layer, each placed on its own, estimated too wide)
+		var joined []run
+		for _, r := range runs {
+			if n := len(joined); n > 0 && r.X < joined[n-1].End+0.15 {
+				j := &joined[n-1]
+				j.Text = strings.TrimRight(j.Text, " ") + " " + strings.TrimLeft(r.Text, " ")
+				j.End = math.Max(j.End, r.End)
+				continue
+			}
+			joined = append(joined, r)
+		}
+		runs = joined
 		var clean []run
 		for _, r := range runs {
 			r.Text = strings.Join(strings.Fields(r.Text), " ")
@@ -242,7 +255,7 @@ func lines(page int, p pdf.Page) []line {
 
 var (
 	pageNumber  = regexp.MustCompile(`^\(?\d+[A-Z]?\.?\)?$`)
-	sceneNumber = regexp.MustCompile(`^[A-Z]?[0-9]+[A-Z]{0,3}\.?$`)
+	sceneNumber = regexp.MustCompile(`^[A-Z]?[0-9]+(-?[A-Z]{1,3})?\.?$`) // 12, 12A, 4-A, P3
 	more        = regexp.MustCompile(`^\(MORE\)$`)
 	contd       = regexp.MustCompile(`\s*\((CONT'D|CONT’D|CONTINUED|cont'd)\)\s*$`)
 	continued   = regexp.MustCompile(`^\(?CONTINUED[:)]?\)?$|^CONTINUED: ?(\(\d+\))?$`)

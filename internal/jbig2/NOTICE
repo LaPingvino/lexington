@@ -1,0 +1,30 @@
+Package github.com/LaPingvino/lexington/internal/jbig2 is a Go port of the
+JBIG2 decoder of pdf.js (https://github.com/mozilla/pdf.js, v4.10.38):
+
+  src/core/jbig2.js               Copyright 2012 Mozilla Foundation
+  src/core/arithmetic_decoder.js  Copyright 2012 Mozilla Foundation
+  src/core/ccitt.js               Copyright 2012 Mozilla Foundation
+                                  Copyright 1996-2003 Glyph & Cog, LLC
+                                  (a JavaScript port of XPDF's CCITT decoder)
+
+These files are licensed under the Apache License, Version 2.0 (the
+"License"); you may not use them except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Changes: translated from JavaScript to Go; errors are returned instead of
+thrown; page buffer handling adapted to the PDF-embedded case; parts of
+T.88 that pdf.js does not support added and some pdf.js bugs fixed (see
+doc.go).
+
+The files in testdata/standalone come from SerenityOS
+(Tests/LibGfx/test-inputs/jbig2), Copyright (c) 2018-2026, the SerenityOS
+developers, BSD 2-Clause License (see testdata/standalone/LICENSE);
+testdata/bitmap.png is their bmp/bitmap.bmp converted to PNG.

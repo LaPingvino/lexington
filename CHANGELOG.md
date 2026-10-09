@@ -38,7 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`pdfin.Options.OCR`, hOCR in): the page images (JPEG, fax, plain
   pixels) go to tesseract when it is installed (`pdfin.Tesseract`, the
   command line uses it), or to any other OCR, such as the built-in
-  WebAssembly one of the `ocrwasm` module.
+  WebAssembly one of the `ocrwasm` module. Scans in JBIG2 (most
+  scanned PDFs) are decoded by a pure Go port of pdf.js's decoder
+  (`internal/jbig2`, Apache 2.0), checked pixel for pixel against
+  poppler and against the SerenityOS conformance files.
   The PDF reading is github.com/ledongthuc/pdf, vendored in
   internal/pdf with fixes: fonts that map the code 0x0A, 40-bit RC4
   encryption (old PDFs that only restrict copying), text drawn in form
