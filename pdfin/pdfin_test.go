@@ -1,8 +1,10 @@
 package pdfin
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"os"
 	"path/filepath"
@@ -190,3 +192,60 @@ func TestReadCancelAndProgress(t *testing.T) {
 type fakeOCR struct{}
 
 func (fakeOCR) HOCR(context.Context, image.Image) (string, error) { return "", nil }
+
+// tightPDF is a one-page PDF with lines in Courier, set slightly tighter
+// than the font's widths (as some Final Draft PDFs are).
+func tightPDF(lines ...string) []byte {
+	var content strings.Builder
+	// each glyph moved 0.19 pt left of where its width puts it (a TJ
+	// array's kerning, in thousandths of the font size)
+	content.WriteString("BT /F1 12 Tf 14 TL 108 700 Td\n")
+	for _, l := range lines {
+		content.WriteString("[")
+		for _, r := range l {
+			fmt.Fprintf(&content, "(%c) 15.83 ", r)
+		}
+		content.WriteString("] TJ T*\n")
+	}
+	content.WriteString("ET")
+	objs := []string{
+		"<< /Type /Catalog /Pages 2 0 R >>",
+		"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+		"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+		fmt.Sprintf("<< /Length %d >>\nstream\n%s\nendstream", content.Len(), content.String()),
+		"<< /Type /Font /Subtype /Type1 /BaseFont /Courier /FirstChar 32 /LastChar 126 /Widths [" +
+			strings.Repeat("600 ", 95) + "] >>",
+	}
+	var b bytes.Buffer
+	b.WriteString("%PDF-1.4\n")
+	offs := make([]int, len(objs))
+	for i, o := range objs {
+		offs[i] = b.Len()
+		fmt.Fprintf(&b, "%d 0 obj\n%s\nendobj\n", i+1, o)
+	}
+	xref := b.Len()
+	fmt.Fprintf(&b, "xref\n0 %d\n0000000000 65535 f \n", len(objs)+1)
+	for _, o := range offs {
+		fmt.Fprintf(&b, "%010d 00000 n \n", o)
+	}
+	fmt.Fprintf(&b, "trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n", len(objs)+1, xref)
+	return b.Bytes()
+}
+
+// Tight tracking does not split long lines' words: the end of the text
+// was estimated from widths that added up past the glyphs.
+func TestTightTrackingKeepsWords(t *testing.T) {
+	text := "Deep blue sky overhead. Fat, scuddy clouds. Below them, black and"
+	pdfData := tightPDF("INT. COW PASTURE - DAY", "", text)
+	s, err := Read(bytes.NewReader(pdfData), int64(len(pdfData)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var all []string
+	for _, l := range s {
+		all = append(all, l.Contents)
+	}
+	if got := strings.Join(all, "|"); !strings.Contains(got, text) {
+		t.Errorf("read %q", got)
+	}
+}

@@ -231,7 +231,15 @@ func lines(page int, p pdf.Page) []line {
 			if adv <= 0 {
 				adv = cw * float64(len([]rune(g.s)))
 			}
-			est = math.Max(est, g.x) + adv
+			// from the glyph's own position: the PDF's widths can be wider
+			// than its spacing (tight tracking), and adding them up drifted
+			// past the text until a word was split in two; glyphs drawn
+			// from one position add up
+			if math.Abs(g.x-last) < 0.02 {
+				est = math.Max(est, g.x) + adv
+			} else {
+				est = g.x + adv
+			}
 			last = g.x
 			r.End = est
 		}
