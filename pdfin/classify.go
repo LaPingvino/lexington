@@ -21,6 +21,7 @@ const (
 )
 
 // classify turns the pages' lines into a screenplay.
+//
 //nolint:gocyclo // long-standing; its scene pattern became a parameter
 func classify(pages [][]line, width float64, scene *regexp.Regexp) lex.Screenplay {
 	var out lex.Screenplay
@@ -142,6 +143,7 @@ func baseName(s string) string {
 }
 
 // elementOf is the type and the text of a line, by its indent.
+//
 //nolint:gocyclo // long-standing; its scene pattern became a parameter
 func elementOf(l line, next *line, margin, width float64, prev lex.ElementType,
 	scene *regexp.Regexp) (lex.ElementType, string) {
@@ -228,6 +230,7 @@ func lineStep(ls []line) float64 {
 
 // cleanPage leaves out what is not the script: page numbers, (MORE),
 // CONTINUED; scene numbers in the margins go to the end of their heading.
+//
 //nolint:gocyclo // long-standing; its scene pattern became a parameter
 func cleanPage(ls []line, running map[string]bool, scene *regexp.Regexp) []line {
 	var out []line
@@ -315,6 +318,7 @@ func dualBlock(ls []line, i int, margin, width float64) (int, lex.Screenplay) {
 // titlePage reads a first page without scenes or speeches as the title
 // page: the title, the credit ("Written by") and the author centred in
 // the upper part, the rest (contact, draft) as details.
+//
 //nolint:gocyclo // long-standing; its scene pattern became a parameter
 func titlePage(ls []line, width float64, scene *regexp.Regexp) (lex.Screenplay, bool) {
 	if len(ls) == 0 || len(ls) > 30 {
