@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lexington</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1e3a5f">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -44,5 +48,9 @@
 <script src="memfs.js"></script>
 <script src="wasm_exec.js"></script>
 <script src="app.js"></script>
+<script>
+// an app to install, and to use offline (sw.js)
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch((e) => console.warn("no offline use:", e));
+</script>
 </body>
 </html>
