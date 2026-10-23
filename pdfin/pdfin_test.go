@@ -252,7 +252,9 @@ func TestTightTrackingKeepsWords(t *testing.T) {
 
 func TestScenePattern(t *testing.T) {
 	ru := scenePattern([]string{"ИНТ", "НАТ", "ИНТ./НАТ"})
-	for text, want := range map[string]bool{"ИНТ. КУХНЯ - ДЕНЬ": true, "ИНТ./НАТ. ДВОР": true, "INT. HOUSE": false, "ИНТЕРЕСНО": false} {
+	for text, want := range map[string]bool{
+		"ИНТ. КУХНЯ - ДЕНЬ": true, "ИНТ./НАТ. ДВОР": true, "INT. HOUSE": false, "ИНТЕРЕСНО": false,
+	} {
 		if ru.MatchString(text) != want {
 			t.Errorf("%q: %v", text, !want)
 		}
