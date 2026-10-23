@@ -211,6 +211,15 @@ lexington -i testdata/input/dual_dialogue.fountain -to html -o dual.html
 lexington -i testdata/input/complex_screenplay.fountain -to pdf -o complex.pdf
 ```
 
+## Using the command line from Go
+
+The command line is the `cli` package, so other programs can offer the
+same conversions (Accolade does, as a graphical Lexington):
+`cli.Main(ctx, args)` runs it with arguments, `cli.Convert(ctx, opts)`
+converts a file, `cli.Write(ctx, screenplay, opts)` writes a parsed
+screenplay, and `cli.Formats` lists the output formats and the programs
+some of them need.
+
 ## Contributing
 
 Feel free to contribute! Areas where help is particularly welcome:
