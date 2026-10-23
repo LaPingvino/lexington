@@ -17,3 +17,4 @@ testdata/output/
 
 # Keep input test files
 !testdata/input/
+!pdfin/testdata/*.pdf

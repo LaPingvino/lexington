@@ -23,7 +23,8 @@ func TestConvert(t *testing.T) {
 			continue
 		}
 		out := filepath.Join(dir, "barn."+f.Key)
-		if err := Convert(context.Background(), Options{Input: in, Output: out, ConfigFile: filepath.Join(dir, "none.toml")}); err != nil {
+		o := Options{Input: in, Output: out, ConfigFile: filepath.Join(dir, "none.toml")}
+		if err := Convert(context.Background(), o); err != nil {
 			t.Errorf("%s: %v", f.Key, err)
 			continue
 		}
@@ -39,7 +40,11 @@ func TestWriteParsedScreenplay(t *testing.T) {
 	if err := Write(context.Background(), s, Options{To: "html", Output: out, ConfigFile: "none.toml"}); err != nil {
 		t.Fatal(err)
 	}
-	if data, _ := os.ReadFile(out); !strings.Contains(string(data), "It&#39;s coming.") && !strings.Contains(string(data), "It's coming.") {
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "It&#39;s coming.") && !strings.Contains(string(data), "It's coming.") {
 		t.Errorf("html lacks the dialogue:\n%s", data)
 	}
 }
@@ -47,7 +52,9 @@ func TestWriteParsedScreenplay(t *testing.T) {
 func TestMainExitCodes(t *testing.T) {
 	dir := t.TempDir()
 	in := filepath.Join(dir, "barn.fountain")
-	os.WriteFile(in, []byte(script), 0o644)
+	if err := os.WriteFile(in, []byte(script), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	for args, want := range map[string]int{
 		"-i " + in + " -o " + filepath.Join(dir, "x.html"):              0,
 		"-i " + in + " -to nonsense -o " + filepath.Join(dir, "x.none"): 1,
@@ -55,7 +62,8 @@ func TestMainExitCodes(t *testing.T) {
 		"-presets":      0,
 		"-no-such-flag": 2,
 	} {
-		if got := Main(context.Background(), append(strings.Fields(args), "-config", filepath.Join(dir, "none.toml"))); got != want {
+		full := append(strings.Fields(args), "-config", filepath.Join(dir, "none.toml"))
+		if got := Main(context.Background(), full); got != want {
 			t.Errorf("%s: exit %d, want %d", args, got, want)
 		}
 	}
@@ -78,7 +86,8 @@ func TestExternalFormats(t *testing.T) {
 			continue
 		}
 		out := filepath.Join(dir, "barn-"+f.Key+"."+f.Extension())
-		if err := Convert(context.Background(), Options{Input: in, Output: out, To: f.Key, ConfigFile: filepath.Join(dir, "none.toml")}); err != nil {
+		o := Options{Input: in, Output: out, To: f.Key, ConfigFile: filepath.Join(dir, "none.toml")}
+		if err := Convert(context.Background(), o); err != nil {
 			t.Errorf("%s: %v", f.Key, err)
 			continue
 		}

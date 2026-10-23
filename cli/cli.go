@@ -40,6 +40,12 @@ var (
 	Date    = "unknown"
 )
 
+// What some formats need.
+const (
+	needsPandoc = "pandoc"
+	needsLaTeX  = "LaTeX"
+)
+
 // Format is an output format.
 type Format struct {
 	// Key is what -to takes, and the file extension.
@@ -63,7 +69,7 @@ func (f Format) Extension() string {
 
 // Formats are the output formats, Lexington's own first.
 var Formats = []Format{
-	{Key: "pdf", Name: "PDF"},
+	{Key: internal.FormatPDF, Name: "PDF"},
 	{Key: "html", Name: "HTML"},
 	{Key: "docx", Name: "Word (DOCX)"},
 	{Key: "odt", Name: "OpenDocument (ODT)"},
@@ -71,19 +77,19 @@ var Formats = []Format{
 	{Key: "fountain", Name: "Fountain"},
 	{Key: "latex", Name: "LaTeX", Ext: "tex"},
 	{Key: "lex", Name: "Lexington's own (lex)"},
-	{Key: "htmlpdf", Name: "PDF through HTML", Needs: "wkhtmltopdf", Ext: "pdf"},
-	{Key: "latexpdf", Name: "PDF through LaTeX", Needs: "LaTeX", Ext: "pdf"},
-	{Key: "epub", Name: "EPUB", Needs: "pandoc"},
-	{Key: "rtf", Name: "Rich Text (RTF)", Needs: "pandoc"},
-	{Key: "markdown", Name: "Markdown", Needs: "pandoc", Ext: "md"},
-	{Key: "rst", Name: "reStructuredText", Needs: "pandoc"},
-	{Key: "json", Name: "Pandoc JSON", Needs: "pandoc"},
-	{Key: "native", Name: "Pandoc native", Needs: "pandoc"},
-	{Key: "man", Name: "Manual page", Needs: "pandoc"},
-	{Key: "textile", Name: "Textile", Needs: "pandoc"},
-	{Key: "mediawiki", Name: "MediaWiki", Needs: "pandoc"},
-	{Key: "org", Name: "Org mode", Needs: "pandoc"},
-	{Key: "asciidoc", Name: "AsciiDoc", Needs: "pandoc"},
+	{Key: "htmlpdf", Name: "PDF through HTML", Needs: "wkhtmltopdf", Ext: internal.FormatPDF},
+	{Key: "latexpdf", Name: "PDF through LaTeX", Needs: needsLaTeX, Ext: internal.FormatPDF},
+	{Key: "epub", Name: "EPUB", Needs: needsPandoc},
+	{Key: "rtf", Name: "Rich Text (RTF)", Needs: needsPandoc},
+	{Key: "markdown", Name: "Markdown", Needs: needsPandoc, Ext: "md"},
+	{Key: "rst", Name: "reStructuredText", Needs: needsPandoc},
+	{Key: "json", Name: "Pandoc JSON", Needs: needsPandoc},
+	{Key: "native", Name: "Pandoc native", Needs: needsPandoc},
+	{Key: "man", Name: "Manual page", Needs: needsPandoc},
+	{Key: "textile", Name: "Textile", Needs: needsPandoc},
+	{Key: "mediawiki", Name: "MediaWiki", Needs: needsPandoc},
+	{Key: "org", Name: "Org mode", Needs: needsPandoc},
+	{Key: "asciidoc", Name: "AsciiDoc", Needs: needsPandoc},
 }
 
 // FormatFor is the output format with key.
@@ -101,7 +107,7 @@ func (f Format) Available() bool {
 	switch f.Needs {
 	case "":
 		return true
-	case "LaTeX":
+	case needsLaTeX:
 		return latexCommand() != ""
 	}
 	_, err := exec.LookPath(f.Needs)
@@ -214,7 +220,11 @@ func Convert(ctx context.Context, o Options) error {
 	if err != nil {
 		return err
 	}
-	defer closeIn()
+	defer func() {
+		if cerr := closeIn(); cerr != nil {
+			log.Printf("Closing the input: %v", cerr)
+		}
+	}()
 	screenplay, err := parseInput(o, conf, in)
 	if err != nil {
 		return err
@@ -262,8 +272,7 @@ func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.S
 		return err
 	}
 	if err := w.Write(out, screenplay); err != nil {
-		closeOut()
-		return err
+		return errors.Join(err, closeOut())
 	}
 	return closeOut()
 }
@@ -342,7 +351,7 @@ func parseInput(o Options, conf rules.TOMLConf, input io.Reader) (lex.Screenplay
 			return nil, fmt.Errorf("could not read FDX input: %w", err)
 		}
 		return s, nil
-	case "pdf":
+	case internal.FormatPDF:
 		// a PDF is read at random places, so it is read whole first
 		data, err := io.ReadAll(input)
 		if err != nil {
@@ -452,7 +461,7 @@ func htmlPDF(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 		return errors.New("'htmlpdf' output requires wkhtmltopdf, but it could not be found in your system's PATH")
 	}
 	var buf bytes.Buffer
-	if err := (&html.HTMLWriter{Elements: conf.Elements[o.Elements]}).Write(&buf, screenplay); err != nil {
+	if err = (&html.HTMLWriter{Elements: conf.Elements[o.Elements]}).Write(&buf, screenplay); err != nil {
 		return fmt.Errorf("converting to HTML for wkhtmltopdf: %w", err)
 	}
 	name, remove, err := tempFile("lexington_*.html", buf.Bytes())
@@ -491,7 +500,8 @@ func latexPDF(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 			"but none could be found in your system's PATH")
 	}
 	var buf bytes.Buffer
-	if err := (&latex.LaTeXWriter{Template: o.TemplatePath, Elements: conf.Elements[o.Elements]}).Write(&buf, screenplay); err != nil {
+	lw := &latex.LaTeXWriter{Template: o.TemplatePath, Elements: conf.Elements[o.Elements]}
+	if err := lw.Write(&buf, screenplay); err != nil {
 		return fmt.Errorf("converting to LaTeX: %w", err)
 	}
 	// in a folder of its own: LaTeX writes its .aux and .log beside the PDF
@@ -501,14 +511,14 @@ func latexPDF(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 	}
 	defer os.RemoveAll(dir)
 	tex := filepath.Join(dir, "script.tex")
-	if err := os.WriteFile(tex, buf.Bytes(), 0o644); err != nil {
+	if err = os.WriteFile(tex, buf.Bytes(), 0o644); err != nil {
 		return err
 	}
 	log.Printf("Running %s to create PDF from LaTeX...", latexCmd)
 	cmd := exec.Command(latexCmd, "-interaction=nonstopmode", "-output-directory", dir, tex)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stderr
-	if err := cmd.Run(); err != nil {
+	if err = cmd.Run(); err != nil {
 		return err
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "script.pdf"))

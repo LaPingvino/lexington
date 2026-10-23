@@ -1,67 +1,73 @@
-# golangci-lint configuration for Lexington
+version: "2"
 run:
-  timeout: 5m
-  go: "1.23"
-
-linters-settings:
-  govet:
-    enable:
-      - shadow
-  gocyclo:
-    min-complexity: 15
-  misspell:
-    locale: US
-    ignore-words:
-      - dialogue
-      - cancelled
-  goimports:
-    local-prefixes: github.com/lapingvino/lexington
-  funlen:
-    lines: 100
-    statements: 50
-  lll:
-    line-length: 120
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-  goconst:
-    min-len: 2
-    min-occurrences: 3
-  gofmt:
-    simplify: true
-
+  go: "1.26"
 linters:
   enable:
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
-    - typecheck
-    - unused
-    - gocyclo
-    - gofmt
-    - goimports
-    - misspell
-    - lll
-    - goconst
     - funlen
-
+    - goconst
+    - gocyclo
+    - lll
+    - misspell
   disable:
-    - gochecknoglobals # We have some valid global variables
-
+    - gochecknoglobals
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    funlen:
+      lines: 100
+      statements: 50
+    goconst:
+      min-len: 2
+      min-occurrences: 3
+    gocyclo:
+      min-complexity: 15
+    govet:
+      enable:
+        - shadow
+    lll:
+      line-length: 120
+    misspell:
+      locale: US
+      ignore-rules:
+        - dialogue
+        - cancelled
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - funlen
+          - gocyclo
+        path: _test\.go
+      - linters:
+          - lll
+        path: latex/write\.go
+        text: \\newcommand
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  exclude-rules:
-    # Exclude some linters from running on tests files
-    - path: _test\.go
-      linters:
-        - funlen
-        - gocyclo
-    # Exclude line length check for template strings in LaTeX files
-    - path: latex/write\.go
-      text: "\\\\newcommand"
-      linters:
-        - lll
-
   max-issues-per-linter: 0
   max-same-issues: 0
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - github.com/lapingvino/lexington
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
