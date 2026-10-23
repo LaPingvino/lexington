@@ -10,15 +10,15 @@ func TestAddOffset(t *testing.T) {
 		off  uint32
 		want string
 	}{
-		{"\\x00\\x00", 0x0418, "\\x04\\x18"}, // И
-		{"\\x00\\xff", 1, "\\x01\\x00"},      // carry
-		{"\\x00\\x41", 2, "\\x00\\x43"},
+		{"\x00\x00", 0x0418, "\x04\x18"}, // И
+		{"\x00\xff", 1, "\x01\x00"},      // carry
+		{"\x00\x41", 2, "\x00\x43"},
 	} {
 		if got := addOffset(c.dst, c.off); got != c.want {
 			t.Errorf("%q + %#x = %q, want %q", c.dst, c.off, got, c.want)
 		}
 	}
-	if codeValue("\\x04\\x18") != 0x0418 {
+	if codeValue("\x04\x18") != 0x0418 {
 		t.Error("codeValue")
 	}
 }
