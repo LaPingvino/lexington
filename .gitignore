@@ -19,3 +19,4 @@ testdata/output/
 !testdata/input/
 !pdfin/testdata/*.pdf
 dist/
+!web/*.html

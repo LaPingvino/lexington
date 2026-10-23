@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lexington</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<h1>Lexington</h1>
+<p>Convert a screenplay: Fountain, Final Draft (FDX) or a PDF to PDF, Word, OpenDocument, HTML, Final Draft, Fountain or LaTeX. It all happens in your browser; your script is not sent anywhere.</p>
+<form id="form">
+	<label for="file">Script</label>
+	<input id="file" type="file" accept=".fountain,.spmd,.txt,.fdx,.pdf,.lex" required>
+	<label for="to">Convert to</label>
+	<select id="to"></select>
+	<label for="elements">Script format</label>
+	<select id="elements"></select>
+	<p id="elements-about" class="about"></p>
+	<label for="page">Paper</label>
+	<select id="page">
+		<option value="">The script format's</option>
+		<option value="letter">Letter</option>
+		<option value="a4">A4</option>
+		<option value="a5">A5</option>
+	</select>
+	<button id="convert" type="submit" disabled>Loading…</button>
+</form>
+<p id="status" role="status" aria-live="polite"></p>
+<p class="about">PDFs are read for their text; scanned pages need the <a href="https://github.com/LaPingvino/lexington">lexington command</a> with Tesseract. More formats (EPUB, Kindle, Markdown…) are made there too, or in <a href="https://github.com/LaPingvino/accolade">Accolade</a>.</p>
+</main>
+<script src="memfs.js"></script>
+<script src="wasm_exec.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

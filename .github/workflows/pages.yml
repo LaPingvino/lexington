@@ -1,9 +1,9 @@
 name: Web version
 
-# Lexington's web version (scripts/build-web.sh) on GitHub Pages, from main
+# Lexington's web version (scripts/build-web.sh) on GitHub Pages, from master
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 permissions:
