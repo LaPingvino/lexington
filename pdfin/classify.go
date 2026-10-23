@@ -22,7 +22,7 @@ const (
 
 // classify turns the pages' lines into a screenplay.
 //
-//nolint:gocyclo // long-standing; its scene pattern became a parameter
+//nolint:gocyclo,funlen // long-standing; its scene pattern became a parameter
 func classify(pages [][]line, width float64, scene *regexp.Regexp) lex.Screenplay {
 	var out lex.Screenplay
 	start := 0
