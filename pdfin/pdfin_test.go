@@ -96,6 +96,30 @@ func TestPageBreaks(t *testing.T) {
 	}
 }
 
+// A line with the same scene number in both margins is a scene heading,
+// INT. or not, words or not, as shooting scripts number title cards and
+// sung lines.
+func TestNumberedLinesAreScenes(t *testing.T) {
+	const step = 1.0 / 6
+	page := []line{
+		ln(1, 0.5, at(7.0, "1.")),
+		ln(1, 1.0, at(0.75, "19"), at(1.5, "INT. PALACE - DAY"), at(7.18, "19")),
+		ln(1, 1.0+2*step, at(0.75, "20"), at(7.18, "20")),
+		ln(1, 1.0+4*step, at(1.5, "A grand room.")),
+		ln(1, 1.0+6*step, at(0.75, "132"), at(1.5, "THE TROUPE OF PLAYERS"), at(7.08, "132")),
+		ln(1, 1.0+8*step, at(3.5, "IN")),
+	}
+	var got []string
+	for _, l := range classify([][]line{page}, 8.5, scenePrefix) {
+		if l.Type == lex.TypeScene {
+			got = append(got, l.Contents)
+		}
+	}
+	if want := "INT. PALACE - DAY #19#|#20#|THE TROUPE OF PLAYERS #132#"; strings.Join(got, "|") != want {
+		t.Errorf("scenes %q", got)
+	}
+}
+
 func TestTitlePage(t *testing.T) {
 	page := []line{
 		ln(1, 4.0, at(3.75, "BISCUITS")),

@@ -152,7 +152,8 @@ func elementOf(l line, next *line, margin, width float64, prev lex.ElementType,
 	right := width - 1.0 // the right margin of the text
 	inSpeech := prev == lex.TypeSpeaker || prev == lex.TypeParen || prev == lex.TypeDialog
 	switch {
-	case d < 0.3 && l.upper() && (scene.MatchString(text) || (l.bold() && len(text) < 60)):
+	case l.numbered && (d < 0.3 || strings.HasPrefix(text, "#")),
+		d < 0.3 && l.upper() && (scene.MatchString(text) || (l.bold() && len(text) < 60)):
 		return lex.TypeScene, ocrComma.ReplaceAllString(text, "$1.")
 	case l.upper() && d > 2.5 && (transition.MatchString(text) || l.end() > right-0.4):
 		return lex.TypeTrans, text
@@ -251,7 +252,13 @@ func cleanPage(ls []line, running map[string]bool, scene *regexp.Regexp) []line 
 		if len(l.Runs) >= 2 && sceneNumber.MatchString(l.Runs[0].Text) {
 			num := strings.TrimSuffix(l.Runs[0].Text, ".")
 			rest := l.Runs[1:]
-			if n := len(rest); n >= 2 && strings.TrimSuffix(rest[n-1].Text, ".") == num {
+			if n := len(rest); n >= 1 && strings.TrimSuffix(rest[n-1].Text, ".") == num {
+				l.numbered = true
+				if n == 1 { // the numbers only: a heading without words
+					l.Runs = []run{{X: rest[0].X, End: rest[0].X, Text: "#" + num + "#"}}
+					out = append(out, l)
+					continue
+				}
 				rest = rest[:n-1]
 			}
 			if t := joinRuns(rest); scene.MatchString(t) || t == strings.ToUpper(t) {

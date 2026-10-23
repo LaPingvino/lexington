@@ -36,6 +36,9 @@ type line struct {
 	Page int
 	Y    float64 // inches from the page's top
 	Runs []run
+	// numbered: the same scene number in both margins, which makes it a
+	// scene heading, INT. or not
+	numbered bool
 }
 
 func (l line) x() float64   { return l.Runs[0].X }
