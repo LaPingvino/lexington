@@ -32,6 +32,7 @@ linters:
       ignore-rules:
         - dialogue
         - cancelled
+        - calibre
   exclusions:
     generated: lax
     presets:

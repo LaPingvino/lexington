@@ -42,8 +42,9 @@ var (
 
 // What some formats need.
 const (
-	needsPandoc = "pandoc"
-	needsLaTeX  = "LaTeX"
+	needsPandoc  = "pandoc"
+	needsLaTeX   = "LaTeX"
+	needsCalibre = "Calibre" // its ebook-convert
 )
 
 // Format is an output format.
@@ -80,6 +81,13 @@ var Formats = []Format{
 	{Key: "htmlpdf", Name: "PDF through HTML", Needs: "wkhtmltopdf", Ext: internal.FormatPDF},
 	{Key: "latexpdf", Name: "PDF through LaTeX", Needs: needsLaTeX, Ext: internal.FormatPDF},
 	{Key: "epub", Name: "EPUB", Needs: needsPandoc},
+	{Key: "azw3", Name: "Kindle (AZW3)", Needs: needsCalibre},
+	{Key: "mobi", Name: "Mobipocket (MOBI)", Needs: needsCalibre},
+	{Key: "prc", Name: "Mobipocket (PRC)", Needs: needsCalibre},
+	{Key: "fb2", Name: "FictionBook (FB2)", Needs: needsCalibre},
+	{Key: "pdb", Name: "eReader (PDB)", Needs: needsCalibre},
+	{Key: "lrf", Name: "Sony Reader (LRF)", Needs: needsCalibre},
+	{Key: "lit", Name: "Microsoft Reader (LIT)", Needs: needsCalibre},
 	{Key: "rtf", Name: "Rich Text (RTF)", Needs: needsPandoc},
 	{Key: "markdown", Name: "Markdown", Needs: needsPandoc, Ext: "md"},
 	{Key: "rst", Name: "reStructuredText", Needs: needsPandoc},
@@ -109,6 +117,9 @@ func (f Format) Available() bool {
 		return true
 	case needsLaTeX:
 		return latexCommand() != ""
+	case needsCalibre:
+		_, err := exec.LookPath("ebook-convert")
+		return err == nil
 	}
 	_, err := exec.LookPath(f.Needs)
 	return err == nil
@@ -432,6 +443,9 @@ func external(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 	case "latexpdf":
 		return latexPDF(o, conf, screenplay)
 	}
+	if f, _ := FormatFor(o.To); f.Needs == needsCalibre {
+		return calibre(o, conf, screenplay)
+	}
 	return pandoc(o, screenplay)
 }
 
@@ -533,15 +547,7 @@ func pandoc(o Options, screenplay lex.Screenplay) error {
 	if err != nil {
 		return fmt.Errorf("'%s' output requires pandoc, but it could not be found in your system's PATH", o.To)
 	}
-	var title, author string
-	for _, line := range screenplay {
-		switch line.Type {
-		case "Title":
-			title = line.Contents
-		case "Author":
-			author = line.Contents
-		}
-	}
+	title, author := titleAuthor(screenplay)
 	var buf bytes.Buffer
 	if err := (&markdown.MarkdownWriter{}).Write(&buf, screenplay); err != nil {
 		return fmt.Errorf("converting to Markdown for pandoc: %w", err)
@@ -558,4 +564,65 @@ func pandoc(o Options, screenplay lex.Screenplay) error {
 	cmd.Stderr = os.Stderr
 	log.Printf("Running pandoc to create %s...", o.Output)
 	return cmd.Run()
+}
+
+// titleAuthor are the title page's title and author.
+func titleAuthor(screenplay lex.Screenplay) (title, author string) {
+	for _, line := range screenplay {
+		switch line.Type {
+		case "Title":
+			title = line.Contents
+		case "Author":
+			author = line.Contents
+		}
+	}
+	return title, author
+}
+
+// calibre makes the e-book formats with Calibre's ebook-convert, from
+// Lexington's HTML (its layout and styles); a PRC is a MOBI.
+func calibre(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
+	convert, err := exec.LookPath("ebook-convert")
+	if err != nil {
+		return fmt.Errorf("'%s' output requires Calibre's ebook-convert, "+
+			"but it could not be found in your system's PATH", o.To)
+	}
+	dir, err := os.MkdirTemp("", "lexington-ebook-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dir)
+	var buf bytes.Buffer
+	if err = (&html.HTMLWriter{Elements: conf.Elements[o.Elements]}).Write(&buf, screenplay); err != nil {
+		return fmt.Errorf("converting to HTML for ebook-convert: %w", err)
+	}
+	in := filepath.Join(dir, "script.html")
+	if err = os.WriteFile(in, buf.Bytes(), 0o644); err != nil {
+		return err
+	}
+	ext := o.To
+	if ext == "prc" {
+		ext = "mobi"
+	}
+	out := filepath.Join(dir, "book."+ext)
+	args := []string{in, out}
+	if title, author := titleAuthor(screenplay); title != "" || author != "" {
+		if title != "" {
+			args = append(args, "--title", title)
+		}
+		if author != "" {
+			args = append(args, "--authors", author)
+		}
+	}
+	cmd := exec.Command(convert, args...)
+	cmd.Stderr = os.Stderr
+	log.Printf("Running ebook-convert to create %s...", o.Output)
+	if err = cmd.Run(); err != nil {
+		return err
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(o.Output, data, 0o644)
 }

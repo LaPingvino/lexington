@@ -97,7 +97,7 @@ jobs:
       - name: Install the programs some formats need
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends pandoc texlive-latex-base texlive-latex-recommended
+          sudo apt-get install -y --no-install-recommends pandoc texlive-latex-base texlive-latex-recommended calibre
           sudo apt-get install -y --no-install-recommends wkhtmltopdf || echo "wkhtmltopdf is not available"
 
       - name: Test the formats made with other programs
