@@ -18,6 +18,10 @@
 	<label for="elements">Script format</label>
 	<select id="elements"></select>
 	<p id="elements-about" class="about"></p>
+	<label for="scenein">Scene headings are in</label>
+	<select id="scenein"><option value="">The language in the file name (script.ru.fountain), else English</option></select>
+	<label for="sceneout">Write scene headings in (Fountain output)</label>
+	<select id="sceneout"><option value="">The language in the file name, else English</option></select>
 	<label for="page">Paper</label>
 	<select id="page">
 		<option value="">The script format's</option>
@@ -28,6 +32,13 @@
 	<button id="convert" type="submit" disabled>Loading…</button>
 </form>
 <p id="status" role="status" aria-live="polite"></p>
+<details id="settings-box">
+	<summary>Lexington settings</summary>
+	<p class="about">Lexington's settings file (lexington.toml), as the lexington command reads it: element sets (margins, styles) and the words scene headings start with in each language. Add your own; they are kept in this browser.</p>
+	<label for="settings">lexington.toml</label>
+	<textarea id="settings" rows="18" spellcheck="false"></textarea>
+	<div class="buttons"><button id="save-settings" type="button">Save settings</button> <button id="reset-settings" type="button" class="plain">Back to the defaults</button></div>
+</details>
 <p class="about">Have a screenplay only as a PDF, even a scanned one? You can use it: here the PDF's text is read, and for scanned pages, give the version on your computer a try, <a href="https://github.com/LaPingvino/accolade">Accolade</a> or the <a href="https://github.com/LaPingvino/lexington">lexington command</a>, which read them with OCR. They also make EPUB, Kindle books, Markdown and more.</p>
 </main>
 <script src="memfs.js"></script>
