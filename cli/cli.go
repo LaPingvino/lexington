@@ -14,6 +14,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/LaPingvino/lexington/fdx"
@@ -494,17 +495,28 @@ func latexPDF(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 	if err := (&latex.LaTeXWriter{Template: o.TemplatePath, Elements: conf.Elements[o.Elements]}).Write(&buf, screenplay); err != nil {
 		return fmt.Errorf("converting to LaTeX: %w", err)
 	}
-	name, remove, err := tempFile("lexington_*.tex", buf.Bytes())
+	// in a folder of its own: LaTeX writes its .aux and .log beside the PDF
+	dir, err := os.MkdirTemp("", "lexington-latex-")
 	if err != nil {
 		return err
 	}
-	defer remove()
+	defer os.RemoveAll(dir)
+	tex := filepath.Join(dir, "script.tex")
+	if err := os.WriteFile(tex, buf.Bytes(), 0o644); err != nil {
+		return err
+	}
 	log.Printf("Running %s to create PDF from LaTeX...", latexCmd)
-	cmd := exec.Command(latexCmd, "-output-directory", ".", "-jobname",
-		strings.TrimSuffix(o.Output, ".pdf"), name)
+	cmd := exec.Command(latexCmd, "-interaction=nonstopmode", "-output-directory", dir, tex)
 	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	return cmd.Run()
+	cmd.Stdout = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "script.pdf"))
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(o.Output, data, 0o644)
 }
 
 func pandoc(o Options, screenplay lex.Screenplay) error {

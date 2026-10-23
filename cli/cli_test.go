@@ -60,3 +60,30 @@ func TestMainExitCodes(t *testing.T) {
 		}
 	}
 }
+
+// The formats made with other programs, where those are installed (CI's
+// integration job installs them).
+func TestExternalFormats(t *testing.T) {
+	dir := t.TempDir()
+	in := filepath.Join(dir, "barn.fountain")
+	if err := os.WriteFile(in, []byte(script), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range Formats {
+		if f.Needs == "" {
+			continue
+		}
+		if !f.Available() {
+			t.Logf("%s: %s is not installed", f.Key, f.Needs)
+			continue
+		}
+		out := filepath.Join(dir, "barn-"+f.Key+"."+f.Extension())
+		if err := Convert(context.Background(), Options{Input: in, Output: out, To: f.Key, ConfigFile: filepath.Join(dir, "none.toml")}); err != nil {
+			t.Errorf("%s: %v", f.Key, err)
+			continue
+		}
+		if data, err := os.ReadFile(out); err != nil || len(data) == 0 {
+			t.Errorf("%s: %d bytes, %v", f.Key, len(data), err)
+		}
+	}
+}
