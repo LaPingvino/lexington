@@ -222,7 +222,7 @@ func lineStep(ls []line) float64 {
 	if best == 0 {
 		return 1.0 / 6
 	}
-	if half := (best + 1) / 2; near(half) > 0 && near(half)*4 >= n && half >= 9 {
+	if half := (best + 1) / 2; near(half) >= 2 && half >= 9 {
 		best = half
 	}
 	return float64(best) / 100
