@@ -74,7 +74,6 @@ var Formats = []Format{
 	{Key: "htmlpdf", Name: "PDF through HTML", Needs: "wkhtmltopdf", Ext: "pdf"},
 	{Key: "latexpdf", Name: "PDF through LaTeX", Needs: "LaTeX", Ext: "pdf"},
 	{Key: "epub", Name: "EPUB", Needs: "pandoc"},
-	{Key: "mobi", Name: "Mobipocket", Needs: "pandoc"},
 	{Key: "rtf", Name: "Rich Text (RTF)", Needs: "pandoc"},
 	{Key: "markdown", Name: "Markdown", Needs: "pandoc", Ext: "md"},
 	{Key: "rst", Name: "reStructuredText", Needs: "pandoc"},
