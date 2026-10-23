@@ -33,6 +33,9 @@ jobs:
       - name: Run go vet
         run: go vet ./...
 
+      - name: Vet the web version
+        run: GOOS=js GOARCH=wasm go vet ./cmd/lexington-web
+
       - name: Run tests
         run: go test -race -coverprofile=coverage.out ./...
 

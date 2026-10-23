@@ -1,0 +1,13 @@
+:root { color-scheme: light dark; --fg: #1d1d1f; --bg: #fbfbf8; --muted: #666; --accent: #2a5db0; }
+@media (prefers-color-scheme: dark) { :root { --fg: #eee; --bg: #1b1b1b; --muted: #aaa; --accent: #7aa7ff; } }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.5 "Courier Prime", "Courier New", monospace; }
+main { max-width: 38rem; margin: 0 auto; padding: 2rem 1rem; }
+h1 { font-size: 1.6rem; letter-spacing: .05em; }
+form { display: grid; gap: .4rem; margin: 1.5rem 0; }
+label { font-weight: bold; margin-top: .6rem; }
+select, input, button { font: inherit; padding: .4rem; color: inherit; background: transparent; border: 1px solid var(--muted); border-radius: 4px; }
+button { margin-top: 1rem; background: var(--accent); color: #fff; border: none; padding: .6rem; cursor: pointer; }
+button:disabled { opacity: .6; cursor: default; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.about { color: var(--muted); font-size: .9rem; margin: 0; }
+a { color: var(--accent); }

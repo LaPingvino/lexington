@@ -6,6 +6,9 @@
 
 **Lexington** is a professional command-line tool for screenwriters that converts between multiple screenplay formats with industry-standard formatting. Built with modern Go and featuring comprehensive dual dialogue support.
 
+
+**Try it in your browser:** [lapingvino.github.io/lexington](https://lapingvino.github.io/lexington/) converts a screenplay without installing anything; your script stays on your computer.
+
 ## 🎯 Key Features
 
 - **✅ Dual Dialogue Support**: Perfect side-by-side formatting in PDF and HTML
