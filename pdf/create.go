@@ -79,7 +79,11 @@ func (t Tree) pr(a string, text string) {
 // heading is about to be printed on.
 func (t Tree) sceneNumber(f rules.Format, number string) {
 	y := t.PDF.GetY()
-	pageWidth, _ := t.PDF.GetPageSize()
+	pageWidth, pageHeight := t.PDF.GetPageSize()
+	if _, margin := t.PDF.GetAutoPageBreak(); y+0.165 > pageHeight-margin {
+		t.PDF.AddPage() // the heading goes there: its numbers with it
+		y = t.PDF.GetY()
+	}
 	left, top, right, _ := t.PDF.GetMargins()
 	defer t.PDF.SetMargins(left, top, right)
 	fontName, number := t.Fonts.font(f.Font, number)

@@ -2,6 +2,8 @@ package pdf
 
 import (
 	"os"
+	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/LaPingvino/lexington/lex"
@@ -91,4 +93,32 @@ func TestCreatePDF(t *testing.T) {
 
 	// For manual inspection, you could print the temp file name.
 	// t.Logf("Generated test PDF at: %s", tmpfile.Name())
+}
+
+// A numbered scene heading at the foot of a page goes to the next page
+// with its numbers: no pages with only a number on them.
+func TestSceneNumberAtPageFoot(t *testing.T) {
+	pages := func(s lex.Screenplay) int {
+		file := filepath.Join(t.TempDir(), "x.pdf")
+		if err := (&PDFWriter{OutputFile: file, Elements: rules.Default, Page: "a4"}).Write(nil, s); err != nil {
+			t.Fatal(err)
+		}
+		b, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(regexp.MustCompile(`/Type /Page\b[^s]`).FindAll(b, -1))
+	}
+	for n := 25; n < 36; n++ { // the heading on each line of the foot of a page
+		var plain, numbered lex.Screenplay
+		for i := 0; i < n; i++ {
+			plain = append(plain, lex.Line{Type: lex.TypeAction, Contents: "A line."}, lex.Line{Type: lex.TypeEmpty})
+		}
+		numbered = append(numbered, plain...)
+		plain = append(plain, lex.Line{Type: lex.TypeScene, Contents: "INT. ROOM - DAY"})
+		numbered = append(numbered, lex.Line{Type: lex.TypeScene, Contents: "INT. ROOM - DAY #11#"})
+		if p, q := pages(plain), pages(numbered); p != q {
+			t.Errorf("%d lines before it: %d pages, numbered %d", n, p, q)
+		}
+	}
 }
