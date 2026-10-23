@@ -364,17 +364,14 @@ Parse:
 						if len(bfrange.lo) == n && bfrange.lo <= text && text <= bfrange.hi {
 							if bfrange.dst.Kind() == String {
 								s := bfrange.dst.RawString()
-								if bfrange.lo != text { // value isn't at the beginning of the range so scale result
-									b := []byte(s)
-									b[len(b)-1] += text[len(text)-1] - bfrange.lo[len(bfrange.lo)-1] // increment last byte by difference
-									s = string(b)
+								if bfrange.lo != text { // the code's distance into the range, added to the start
+									s = addOffset(s, codeValue(text)-codeValue(bfrange.lo))
 								}
 								r = append(r, []rune(utf16Decode(s))...)
 								continue Parse
 							}
 							if bfrange.dst.Kind() == Array {
-								n := text[len(text)-1] - bfrange.lo[len(bfrange.lo)-1]
-								v := bfrange.dst.Index(int(n))
+								v := bfrange.dst.Index(int(codeValue(text) - codeValue(bfrange.lo)))
 								if v.Kind() == String {
 									s := v.RawString()
 									r = append(r, []rune(utf16Decode(s))...)
@@ -1119,4 +1116,26 @@ func buildOutline(entry Value) Outline {
 		x.Child = append(x.Child, buildOutline(child))
 	}
 	return x
+}
+
+// codeValue is a character code's bytes as a number (big-endian).
+func codeValue(code string) uint32 {
+	var v uint32
+	for i := 0; i < len(code); i++ {
+		v = v<<8 | uint32(code[i])
+	}
+	return v
+}
+
+// addOffset adds off to a bfrange destination (big-endian bytes) with
+// carry: the whole distance into a range such as <0000> <FFFF> <0000>,
+// not only its last byte (which made Cyrillic and other scripts wrong).
+func addOffset(dst string, off uint32) string {
+	b := []byte(dst)
+	for i := len(b) - 1; i >= 0 && off > 0; i-- {
+		sum := uint32(b[i]) + off&0xff
+		b[i] = byte(sum)
+		off = off>>8 + sum>>8
+	}
+	return string(b)
 }
