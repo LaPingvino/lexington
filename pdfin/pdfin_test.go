@@ -76,7 +76,7 @@ func TestPageBreaks(t *testing.T) {
 		ln(2, 1.0+step, at(2.5, "for this biscuit.")),
 		ln(2, 1.0+3*step, at(1.5, "She eats it.")),
 	}
-	s := classify([][]line{page1, page2}, 8.5)
+	s := classify([][]line{page1, page2}, 8.5, scenePrefix)
 	var got []string
 	for _, l := range s {
 		got = append(got, string(l.Type)+": "+l.Contents)
@@ -104,7 +104,7 @@ func TestTitlePage(t *testing.T) {
 		ln(1, 9.0, at(1.5, "anna@example.com")),
 		ln(1, 9.2, at(1.5, "Draft, May 2026")),
 	}
-	s, ok := titlePage(page, 8.5)
+	s, ok := titlePage(page, 8.5, scenePrefix)
 	if !ok {
 		t.Fatal("no title page")
 	}
@@ -117,7 +117,7 @@ func TestTitlePage(t *testing.T) {
 		t.Errorf("got %s", strings.Join(got, "|"))
 	}
 	// a first page with a scene is no title page
-	if _, ok := titlePage([]line{ln(1, 1, at(1.5, "INT. HOUSE - DAY"))}, 8.5); ok {
+	if _, ok := titlePage([]line{ln(1, 1, at(1.5, "INT. HOUSE - DAY"))}, 8.5, scenePrefix); ok {
 		t.Error("scene page taken for the title page")
 	}
 }
@@ -247,5 +247,17 @@ func TestTightTrackingKeepsWords(t *testing.T) {
 	}
 	if got := strings.Join(all, "|"); !strings.Contains(got, text) {
 		t.Errorf("read %q", got)
+	}
+}
+
+func TestScenePattern(t *testing.T) {
+	ru := scenePattern([]string{"ИНТ", "НАТ", "ИНТ./НАТ"})
+	for text, want := range map[string]bool{"ИНТ. КУХНЯ - ДЕНЬ": true, "ИНТ./НАТ. ДВОР": true, "INT. HOUSE": false, "ИНТЕРЕСНО": false} {
+		if ru.MatchString(text) != want {
+			t.Errorf("%q: %v", text, !want)
+		}
+	}
+	if scenePattern(nil) != scenePrefix {
+		t.Error("no starts: English")
 	}
 }

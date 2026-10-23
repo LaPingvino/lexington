@@ -148,7 +148,7 @@ func ReadWith(r io.ReaderAt, size int64, opts Options) (s lex.Screenplay, err er
 	if all == 0 {
 		return nil, fmt.Errorf("the PDF has no text: a scanned script needs OCR")
 	}
-	return classify(pages, width), nil
+	return classify(pages, width, scenePattern(opts.Scenes)), nil
 }
 
 // readPage is a page's lines: its text, or what OCR reads in its scan.
@@ -285,3 +285,18 @@ var (
 	creditLine  = regexp.MustCompile(`(?i)^(written by|screenplay by|teleplay by|story by|by|an? .* by)$`)
 	dateLike    = regexp.MustCompile(`(?i)\b(19|20)\d\d\b|\b(draft|revis)`)
 )
+
+// scenePattern matches the start of a scene heading: starts are the words
+// headings start with in the script's language (Lexington's Scenes for
+// it); nil is English.
+func scenePattern(starts []string) *regexp.Regexp {
+	if len(starts) == 0 {
+		return scenePrefix
+	}
+	alts := make([]string, 0, len(starts))
+	for _, st := range starts {
+		alts = append(alts, regexp.QuoteMeta(strings.TrimSuffix(strings.TrimSpace(st), ".")))
+	}
+	sort.Slice(alts, func(i, j int) bool { return len(alts[i]) > len(alts[j]) }) // the longest first
+	return regexp.MustCompile(`^(` + strings.Join(alts, "|") + `)[ .,]`)
+}

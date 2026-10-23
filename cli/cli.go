@@ -369,7 +369,7 @@ func parseInput(o Options, conf rules.TOMLConf, input io.Reader) (lex.Screenplay
 			return nil, fmt.Errorf("could not read the PDF: %w", err)
 		}
 		// scanned pages are OCRed with tesseract, if it is installed
-		var opts pdfin.Options
+		opts := pdfin.Options{Scenes: conf.Scenes[o.SceneIn]}
 		if t, ok := pdfin.InstalledTesseract(); ok {
 			opts.OCR = t
 		}

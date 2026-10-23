@@ -35,6 +35,9 @@ type Options struct {
 	// Context, if set, stops the reading when it is done (a Cancel
 	// button): reading returns its error.
 	Context context.Context
+	// Scenes are the words scene headings start with in the script's
+	// language (Lexington's settings: Scenes["ru"]); nil is English.
+	Scenes []string
 }
 
 // Tesseract is the tesseract program as OCR, for -l Language ("eng"

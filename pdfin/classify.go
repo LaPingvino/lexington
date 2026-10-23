@@ -2,6 +2,7 @@ package pdfin
 
 import (
 	"math"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -20,17 +21,17 @@ const (
 )
 
 // classify turns the pages' lines into a screenplay.
-func classify(pages [][]line, width float64) lex.Screenplay {
+func classify(pages [][]line, width float64, scene *regexp.Regexp) lex.Screenplay {
 	var out lex.Screenplay
 	start := 0
-	if title, ok := titlePage(pages[0], width); ok {
+	if title, ok := titlePage(pages[0], width, scene); ok {
 		out = append(out, title...)
 		start = 1
 	}
 	running := runningLines(pages[start:])
 	var body []line
 	for _, p := range pages[start:] {
-		body = append(body, cleanPage(p, running)...)
+		body = append(body, cleanPage(p, running, scene)...)
 	}
 	if len(body) == 0 {
 		return out
@@ -79,7 +80,7 @@ func classify(pages [][]line, width float64) lex.Screenplay {
 		if i+1 < len(body) && body[i+1].Page == l.Page && body[i+1].Y-l.Y <= 1.5*step {
 			next = &body[i+1]
 		}
-		t, text := elementOf(l, next, margin, width, prevType)
+		t, text := elementOf(l, next, margin, width, prevType, scene)
 		if resume && t == lex.TypeDialog && len(out) > 0 && out[len(out)-1].Type == lex.TypeDialog {
 			out[len(out)-1].Contents += " " + text
 			resume, prevType, prev = false, t, &body[i]
@@ -140,13 +141,13 @@ func baseName(s string) string {
 }
 
 // elementOf is the type and the text of a line, by its indent.
-func elementOf(l line, next *line, margin, width float64, prev lex.ElementType) (lex.ElementType, string) {
+func elementOf(l line, next *line, margin, width float64, prev lex.ElementType, scene *regexp.Regexp) (lex.ElementType, string) {
 	text := l.text()
 	d := l.x() - margin
 	right := width - 1.0 // the right margin of the text
 	inSpeech := prev == lex.TypeSpeaker || prev == lex.TypeParen || prev == lex.TypeDialog
 	switch {
-	case d < 0.3 && l.upper() && (scenePrefix.MatchString(text) || (l.bold() && len(text) < 60)):
+	case d < 0.3 && l.upper() && (scene.MatchString(text) || (l.bold() && len(text) < 60)):
 		return lex.TypeScene, ocrComma.ReplaceAllString(text, "$1.")
 	case l.upper() && d > 2.5 && (transition.MatchString(text) || l.end() > right-0.4):
 		return lex.TypeTrans, text
@@ -224,7 +225,7 @@ func lineStep(ls []line) float64 {
 
 // cleanPage leaves out what is not the script: page numbers, (MORE),
 // CONTINUED; scene numbers in the margins go to the end of their heading.
-func cleanPage(ls []line, running map[string]bool) []line {
+func cleanPage(ls []line, running map[string]bool, scene *regexp.Regexp) []line {
 	var out []line
 	for i, l := range ls {
 		t := l.text()
@@ -246,13 +247,13 @@ func cleanPage(ls []line, running map[string]bool) []line {
 			if n := len(rest); n >= 2 && strings.TrimSuffix(rest[n-1].Text, ".") == num {
 				rest = rest[:n-1]
 			}
-			if t := joinRuns(rest); scenePrefix.MatchString(t) || t == strings.ToUpper(t) {
+			if t := joinRuns(rest); scene.MatchString(t) || t == strings.ToUpper(t) {
 				l.Runs = append(append([]run(nil), rest...), run{X: rest[len(rest)-1].End, End: rest[len(rest)-1].End, Text: "#" + num + "#"})
 			}
 		}
 		// or only right of it
 		if n := len(l.Runs); n >= 2 && sceneNumber.MatchString(l.Runs[n-1].Text) && l.Runs[n-1].X > 6.0 &&
-			!strings.HasSuffix(l.Runs[n-2].Text, "#") && scenePrefix.MatchString(joinRuns(l.Runs[:n-1])) {
+			!strings.HasSuffix(l.Runs[n-2].Text, "#") && scene.MatchString(joinRuns(l.Runs[:n-1])) {
 			num := strings.TrimSuffix(l.Runs[n-1].Text, ".")
 			l.Runs = append(append([]run(nil), l.Runs[:n-1]...), run{X: l.Runs[n-2].End, End: l.Runs[n-2].End, Text: "#" + num + "#"})
 		}
@@ -310,13 +311,13 @@ func dualBlock(ls []line, i int, margin, width float64) (int, lex.Screenplay) {
 // titlePage reads a first page without scenes or speeches as the title
 // page: the title, the credit ("Written by") and the author centred in
 // the upper part, the rest (contact, draft) as details.
-func titlePage(ls []line, width float64) (lex.Screenplay, bool) {
+func titlePage(ls []line, width float64, scene *regexp.Regexp) (lex.Screenplay, bool) {
 	if len(ls) == 0 || len(ls) > 30 {
 		return nil, false
 	}
 	for _, l := range ls {
 		for _, r := range l.Runs { // a heading, with or without a scene number
-			if scenePrefix.MatchString(r.Text) {
+			if scene.MatchString(r.Text) {
 				return nil, false
 			}
 		}
