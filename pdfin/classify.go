@@ -141,7 +141,8 @@ func baseName(s string) string {
 }
 
 // elementOf is the type and the text of a line, by its indent.
-func elementOf(l line, next *line, margin, width float64, prev lex.ElementType, scene *regexp.Regexp) (lex.ElementType, string) {
+func elementOf(l line, next *line, margin, width float64, prev lex.ElementType,
+	scene *regexp.Regexp) (lex.ElementType, string) {
 	text := l.text()
 	d := l.x() - margin
 	right := width - 1.0 // the right margin of the text
