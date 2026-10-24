@@ -17,6 +17,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/LaPingvino/lexington/internal/pdf"
 
@@ -297,9 +299,22 @@ func scenePattern(starts []string) *regexp.Regexp {
 		return scenePrefix
 	}
 	alts := make([]string, 0, len(starts))
+	var signs []string // words ending in a sign need nothing after them (○)
 	for _, st := range starts {
-		alts = append(alts, regexp.QuoteMeta(strings.TrimSuffix(strings.TrimSpace(st), ".")))
+		st = strings.TrimSuffix(strings.TrimSpace(st), ".")
+		if last, _ := utf8.DecodeLastRuneInString(st); st != "" && !unicode.IsLetter(last) && !unicode.IsDigit(last) {
+			signs = append(signs, regexp.QuoteMeta(st))
+			continue
+		}
+		alts = append(alts, regexp.QuoteMeta(st))
 	}
 	sort.Slice(alts, func(i, j int) bool { return len(alts[i]) > len(alts[j]) }) // the longest first
-	return regexp.MustCompile(`^(` + strings.Join(alts, "|") + `)[ .,]`)
+	pattern := `^(` + strings.Join(alts, "|") + `)[ .,]`
+	if len(alts) == 0 {
+		pattern = `^$.` // matches nothing
+	}
+	if len(signs) > 0 {
+		pattern += `|^(` + strings.Join(signs, "|") + `)`
+	}
+	return regexp.MustCompile(pattern)
 }

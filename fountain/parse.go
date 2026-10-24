@@ -15,14 +15,23 @@ import (
 // This can be changed with the toml configuration in the rules package.
 var Scene = []string{"INT", "EXT", "EST", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"}
 
+// StartsScene reports whether row starts with a scene heading's word,
+// followed by a space or a dot, or by anything when the word ends in a
+// sign (Japanese headings: ○喫茶店).
+func StartsScene(row, word string) bool {
+	if strings.HasPrefix(row, word+" ") || strings.HasPrefix(row, word+".") {
+		return true
+	}
+	last, _ := utf8.DecodeLastRuneInString(word)
+	return word != "" && !unicode.IsLetter(last) && !unicode.IsDigit(last) && last != '.' && strings.HasPrefix(row, word)
+}
+
 // CheckScene determines if a row is a scene heading.
 func CheckScene(row string) (bool, string, string) {
 	upperRow := strings.ToUpper(row)
 
 	// Check if any scene prefix matches
-	_, found := internal.Find(Scene, func(prefix string) bool {
-		return strings.HasPrefix(upperRow, prefix+" ") || strings.HasPrefix(upperRow, prefix+".")
-	})
+	_, found := internal.Find(Scene, func(prefix string) bool { return StartsScene(upperRow, prefix) })
 
 	if found {
 		return true, internal.ElementScene, upperRow

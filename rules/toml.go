@@ -56,7 +56,11 @@ func DefaultConf() TOMLConf {
 			"eo": {"EN.", "ENE", "EKST", "EK", "EN/EKST", "EKST/EN", "EKST./EN", "EN./EKST"},
 			"ru": {"ИНТ", "НАТ", "ИНТ/НАТ", "ИНТ./НАТ", "НАТ/ИНТ", "НАТ./ИНТ", "ЭКСТ", "И/Н", "Н/И"},
 			// after Hekaya, Fountain in Arabic (michaelkmalak.github.io/hekaya)
-			"ar":  {"داخلي", "خارجي", "لقطة تأسيسية", "داخلي/خارجي", "خارجي/داخلي", "د/خ"},
+			"ar": {"داخلي", "خارجي", "لقطة تأسيسية", "داخلي/خارجي", "خارجي/داخلي", "د/خ"},
+			"he": {"פנים", "חוץ", "פנים/חוץ", "חוץ/פנים"},
+			"zh": {"内景", "外景", "内景/外景", "外景/内景"},
+			// Japanese headings (hashira) start with a circle: ○喫茶店・店内（夜）
+			"ja":  {"○", "◯"},
 			"tok": {"INSA", "KON", "INSA/KON", "I./K", "I/K", "KON/INSA", "K./I", "K/I"},
 		},
 	}
