@@ -138,7 +138,7 @@ func formatKeys(needs bool) string {
 // Options are a conversion's settings: what the command line's flags set.
 type Options struct {
 	ConfigFile   string // the settings file (lexington.toml)
-	FormatDir    string // a folder of format (preset) files of one's own, or ""
+	FormatDir    string // folders of format (preset) files of one's own, as a path list, or ""
 	SceneIn      string // the scene heading language of the input ("en")
 	SceneOut     string // and of the output
 	Elements     string // the element settings: a preset or a set from the settings file
@@ -174,7 +174,7 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 	fs := flag.NewFlagSet("lexington", flag.ContinueOnError)
 	var dump, help, presets, version bool
 	fs.StringVar(&o.ConfigFile, "config", "lexington.toml", "Configuration file to use.")
-	fs.StringVar(&o.FormatDir, "formats", "", "A folder of format files of your own (name.toml, as Lexington's presets), to use with -e.")
+	fs.StringVar(&o.FormatDir, "formats", "", "Folders of format files of your own (name.toml, as Lexington's presets), as a path list, to use with -e.")
 	fs.BoolVar(&dump, "dumpconfig", false,
 		"Dump the default configuration to the location of --config to be adapted manually.")
 	fs.StringVar(&o.SceneIn, "scenein", "", "Configuration to use for scene header detection on input.")
@@ -202,7 +202,7 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 	case help:
 		fs.PrintDefaults()
 	case presets:
-		list, err := rules.PresetsIn(o.FormatDir)
+		list, err := rules.PresetsIn(filepath.SplitList(o.FormatDir)...)
 		if err != nil {
 			log.Print(err)
 		}
@@ -406,7 +406,7 @@ func lint(screenplay lex.Screenplay) bool {
 func confOf(o Options) rules.TOMLConf {
 	conf := rules.GetConf(o.ConfigFile)
 	if o.FormatDir != "" {
-		list, err := rules.PresetsIn(o.FormatDir)
+		list, err := rules.PresetsIn(filepath.SplitList(o.FormatDir)...)
 		if err != nil {
 			log.Print(err)
 		}
@@ -422,7 +422,7 @@ func pageFor(o Options) string {
 	if o.Page != "" {
 		return o.Page
 	}
-	list, _ := rules.PresetsIn(o.FormatDir)
+	list, _ := rules.PresetsIn(filepath.SplitList(o.FormatDir)...)
 	for _, p := range list {
 		if p.Key == o.Elements {
 			return p.Page

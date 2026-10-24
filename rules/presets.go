@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"cmp"
 	"embed"
 	"fmt"
 	"path"
@@ -47,6 +48,9 @@ func (f presetFile) preset(key string, base func(string) (Preset, bool)) Preset 
 	from := Default
 	if b, ok := base(f.Base); ok && f.Base != "" {
 		from = b.Elements
+		f.Name = cmp.Or(f.Name, b.Name)
+		f.Description = cmp.Or(f.Description, b.Description)
+		f.Page = cmp.Or(f.Page, b.Page)
 	}
 	for k, v := range from {
 		set[k] = v
@@ -80,20 +84,25 @@ func loadPresets() []Preset {
 	return list
 }
 
-// PresetsIn are the presets with those of a folder of preset files
-// (name.toml, as in presets/): a file with a preset's name takes its
-// place, the others are added. A file that cannot be read is left out,
-// and the first such error returned.
-func PresetsIn(dir string) ([]Preset, error) {
+// PresetsIn are the presets with those of folders of preset files
+// (name.toml, as in presets/; a later folder's over an earlier's): a file
+// with a preset's name takes its place, the others are added. What a
+// file leaves out (its name, description, paper) is its Base's. A file
+// that cannot be read is left out, and the first such error returned.
+func PresetsIn(dirs ...string) ([]Preset, error) {
 	list := Presets()
-	if dir == "" {
-		return list, nil
+	var files []string
+	for _, dir := range dirs {
+		if dir == "" {
+			continue
+		}
+		fs, err := filepath.Glob(filepath.Join(dir, "*.toml"))
+		if err != nil {
+			return list, err
+		}
+		sort.Strings(fs)
+		files = append(files, fs...)
 	}
-	files, err := filepath.Glob(filepath.Join(dir, "*.toml"))
-	if err != nil {
-		return list, err
-	}
-	sort.Strings(files)
 	find := func(key string) (Preset, bool) {
 		for _, p := range list {
 			if p.Key == key {
@@ -112,10 +121,8 @@ func PresetsIn(dir string) ([]Preset, error) {
 			continue
 		}
 		key := strings.TrimSuffix(filepath.Base(f), ".toml")
-		if p.Name == "" {
-			p.Name = key
-		}
 		np := p.preset(key, find)
+		np.Name = cmp.Or(np.Name, key)
 		if i := slices.IndexFunc(list, func(q Preset) bool { return q.Key == key }); i >= 0 {
 			list[i] = np
 		} else {

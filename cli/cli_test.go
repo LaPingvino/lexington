@@ -129,3 +129,27 @@ func TestFormatDir(t *testing.T) {
 		t.Errorf("page %q", pageFor(o))
 	}
 }
+
+// A later folder's file takes the place of an earlier's; one with only a
+// Base keeps its base's name and paper.
+func TestFormatDirs(t *testing.T) {
+	a, b := t.TempDir(), t.TempDir()
+	_ = os.WriteFile(filepath.Join(a, "comic.toml"), []byte("Base = \"comic\"\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(a, "series.toml"), []byte("Name = \"TV series\"\nBase = \"default\"\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(b, "series.toml"), []byte("Name = \"My series\"\nBase = \"default\"\nPage = \"a4\"\n"), 0o644)
+	list, err := rules.PresetsIn(a, b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	comic, _ := rules.GetPreset("comic")
+	got := map[string]rules.Preset{}
+	for _, p := range list {
+		got[p.Key] = p
+	}
+	if got["comic"].Name != comic.Name || got["series"].Name != "My series" || got["series"].Page != "a4" {
+		t.Errorf("comic %q, series %q %q", got["comic"].Name, got["series"].Name, got["series"].Page)
+	}
+	if pageFor(Options{Elements: "series", FormatDir: a + string(os.PathListSeparator) + b}) != "a4" {
+		t.Error("the later folder's paper")
+	}
+}
