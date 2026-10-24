@@ -48,13 +48,15 @@ func DefaultConf() TOMLConf {
 			"default": Default,
 		},
 		Scenes: map[string][]string{
-			"en":  {"INT", "EXT", "EST", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"},
-			"it":  {"INT", "EST", "INT./EST", "INT/EST", "EST/INT", "EST./INT", "I/E"},
-			"nl":  {"BIN", "BUI", "BI", "BU", "OPEN", "BIN./BUI", "BUI./BIN", "BIN/BUI", "BI/BU"},
-			"de":  {"INT", "EXT", "ETABL", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"},
-			"fr":  {"INT", "EXT", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"},
-			"eo":  {"EN.", "ENE", "EKST", "EK", "EN/EKST", "EKST/EN", "EKST./EN", "EN./EKST"},
-			"ru":  {"ИНТ", "НАТ", "ИНТ/НАТ", "ИНТ./НАТ", "НАТ/ИНТ", "НАТ./ИНТ", "ЭКСТ", "И/Н", "Н/И"},
+			"en": {"INT", "EXT", "EST", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"},
+			"it": {"INT", "EST", "INT./EST", "INT/EST", "EST/INT", "EST./INT", "I/E"},
+			"nl": {"BIN", "BUI", "BI", "BU", "OPEN", "BIN./BUI", "BUI./BIN", "BIN/BUI", "BI/BU"},
+			"de": {"INT", "EXT", "ETABL", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"},
+			"fr": {"INT", "EXT", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"},
+			"eo": {"EN.", "ENE", "EKST", "EK", "EN/EKST", "EKST/EN", "EKST./EN", "EN./EKST"},
+			"ru": {"ИНТ", "НАТ", "ИНТ/НАТ", "ИНТ./НАТ", "НАТ/ИНТ", "НАТ./ИНТ", "ЭКСТ", "И/Н", "Н/И"},
+			// after Hekaya, Fountain in Arabic (michaelkmalak.github.io/hekaya)
+			"ar":  {"داخلي", "خارجي", "لقطة تأسيسية", "داخلي/خارجي", "خارجي/داخلي", "د/خ"},
 			"tok": {"INSA", "KON", "INSA/KON", "I./K", "I/K", "KON/INSA", "K./I", "K/I"},
 		},
 	}
