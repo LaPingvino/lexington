@@ -291,7 +291,34 @@ func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.S
 	if err := w.Write(out, screenplay); err != nil {
 		return errors.Join(err, closeOut())
 	}
+	if o.To == internal.FormatPDF {
+		if warning := PDFWarning(screenplay); warning != "" {
+			log.Print(warning)
+		}
+	}
 	return closeOut()
+}
+
+// PDFWarning says what a PDF of the screenplay cannot print as written,
+// and what to do instead; "" when it prints well.
+func PDFWarning(s lex.Screenplay) string {
+	missing, rtl := pdf.Unsupported(s)
+	var why []string
+	if len(missing) > 0 {
+		shown := missing
+		if len(shown) > 12 {
+			shown = shown[:12]
+		}
+		why = append(why, fmt.Sprintf("its font has no %s (%d characters), which show as boxes", string(shown), len(missing)))
+	}
+	if rtl {
+		why = append(why, "its right-to-left text (Hebrew, Arabic) comes out left to right")
+	}
+	if len(why) == 0 {
+		return ""
+	}
+	return "The PDF cannot print this script as written: " + strings.Join(why, "; and ") +
+		". Export HTML and print it from a browser (Save as PDF) instead."
 }
 
 func detectFormats(o *Options) {
