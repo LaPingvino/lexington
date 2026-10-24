@@ -52,14 +52,14 @@ func TestHTMLWrite(t *testing.T) {
 		{"HTML Doctype", "<!DOCTYPE html>", true},
 		{"Title Element", "<h1>The Great Test</h1>", true},
 		{"Author Element", "<p>A. Software Engineer</p>", true},
-		{"Scene Heading", `<div class="scene-heading">INT. TEST SUITE - DAY</div>`, true},
-		{"Action", `<div class="action">A simple action line.</div>`, true},
-		{"Speaker", `<div class="speaker">TDD BOT</div>`, true},
-		{"Parenthetical", `<div class="parenthetical">(smiling)</div>`, true},
-		{"Dialogue", `<div class="dialogue">Does this HTML look right?</div>`, true},
-		{"Transition", `<div class="transition">FADE TO BLACK.</div>`, true},
+		{"Scene Heading", `<div class="scene-heading" dir="auto">INT. TEST SUITE - DAY</div>`, true},
+		{"Action", `<div class="action" dir="auto">A simple action line.</div>`, true},
+		{"Speaker", `<div class="speaker" dir="auto">TDD BOT</div>`, true},
+		{"Parenthetical", `<div class="parenthetical" dir="auto">(smiling)</div>`, true},
+		{"Dialogue", `<div class="dialogue" dir="auto">Does this HTML look right?</div>`, true},
+		{"Transition", `<div class="transition" dir="auto">FADE TO BLACK.</div>`, true},
 		{"Page Break", `<div class="newpage"></div>`, true},
-		{"Centered", `<div class="center">Centered Text</div>`, true},
+		{"Centered", `<div class="center" dir="auto">Centered Text</div>`, true},
 		{"Bogus Content", "This should not be in the output", false},
 	}
 
@@ -127,10 +127,10 @@ func TestDualDialogueHTML(t *testing.T) {
 		{"Second table cell (after dualspeaker_next)", `</td><td>`, true},
 		{"Table close", `</td></tr></table>`, true},
 		{"Alice in first column",
-			`<td><div class="speaker">ALICE</div><div class="dialogue">I have something to tell you.</div>`,
+			`<td><div class="speaker" dir="auto">ALICE</div><div class="dialogue" dir="auto">I have something to tell you.</div>`,
 			true},
 		{"Bob in second column",
-			`<td><div class="speaker">BOB</div><div class="dialogue">I have something to tell you too.</div>`,
+			`<td><div class="speaker" dir="auto">BOB</div><div class="dialogue" dir="auto">I have something to tell you too.</div>`,
 			true},
 		{"No nested tables", `<table class="dual-dialogue"><tr><td><table`, false},
 	}
@@ -182,26 +182,26 @@ func TestInlineMarkupProcessing(t *testing.T) {
 	}{
 		// Basic bold markup
 		{"Bold in title", "<h1>The <b>Bold</b> Title</h1>", true},
-		{"Bold in speaker", `<div class="speaker"><b>BOLD</b> SPEAKER</div>`, true},
+		{"Bold in speaker", `<div class="speaker" dir="auto"><b>BOLD</b> SPEAKER</div>`, true},
 
 		// Basic italic markup
 		{"Italic in author", "<p><i>Italic</i> Author</p>", true},
 		{"Italic in dialog",
-			`<div class="dialogue">I have <i>italic</i> and <b>bold</b> and <b><i>bold italic</i></b> text.</div>`,
+			`<div class="dialogue" dir="auto">I have <i>italic</i> and <b>bold</b> and <b><i>bold italic</i></b> text.</div>`,
 			true},
-		{"Italic in parenthetical", `<div class="parenthetical">(<i>whispers</i> <u>quietly</u>)</div>`, true},
+		{"Italic in parenthetical", `<div class="parenthetical" dir="auto">(<i>whispers</i> <u>quietly</u>)</div>`, true},
 
 		// Bold+italic markup
-		{"Bold italic in scene", `<div class="scene-heading">INT. ROOM - <b><i>BOLD ITALIC</i></b> DAY</div>`, true},
+		{"Bold italic in scene", `<div class="scene-heading" dir="auto">INT. ROOM - <b><i>BOLD ITALIC</i></b> DAY</div>`, true},
 		{"Bold italic in dialog",
-			`<div class="dialogue">I have <i>italic</i> and <b>bold</b> and <b><i>bold italic</i></b> text.</div>`,
+			`<div class="dialogue" dir="auto">I have <i>italic</i> and <b>bold</b> and <b><i>bold italic</i></b> text.</div>`,
 			true},
-		{"Bold italic in transition", `<div class="transition">FADE TO <b><i>BLACK</i></b>.</div>`, true},
+		{"Bold italic in transition", `<div class="transition" dir="auto">FADE TO <b><i>BLACK</i></b>.</div>`, true},
 
 		// Underline markup
-		{"Underline in action", `<div class="action">She walks to the <u>underlined</u> door.</div>`, true},
-		{"Underline in parenthetical", `<div class="parenthetical">(<i>whispers</i> <u>quietly</u>)</div>`, true},
-		{"Underline in center", `<div class="center"><b>THE</b> <u>END</u></div>`, true},
+		{"Underline in action", `<div class="action" dir="auto">She walks to the <u>underlined</u> door.</div>`, true},
+		{"Underline in parenthetical", `<div class="parenthetical" dir="auto">(<i>whispers</i> <u>quietly</u>)</div>`, true},
+		{"Underline in center", `<div class="center" dir="auto"><b>THE</b> <u>END</u></div>`, true},
 
 		// Make sure raw markup doesn't appear
 		{"No raw bold markup", "**Bold**", false},

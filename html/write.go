@@ -72,40 +72,40 @@ body {
 .scene-heading {
     text-transform: uppercase;
     {{.Config.SceneStyle}}
-    margin-left: {{.Config.SceneLeft}}in;
-    margin-right: {{.Config.SceneRight}}in;
+    margin-inline-start: {{.Config.SceneLeft}}in;
+    margin-inline-end: {{.Config.SceneRight}}in;
     margin-top: 1.5em;
     margin-bottom: 1em;
 }
 .action, .general {
-    margin-left: {{.Config.ActionLeft}}in;
-    margin-right: {{.Config.ActionRight}}in;
+    margin-inline-start: {{.Config.ActionLeft}}in;
+    margin-inline-end: {{.Config.ActionRight}}in;
     margin-top: 1em;
     margin-bottom: 1em;
     text-align: justify;
 }
 .speaker {
     text-transform: uppercase;
-    margin-left: {{.Config.SpeakerLeft}}in;
-    margin-right: {{.Config.SpeakerRight}}in;
+    margin-inline-start: {{.Config.SpeakerLeft}}in;
+    margin-inline-end: {{.Config.SpeakerRight}}in;
     margin-top: 1em;
     margin-bottom: 0;
 }
 .dialogue {
-    margin-left: {{.Config.DialogLeft}}in;
-    margin-right: {{.Config.DialogRight}}in;
-    text-align: left;
+    margin-inline-start: {{.Config.DialogLeft}}in;
+    margin-inline-end: {{.Config.DialogRight}}in;
+    text-align: start;
 }
 .parenthetical {
-    margin-left: {{.Config.ParenLeft}}in;
-    margin-right: {{.Config.ParenRight}}in;
-    text-align: left;
+    margin-inline-start: {{.Config.ParenLeft}}in;
+    margin-inline-end: {{.Config.ParenRight}}in;
+    text-align: start;
 }
 .transition {
     text-transform: uppercase;
     text-align: {{.Config.TransAlign}};
-    margin-left: {{.Config.TransLeft}}in;
-    margin-right: {{.Config.TransRight}}in;
+    margin-inline-start: {{.Config.TransLeft}}in;
+    margin-inline-end: {{.Config.TransRight}}in;
     margin-top: 1.5em;
     margin-bottom: 1.5em;
 }
@@ -128,7 +128,7 @@ body {
 }
 .title-meta {
 	align-self: flex-start;
-	text-align: left;
+	text-align: start;
 	margin-top: 3in;
 }
 .title-meta p {
@@ -136,8 +136,8 @@ body {
 }
 .center {
 	text-align: center;
-	margin-left: {{.Config.CenterLeft}}in;
-	margin-right: {{.Config.CenterRight}}in;
+	margin-inline-start: {{.Config.CenterLeft}}in;
+	margin-inline-end: {{.Config.CenterRight}}in;
 }
 .dual-dialogue {
 	width: {{.Config.DualDialogueWidth}}%;
@@ -150,28 +150,28 @@ body {
 	padding: 0 {{.Config.DualCellPadding}}em;
 }
 .dual-dialogue .speaker {
-	margin-left: {{.Config.DualSpeakerLeft}}in;
-	margin-right: {{.Config.DualSpeakerRight}}in;
+	margin-inline-start: {{.Config.DualSpeakerLeft}}in;
+	margin-inline-end: {{.Config.DualSpeakerRight}}in;
 	margin-top: 0;
 }
 .dual-dialogue .dialogue {
-	margin-left: {{.Config.DualDialogLeft}}in;
-	margin-right: {{.Config.DualDialogRight}}in;
+	margin-inline-start: {{.Config.DualDialogLeft}}in;
+	margin-inline-end: {{.Config.DualDialogRight}}in;
 }
 .dual-dialogue .parenthetical {
-	margin-left: {{.Config.DualParenLeft}}in;
-	margin-right: {{.Config.DualParenRight}}in;
+	margin-inline-start: {{.Config.DualParenLeft}}in;
+	margin-inline-end: {{.Config.DualParenRight}}in;
 }
 .lyrics {
     {{.Config.LyricsStyle}}
-    margin-left: {{.Config.LyricsLeft}}in;
-    margin-right: {{.Config.LyricsRight}}in;
-    text-align: left;
+    margin-inline-start: {{.Config.LyricsLeft}}in;
+    margin-inline-end: {{.Config.LyricsRight}}in;
+    text-align: start;
 }
 .scene-heading { position: relative; }
 .scene-number { position: absolute; top: 0; font-weight: normal; }
-.scene-number.left { right: calc(100% + 0.25in); }
-.scene-number.right { left: calc(100% + 0.25in); }
+.scene-number.left { inset-inline-end: calc(100% + 0.25in); }
+.scene-number.right { inset-inline-start: calc(100% + 0.25in); }
 /* printed as Lexington's PDF is: the paper's size, an inch above and
    below, the elements' indents from the paper's edge, one line (12 pt)
    for each blank line, page numbers top right from page 2 */
@@ -217,21 +217,21 @@ body {
 <div class="title-meta">{{- $inMeta = true -}}{{-
     else if eq .Type "scene" -}}
 {{- $h := sceneHeading .Contents -}}
-<div class="scene-heading">{{- processInlineMarkup $h.Text -}}{{- if $h.Number -}}<span class="scene-number left">{{ $h.Number }}</span><span class="scene-number right">{{ $h.Number }}</span>{{- end -}}</div>{{-
+<div class="scene-heading" dir="auto">{{- processInlineMarkup $h.Text -}}{{- if $h.Number -}}<span class="scene-number left">{{ $h.Number }}</span><span class="scene-number right">{{ $h.Number }}</span>{{- end -}}</div>{{-
     else if eq .Type "action" "general" -}}
-<div class="action">{{- processInlineMarkup .Contents -}}</div>{{-
+<div class="action" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "speaker" -}}
-<div class="speaker">{{- processInlineMarkup .Contents -}}</div>{{-
+<div class="speaker" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "dialog" -}}
-<div class="dialogue">{{- processInlineMarkup .Contents -}}</div>{{-
+<div class="dialogue" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "lyrics" -}}
-<div class="lyrics">{{- processInlineMarkup .Contents -}}</div>{{-
+<div class="lyrics" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "paren" -}}
-<div class="parenthetical">{{- processInlineMarkup .Contents -}}</div>{{-
+<div class="parenthetical" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "trans" -}}
-<div class="transition">{{- processInlineMarkup .Contents -}}</div>{{-
+<div class="transition" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "center" -}}
-<div class="center">{{- processInlineMarkup .Contents -}}</div>{{-
+<div class="center" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "newpage" -}}
 {{- if $inMeta -}}</div>{{- $inMeta = false -}}{{- end -}}
 {{- if $inTitle -}}</div>{{- $inTitle = false -}}{{- end -}}
@@ -346,10 +346,10 @@ func (h *HTMLWriter) getTemplateConfig() TemplateConfig {
 		sceneStyle = template.CSS("font-weight: bold;")
 	}
 
-	transAlign := "right"
+	transAlign := "end" // start and end: the other way round in right-to-left text
 	switch trans.Align {
 	case "L":
-		transAlign = "left"
+		transAlign = "start"
 	case "C":
 		transAlign = "center"
 	}
