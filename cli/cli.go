@@ -446,7 +446,7 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 	case internal.FormatFDX:
 		return &fdx.FDXWriter{TemplatePath: o.TemplatePath}, nil
 	case internal.FormatHTML:
-		return &html.HTMLWriter{Elements: elements}, nil
+		return &html.HTMLWriter{Elements: elements, Page: pageFor(o)}, nil
 	case internal.FormatLaTeX:
 		return &latex.LaTeXWriter{Template: o.TemplatePath, Elements: elements}, nil
 	case "docx":

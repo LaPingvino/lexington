@@ -15,6 +15,7 @@ import (
 // It uses a rules.Set for configurable formatting elements.
 type HTMLWriter struct {
 	Elements rules.Set // Configuration for elements (margins, fonts, etc.)
+	Page     string    // the paper to print on: letter (""), a4, a5
 }
 
 // Inline markup patterns for HTML output
@@ -167,10 +168,36 @@ body {
     margin-right: {{.Config.LyricsRight}}in;
     text-align: left;
 }
+.scene-heading { position: relative; }
+.scene-number { position: absolute; top: 0; font-weight: normal; }
+.scene-number.left { right: calc(100% + 0.25in); }
+.scene-number.right { left: calc(100% + 0.25in); }
+/* printed as Lexington's PDF is: the paper's size, an inch above and
+   below, the elements' indents from the paper's edge, one line (12 pt)
+   for each blank line, page numbers top right from page 2 */
+@page {
+    size: {{.Config.PrintPage}};
+    margin: 1in 0 1in 0;
+    @top-right { content: counter(page) "."; margin-right: 1in; vertical-align: bottom; padding-bottom: 0.35in; }
+}
+@page :first { @top-right { content: none; } }
+@page title { counter-increment: page 0; @top-right { content: none; } }
 @media print {
-    .newpage {
-        page-break-after: always;
-    }
+    body { background: none; line-height: 12pt; }
+    .page { margin: 0; max-width: none; min-height: 0; }
+    .page:has(.title-page) { page: title; }
+    /* as the PDF: centred between 1.5 and 1 in, the title a line below 4 in
+       from the top, the details 2 in from the bottom */
+    .title-page { height: {{.Config.PrintHeight}}; justify-content: flex-start; position: relative; margin: 0 1in 0 1.5in; }
+    .title-page h1 { font-size: inherit; font-weight: normal; margin: calc(3in + 12pt) 0 0; }
+    .title-page p { margin: 0; }
+    .title-page em { font-style: normal; }
+    .title-meta { position: absolute; left: 0; top: calc({{.Config.PrintHeight}} - 1in); margin: 0; }
+    .page:has(.title-page) + .newpage { display: none; } /* the title page breaks already */
+    .scene-heading, .action, .general, .speaker, .dialogue, .parenthetical,
+    .transition, .center, .lyrics, .dual-dialogue { margin-top: 0; margin-bottom: 0; }
+    .empty { height: 12pt; margin: 0; }
+    .newpage { page-break-after: always; break-after: page; }
 }
 </style>
 </head>
@@ -189,7 +216,8 @@ body {
     else if eq .Type "metasection" -}}
 <div class="title-meta">{{- $inMeta = true -}}{{-
     else if eq .Type "scene" -}}
-<div class="scene-heading">{{- processInlineMarkup .Contents -}}</div>{{-
+{{- $h := sceneHeading .Contents -}}
+<div class="scene-heading">{{- processInlineMarkup $h.Text -}}{{- if $h.Number -}}<span class="scene-number left">{{ $h.Number }}</span><span class="scene-number right">{{ $h.Number }}</span>{{- end -}}</div>{{-
     else if eq .Type "action" "general" -}}
 <div class="action">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "speaker" -}}
@@ -241,6 +269,8 @@ type TemplateConfig struct {
 
 	// Page layout
 	PageMargins string
+	PrintPage   string // the CSS @page size: letter, A4, A5
+	PrintHeight string // the paper's height within its margins
 
 	// Element margins (in inches)
 	ActionLeft   float64
@@ -342,6 +372,8 @@ func (h *HTMLWriter) getTemplateConfig() TemplateConfig {
 
 		// Page layout
 		PageMargins: pageMargins,
+		PrintPage:   printPage(h.Page),
+		PrintHeight: printHeight(h.Page),
 
 		// Element margins (industry standard)
 		ActionLeft:   htmlActionLeft,
@@ -393,6 +425,7 @@ func (h *HTMLWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	// Parse and execute the HTML template with better error context
 	tmpl, err := template.New("screenplay").Funcs(template.FuncMap{
 		"processInlineMarkup": processInlineMarkup,
+		"sceneHeading":        sceneHeading,
 	}).Parse(htmlTemplateString)
 	if err != nil {
 		return fmt.Errorf("failed to parse HTML template: %w", err)
@@ -403,4 +436,34 @@ func (h *HTMLWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	}
 
 	return nil
+}
+
+// printPage is the CSS @page size for a paper name.
+func printPage(page string) string {
+	switch strings.ToLower(page) {
+	case "a4":
+		return "A4"
+	case "a5":
+		return "A5"
+	}
+	return "letter"
+}
+
+// printHeight is the paper's height within an inch above and below.
+func printHeight(page string) string {
+	switch strings.ToLower(page) {
+	case "a4":
+		return "9.69in"
+	case "a5":
+		return "6.27in"
+	}
+	return "9in"
+}
+
+// heading is a scene heading's text and its number (#12#), if any.
+type heading struct{ Text, Number string }
+
+func sceneHeading(contents string) heading {
+	text, number := lex.SceneNumber(contents)
+	return heading{strings.TrimSpace(text), number}
 }
