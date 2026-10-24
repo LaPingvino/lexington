@@ -18,7 +18,7 @@ type WriteState struct {
 	titlepage string
 	writer    io.Writer
 	config    []string
-	dualNext  bool // the next speaker is the second of dual dialogue (^)
+	dualNext  bool   // the next speaker is the second of dual dialogue (^)
 	titleKey  string // the title page field written last
 }
 
@@ -136,7 +136,7 @@ func (state *WriteState) writeEmpty() error {
 }
 
 func (state *WriteState) writeSpeaker(line lex.Line) error {
-	if line.Contents != strings.ToUpper(line.Contents) {
+	if name, _, _ := strings.Cut(line.Contents, "("); !AllCaps(name) {
 		if _, err := fmt.Fprint(state.writer, "@"); err != nil {
 			return err
 		}
@@ -175,7 +175,7 @@ func (state *WriteState) writeLyrics(line lex.Line) error {
 }
 
 func (state *WriteState) writeAction(line lex.Line) error {
-	if line.Contents == strings.ToUpper(line.Contents) {
+	if AllCaps(line.Contents) {
 		if _, err := fmt.Fprint(state.writer, "!"); err != nil {
 			return err
 		}

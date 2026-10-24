@@ -24,3 +24,11 @@ func TestScenesOtherScripts(t *testing.T) {
 		t.Error("English words need a space or a dot after them")
 	}
 }
+
+func TestAllCaps(t *testing.T) {
+	for s, want := range map[string]bool{"JOHN": true, "R2-D2": true, "John": false, "שרה": false, "سارة": false, "123": false} {
+		if AllCaps(s) != want {
+			t.Errorf("AllCaps(%q) = %v", s, !want)
+		}
+	}
+}

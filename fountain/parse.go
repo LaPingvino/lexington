@@ -15,6 +15,13 @@ import (
 // This can be changed with the toml configuration in the rules package.
 var Scene = []string{"INT", "EXT", "EST", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"}
 
+// AllCaps reports whether s is written in capitals: it has a capital and
+// no small letters. Scripts without capitals (Hebrew, Arabic, Chinese)
+// count as small letters, so their character cues are marked with @.
+func AllCaps(s string) bool {
+	return s == strings.ToUpper(s) && strings.IndexFunc(s, unicode.IsUpper) >= 0
+}
+
 // StartsScene reports whether row starts with a scene heading's word,
 // followed by a space or a dot, or by anything when the word ends in a
 // sign (Japanese headings: ○喫茶店).
@@ -372,7 +379,7 @@ func (state *ParseState) checkInferredTypes(row, trimmedSpaceRow string) (lex.Li
 	var isCurrentLineDualSpeakerCandidate bool
 
 	charcheck := strings.Split(row, "(")
-	if !state.inDialogueContext && len(charcheck) > 0 && strings.ToUpper(charcheck[0]) == charcheck[0] &&
+	if !state.inDialogueContext && len(charcheck) > 0 && AllCaps(charcheck[0]) &&
 		strings.TrimSpace(charcheck[0]) != "" {
 		// Speaker name (all caps); within a speech an all-caps line is
 		// dialogue (a shout, a sung lyric, SFX's KRAKOOM!)
