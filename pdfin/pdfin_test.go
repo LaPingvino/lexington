@@ -287,3 +287,19 @@ func TestScenePattern(t *testing.T) {
 		t.Error("no starts: English")
 	}
 }
+
+// ScannedPages tells a scan from a printed script without reading either.
+func TestScannedPages(t *testing.T) {
+	scanned, pages, err := ScannedPages("testdata/scanned-tv-episode.pdf")
+	if err != nil || pages == 0 || scanned != pages {
+		t.Errorf("the scan: %d of %d scanned (%v)", scanned, pages, err)
+	}
+	src, _ := os.ReadFile("../examples/tv-episode.fountain")
+	file := filepath.Join(t.TempDir(), "tv.pdf")
+	if err := (&pdf.PDFWriter{OutputFile: file, Elements: rules.Default}).Write(nil, fountain.Parse(scenes, strings.NewReader(string(src)))); err != nil {
+		t.Fatal(err)
+	}
+	if scanned, pages, err := ScannedPages(file); err != nil || pages == 0 || scanned != 0 {
+		t.Errorf("the printed one: %d of %d scanned (%v)", scanned, pages, err)
+	}
+}

@@ -86,6 +86,27 @@ func (t *Tesseract) UseLanguage(lang string) bool {
 	return false
 }
 
+// Languages are the languages t has the data for, as Lexington's codes
+// ("he"), of those its scene headings know.
+func (t *Tesseract) Languages() []string {
+	out, err := exec.Command(t.Path, "--list-langs").Output()
+	if err != nil {
+		return nil
+	}
+	installed := map[string]bool{}
+	for _, l := range strings.Fields(string(out)) {
+		installed[l] = true
+	}
+	var langs []string
+	for lang, code := range tesseractCodes {
+		if installed[code] {
+			langs = append(langs, lang)
+		}
+	}
+	sort.Strings(langs)
+	return langs
+}
+
 func (t *Tesseract) HOCR(ctx context.Context, img image.Image) (string, error) {
 	data, err := pngOf(img)
 	if err != nil {

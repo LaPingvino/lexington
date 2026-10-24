@@ -86,6 +86,41 @@ func ReadFileWith(path string, opts Options) (lex.Screenplay, error) {
 	return ReadWith(f, st.Size(), opts)
 }
 
+// ScannedPages counts the pages of the PDF file at path that have no text
+// (scanned: OCR reads them) and all its pages, without reading them, so a
+// program can ask how to read them first.
+func ScannedPages(path string) (scanned, pages int, err error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		return 0, 0, err
+	}
+	defer func() {
+		if p := recover(); p != nil { // the PDF library panics on some files
+			err = fmt.Errorf("reading the PDF: %v", p)
+		}
+	}()
+	doc, err := pdf.NewReader(f, st.Size())
+	if err != nil {
+		return 0, 0, err
+	}
+	for i := 1; i <= doc.NumPage(); i++ {
+		p := doc.Page(i)
+		if p.V.IsNull() {
+			continue
+		}
+		pages++
+		if len(lines(i, p)) == 0 {
+			scanned++
+		}
+	}
+	return scanned, pages, nil
+}
+
 // Read reads the screenplay in a PDF.
 func Read(r io.ReaderAt, size int64) (lex.Screenplay, error) {
 	return ReadWith(r, size, Options{})
