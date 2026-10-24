@@ -162,8 +162,7 @@ func (state *WriteState) writeScene(line lex.Line) error {
 
 func (state *WriteState) isSceneSupported(contents string) bool {
 	for _, prefix := range state.config {
-		if strings.HasPrefix(contents, prefix+" ") ||
-			strings.HasPrefix(contents, prefix+".") {
+		if StartsScene(contents, prefix) {
 			return true
 		}
 	}

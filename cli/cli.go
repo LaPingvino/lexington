@@ -377,6 +377,9 @@ func parseInput(o Options, conf rules.TOMLConf, input io.Reader) (lex.Screenplay
 		// scanned pages are OCRed with tesseract, if it is installed
 		opts := pdfin.Options{Scenes: conf.Scenes[o.SceneIn]}
 		if t, ok := pdfin.InstalledTesseract(); ok {
+			if o.SceneIn != "en" && !t.UseLanguage(o.SceneIn) {
+				log.Printf("Tesseract has no %s: scanned pages are read as English (install its traineddata)", o.SceneIn)
+			}
 			opts.OCR = t
 		}
 		opts.Skipped = func(page int, err error) { log.Printf("Left out page %d: %v", page, err) }

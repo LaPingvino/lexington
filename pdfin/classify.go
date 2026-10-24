@@ -153,7 +153,10 @@ func elementOf(l line, next *line, margin, width float64, prev lex.ElementType,
 	inSpeech := prev == lex.TypeSpeaker || prev == lex.TypeParen || prev == lex.TypeDialog
 	switch {
 	case l.numbered && (d < 0.3 || strings.HasPrefix(text, "#")),
-		d < 0.3 && l.upper() && (scene.MatchString(text) || (l.bold() && len(text) < 60)):
+		d < 0.3 && l.upper() && (scene.MatchString(text) || (l.bold() && len(text) < 60)),
+		// a scene number before a heading's words, wherever they stand
+		// (some scripts indent them both)
+		l.numberAt > 0 && scene.MatchString(text):
 		return lex.TypeScene, ocrComma.ReplaceAllString(text, "$1.")
 	case l.upper() && d > 2.5 && (transition.MatchString(text) || l.end() > right-0.4):
 		return lex.TypeTrans, text
@@ -248,6 +251,11 @@ func cleanPage(ls []line, running map[string]bool, scene *regexp.Regexp) []line 
 		case more.MatchString(t), continued.MatchString(strings.ToUpper(t)):
 			continue
 		}
+		// a scene number before a heading's words in one run: 12. INT. HOUSE
+		if m := numberedHeading.FindStringSubmatch(l.Runs[0].Text); m != nil && scene.MatchString(m[2]) {
+			first := l.Runs[0]
+			l.Runs = append([]run{{X: first.X, End: first.X, Text: m[1]}, {X: first.X, End: first.End, Text: m[2]}}, l.Runs[1:]...)
+		}
 		// a scene number left (and right) of a heading
 		if len(l.Runs) >= 2 && sceneNumber.MatchString(l.Runs[0].Text) {
 			num := strings.TrimSuffix(l.Runs[0].Text, ".")
@@ -262,6 +270,7 @@ func cleanPage(ls []line, running map[string]bool, scene *regexp.Regexp) []line 
 				rest = rest[:n-1]
 			}
 			if t := joinRuns(rest); scene.MatchString(t) || t == strings.ToUpper(t) {
+				l.numberAt = l.Runs[0].X
 				l.Runs = append(append([]run(nil), rest...), run{X: rest[len(rest)-1].End, End: rest[len(rest)-1].End, Text: "#" + num + "#"})
 			}
 		}

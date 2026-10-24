@@ -56,6 +56,36 @@ func InstalledTesseract() (*Tesseract, bool) {
 	return &Tesseract{Path: path}, true
 }
 
+// tesseractCodes are Tesseract's names for the languages Lexington's
+// scene headings know (ISO 639-1).
+var tesseractCodes = map[string]string{
+	"en": "eng", "nl": "nld", "de": "deu", "fr": "fra", "it": "ita", "eo": "epo", "ru": "rus",
+	"he": "heb", "ar": "ara", "fa": "fas", "zh": "chi_sim", "ja": "jpn", "ko": "kor",
+}
+
+// UseLanguage makes t read lang (Lexington's code: "he"), with English
+// for the Latin in it, if its data is installed; it reports whether it is.
+func (t *Tesseract) UseLanguage(lang string) bool {
+	code, ok := tesseractCodes[lang]
+	if !ok {
+		return false
+	}
+	out, err := exec.Command(t.Path, "--list-langs").Output()
+	if err != nil {
+		return false
+	}
+	for _, l := range strings.Fields(string(out)) {
+		if l == code {
+			t.Language = code
+			if code != "eng" {
+				t.Language += "+eng"
+			}
+			return true
+		}
+	}
+	return false
+}
+
 func (t *Tesseract) HOCR(ctx context.Context, img image.Image) (string, error) {
 	data, err := pngOf(img)
 	if err != nil {

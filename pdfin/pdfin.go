@@ -41,6 +41,7 @@ type line struct {
 	// numbered: the same scene number in both margins, which makes it a
 	// scene heading, INT. or not
 	numbered bool
+	numberAt float64 // where a scene number before the heading stood
 }
 
 func (l line) x() float64   { return l.Runs[0].X }
@@ -174,6 +175,13 @@ func readPage(ctx context.Context, i int, p pdf.Page, width float64, opts Option
 			return nil, err
 		}
 		ls = hocrLines(i, hocr, float64(img.Bounds().Dx())/width)
+		if rtlPage(ls) {
+			mirror(ls, width, false)
+		}
+		return ls, nil
+	}
+	if rtlPage(ls) {
+		mirror(ls, width, true)
 	}
 	return ls, nil
 }
@@ -278,11 +286,12 @@ func lines(page int, p pdf.Page) []line {
 }
 
 var (
-	pageNumber  = regexp.MustCompile(`^\(?\d+[A-Z]?\.?\)?$`)
-	sceneNumber = regexp.MustCompile(`^[A-Z]?[0-9]+(-?[A-Z]{1,3})?\.?$`) // 12, 12A, 4-A, P3
-	more        = regexp.MustCompile(`^\(MORE\)$`)
-	contd       = regexp.MustCompile(`\s*\((CONT'D|CONT’D|CONTINUED|cont'd)\)\s*$`)
-	continued   = regexp.MustCompile(`^\(?CONTINUED[:)]?\)?$|^CONTINUED: ?(\(\d+\))?$`)
+	pageNumber      = regexp.MustCompile(`^\(?\d+[A-Z]?\.?\)?$`)
+	numberedHeading = regexp.MustCompile(`^([A-Z]?[0-9]+[A-Z]?\.) +(.+)$`)
+	sceneNumber     = regexp.MustCompile(`^[A-Z]?[0-9]+(-?[A-Z]{1,3})?\.?$`) // 12, 12A, 4-A, P3
+	more            = regexp.MustCompile(`^\(MORE\)$`)
+	contd           = regexp.MustCompile(`\s*\((CONT'D|CONT’D|CONTINUED|cont'd)\)\s*$`)
+	continued       = regexp.MustCompile(`^\(?CONTINUED[:)]?\)?$|^CONTINUED: ?(\(\d+\))?$`)
 	// a comma for the full stop: as OCR often reads it
 	scenePrefix = regexp.MustCompile(`^(INT|EXT|EST|INT\.?/EXT|EXT\.?/INT|I/E)[ .,]`)
 	ocrComma    = regexp.MustCompile(`^(INT|EXT|EST|I/E),`)
