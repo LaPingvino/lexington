@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/LaPingvino/lexington/fountain"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 const script = "Title: The Barn\n\nINT. BARN - DAY\n\nRain falls.\n\nANNA\nIt's coming.\n"
@@ -94,5 +95,37 @@ func TestExternalFormats(t *testing.T) {
 		if data, err := os.ReadFile(out); err != nil || len(data) == 0 {
 			t.Errorf("%s: %d bytes, %v", f.Key, len(data), err)
 		}
+	}
+}
+
+// A folder of format files: one based on a preset, with Accolade's part,
+// which Lexington skips.
+func TestFormatDir(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "strip.toml"), []byte("Name = \"Strip\"\nBase = \"bd\"\nPage = \"a4\"\n\n[Elements.action]\nLeft = 2.0\n\n[[Accolade.Buttons]]\nLabel = \"Plaat\"\nInsert = \".PLAAT {n}\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	list, err := rules.PresetsIn(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bd, _ := rules.GetPreset("bd")
+	var strip rules.Preset
+	for _, p := range list {
+		if p.Key == "strip" {
+			strip = p
+		}
+	}
+	if strip.Name != "Strip" || strip.Elements["action"].Left != 2.0 || strip.Elements["speaker"] != bd.Elements["speaker"] {
+		t.Errorf("strip: %+v", strip)
+	}
+	in := filepath.Join(dir, "s.fountain")
+	_ = os.WriteFile(in, []byte("INT. HOUSE - DAY\n\nRain.\n"), 0o644)
+	o := Options{Input: in, Output: filepath.Join(dir, "s.pdf"), To: "pdf", Elements: "strip", FormatDir: dir, ConfigFile: "/nonexistent"}
+	if err := Convert(context.Background(), o); err != nil {
+		t.Fatal(err)
+	}
+	if pageFor(o) != "a4" {
+		t.Errorf("page %q", pageFor(o))
 	}
 }

@@ -138,6 +138,7 @@ func formatKeys(needs bool) string {
 // Options are a conversion's settings: what the command line's flags set.
 type Options struct {
 	ConfigFile   string // the settings file (lexington.toml)
+	FormatDir    string // a folder of format (preset) files of one's own, or ""
 	SceneIn      string // the scene heading language of the input ("en")
 	SceneOut     string // and of the output
 	Elements     string // the element settings: a preset or a set from the settings file
@@ -173,6 +174,7 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 	fs := flag.NewFlagSet("lexington", flag.ContinueOnError)
 	var dump, help, presets, version bool
 	fs.StringVar(&o.ConfigFile, "config", "lexington.toml", "Configuration file to use.")
+	fs.StringVar(&o.FormatDir, "formats", "", "A folder of format files of your own (name.toml, as Lexington's presets), to use with -e.")
 	fs.BoolVar(&dump, "dumpconfig", false,
 		"Dump the default configuration to the location of --config to be adapted manually.")
 	fs.StringVar(&o.SceneIn, "scenein", "", "Configuration to use for scene header detection on input.")
@@ -200,7 +202,11 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 	case help:
 		fs.PrintDefaults()
 	case presets:
-		for _, p := range rules.Presets() {
+		list, err := rules.PresetsIn(o.FormatDir)
+		if err != nil {
+			log.Print(err)
+		}
+		for _, p := range list {
 			fmt.Printf("%-12s %s\n%-12s %s\n\n", p.Key, p.Name, "", p.Description)
 		}
 	case version:
@@ -223,7 +229,7 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 func Convert(ctx context.Context, o Options) error {
 	detectFormats(&o)
 	setDefaults(&o)
-	conf := rules.GetConf(o.ConfigFile)
+	conf := confOf(o)
 	if _, ok := conf.Elements[o.Elements]; !ok {
 		return fmt.Errorf("no element settings %q in %s or the presets (see -presets)", o.Elements, o.ConfigFile)
 	}
@@ -255,7 +261,7 @@ func Convert(ctx context.Context, o Options) error {
 // standard output), with o's settings.
 func Write(ctx context.Context, screenplay lex.Screenplay, o Options) error {
 	setDefaults(&o)
-	conf := rules.GetConf(o.ConfigFile)
+	conf := confOf(o)
 	if _, ok := conf.Elements[o.Elements]; !ok {
 		return fmt.Errorf("no element settings %q in %s or the presets", o.Elements, o.ConfigFile)
 	}
@@ -395,13 +401,32 @@ func lint(screenplay lex.Screenplay) bool {
 	return true
 }
 
+// confOf is the settings with the format files' element sets, which take
+// the place of the presets of their names.
+func confOf(o Options) rules.TOMLConf {
+	conf := rules.GetConf(o.ConfigFile)
+	if o.FormatDir != "" {
+		list, err := rules.PresetsIn(o.FormatDir)
+		if err != nil {
+			log.Print(err)
+		}
+		for _, p := range list {
+			conf.Elements[p.Key] = p.Elements
+		}
+	}
+	return conf
+}
+
 // pageFor is the paper size: o.Page, or the one the preset suggests.
 func pageFor(o Options) string {
 	if o.Page != "" {
 		return o.Page
 	}
-	if p, ok := rules.GetPreset(o.Elements); ok {
-		return p.Page
+	list, _ := rules.PresetsIn(o.FormatDir)
+	for _, p := range list {
+		if p.Key == o.Elements {
+			return p.Page
+		}
 	}
 	return ""
 }
