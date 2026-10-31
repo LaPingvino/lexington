@@ -80,12 +80,17 @@ func (c TOMLConf) RoleOf(lang, word string) (int, bool) {
 }
 
 // Translate is a scene heading word of language from in language to
-// (INT. to BIN.), or false when to has no word for its role.
+// (INT. to BIN.), or false when to has no word for its role. EST. is
+// mostly English: an establishing shot is outside, so a language without
+// a word for it gets its outside one (EST. to BUI.).
 func (c TOMLConf) Translate(word, from, to string) (string, bool) {
 	r, ok := c.RoleOf(from, word)
 	if !ok {
 		return "", false
 	}
-	t := c.Matchup(to)[r]
-	return t, t != ""
+	m := c.Matchup(to)
+	if r == Establishing && m[r] == "" {
+		r = Outside
+	}
+	return m[r], m[r] != ""
 }

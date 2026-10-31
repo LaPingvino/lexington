@@ -17,13 +17,15 @@ func TestTranslate(t *testing.T) {
 		{"BI/BU", "nl", "en", "INT./EXT."},
 		{"EN.", "eo", "en", "INT."},
 		{"И/Н", "ru", "en", "INT./EXT."},
+		{"EST", "en", "nl", "BUI."}, // no word for it: outside
+		{"EST.", "en", "eo", "EKST."},
 	} {
 		if got, ok := c.Translate(x.word, x.from, x.to); !ok || got != x.want {
 			t.Errorf("%s %s->%s: %q %v, want %q", x.word, x.from, x.to, got, ok, x.want)
 		}
 	}
-	if got, ok := c.Translate("EST", "en", "nl"); ok {
-		t.Errorf("EST en->nl: %q, want none", got)
+	if got, ok := c.Translate("EST", "en", "ja"); ok {
+		t.Errorf("EST en->ja: %q, want none", got)
 	}
 	// without matchups, the slash trick
 	c.Scenes["xx"] = []string{"IN", "UT", "IN/UT"}
