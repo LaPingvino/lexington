@@ -12,6 +12,10 @@ import (
 type TOMLConf struct {
 	Elements map[string]Set      `toml:"Elements"`
 	Scenes   map[string][]string `toml:"Scenes"`
+	// Matchups are, by language, its scene heading words in the order of
+	// Roles (inside, outside, ...), "" for one it has none for: what
+	// translates to what (matchups.go).
+	Matchups map[string][]string `toml:"Matchups"`
 	metadata toml.MetaData
 }
 
@@ -62,6 +66,20 @@ func DefaultConf() TOMLConf {
 			// Japanese headings (hashira) start with a circle: ○喫茶店・店内（夜）
 			"ja":  {"○", "◯"},
 			"tok": {"INSA", "KON", "INSA/KON", "I./K", "I/K", "KON/INSA", "K./I", "K/I"},
+		},
+		Matchups: map[string][]string{
+			//     inside, outside, both, both the other way, establishing
+			"en":  {"INT.", "EXT.", "INT./EXT.", "EXT./INT.", "EST."},
+			"it":  {"INT.", "EST.", "INT./EST.", "EST./INT.", ""}, // EST. is esterno
+			"nl":  {"BIN.", "BUI.", "BIN./BUI.", "BUI./BIN.", ""},
+			"de":  {"INT.", "EXT.", "INT./EXT.", "EXT./INT.", "ETABL."},
+			"fr":  {"INT.", "EXT.", "INT./EXT.", "EXT./INT.", ""},
+			"eo":  {"EN.", "EKST.", "EN./EKST.", "EKST./EN.", ""},
+			"ru":  {"ИНТ.", "НАТ.", "ИНТ./НАТ.", "НАТ./ИНТ.", ""},
+			"ar":  {"داخلي", "خارجي", "داخلي/خارجي", "خارجي/داخلي", "لقطة تأسيسية"},
+			"he":  {"פנים", "חוץ", "פנים/חוץ", "חוץ/פנים", ""},
+			"zh":  {"内景", "外景", "内景/外景", "外景/内景", ""},
+			"tok": {"INSA.", "KON.", "INSA/KON.", "KON/INSA.", ""},
 		},
 	}
 }
