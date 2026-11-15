@@ -115,7 +115,7 @@ func TestScriptNotesAndHiddenText(t *testing.T) {
 	s, _ := ParseWithError(strings.NewReader(`<FinalDraft Version="4"><Content><Paragraph Type="Action"><Text>Rain </Text>` +
 		note("Or snow?", "", "Snow.") + `<Text>falls.</Text></Paragraph></Content></FinalDraft>`))
 	if p := lex.Printable(s, false); p[len(p)-1].Contents != "Rain falls." {
-		t.Errorf("printed: %q", p)
+		t.Errorf("printed: %v", p)
 	}
 }
 

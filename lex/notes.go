@@ -114,10 +114,16 @@ func NoteColor(s string) string {
 // with the notes' text. Scene headings and sections keep the color their
 // notes give them in Color, or else the color of the section they are in
 // (the deepest one with a color): colors on sections, which are not
-// printed, color their scenes. The screenplay itself is not changed.
+// printed, color their scenes. Block numbers the block of a color a
+// heading begins or is in (see ColorBlocks). The screenplay itself is
+// not changed.
 func Printable(s Screenplay, keepNotes bool) Screenplay {
 	out := make(Screenplay, 0, len(s))
 	var sections []Line // the sections a line is in, with their colors
+	blocks := 0         // the color blocks so far (more, if s is printable already)
+	for _, l := range s {
+		blocks = max(blocks, l.Block)
+	}
 	for i, l := range s {
 		if IsNoteLine(l) {
 			if keepNotes {
@@ -134,8 +140,12 @@ func Printable(s Screenplay, keepNotes bool) Screenplay {
 			continue
 		}
 		if l.Type == TypeScene || l.Type == TypeSection {
-			if c := NoteColor(l.Contents); c != "" {
-				l.Color = c
+			if c := NoteColor(l.Contents); c != "" || (l.Color != "" && l.Block == 0) {
+				if c != "" {
+					l.Color = c
+				}
+				blocks++
+				l.Block = blocks // a block of its own
 			}
 			if l.Type == TypeSection {
 				lv := sectionLevel(l)
@@ -144,7 +154,7 @@ func Printable(s Screenplay, keepNotes bool) Screenplay {
 				}
 			}
 			for k := len(sections) - 1; k >= 0 && l.Color == ""; k-- {
-				l.Color = sections[k].Color // the deepest section's with one
+				l.Color, l.Block = sections[k].Color, sections[k].Block // the deepest section's with one
 			}
 			if l.Type == TypeSection {
 				sections = append(sections, l)
@@ -176,4 +186,31 @@ func printsText(t ElementType) bool {
 		return true
 	}
 	return false
+}
+
+// ColorBlocks are, for each line of a printable screenplay (Printable),
+// the color block it is in: the number of its heading's Block (0 for
+// none). A block is a scene with a color of its own, or a section with
+// one whole (its scenes without one inherit it; a scene with its own is
+// a block of its own within it). Where one block follows another, the
+// blank lines between them are in none: a gap, so that a boundary never
+// shows by its hue alone, also between two blocks of the same color.
+func ColorBlocks(s Screenplay) []int {
+	out := make([]int, len(s))
+	block, last := 0, -1 // last: the line before, not blank
+	for i, l := range s {
+		if l.Type == TypeScene || l.Type == TypeSection {
+			if l.Block != 0 && last >= 0 && out[last] != 0 && out[last] != l.Block {
+				for k := last + 1; k < i; k++ {
+					out[k] = 0
+				}
+			}
+			block = l.Block
+		}
+		out[i] = block
+		if l.Type != TypeEmpty {
+			last = i
+		}
+	}
+	return out
 }

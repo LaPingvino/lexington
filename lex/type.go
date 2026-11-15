@@ -41,6 +41,10 @@ type Line struct {
 	// Color is the color the notes of a scene heading or section gave it
 	// (NoteColor), set by Printable, which takes the notes out.
 	Color string
+	// Block is the color block a heading begins or is in (Printable,
+	// ColorBlocks): the same for a section and its scenes without a color
+	// of their own, another for a scene with one; 0 for none.
+	Block int
 }
 
 // IsDialogueElement returns true if the line is part of dialogue

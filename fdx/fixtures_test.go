@@ -101,7 +101,7 @@ func TestFixtures(t *testing.T) {
 	t.Run("Version 3", func(t *testing.T) {
 		s, f := fixture(t, "open-fdx-toolkit/sample-03.fdx")
 		if f.Version != "3" || len(lines(s, lex.TypeScene)) != 1 || len(lines(s, lex.TypeDialog)) != 1 {
-			t.Errorf("Version %q: %q", f.Version, s)
+			t.Errorf("Version %v: %v", f.Version, s)
 		}
 	})
 	t.Run("Version 4", func(t *testing.T) {
@@ -114,7 +114,7 @@ func TestFixtures(t *testing.T) {
 		}
 		for _, l := range s {
 			if strings.Contains(l.Contents, "\n") {
-				t.Errorf("a line break in %q", l)
+				t.Errorf("a line break in %v", l)
 			}
 		}
 	})

@@ -47,7 +47,7 @@ func TestParseNotes(t *testing.T) {
 	} {
 		got := body(c.script)
 		if len(got) == 0 || got[0] != c.want {
-			t.Errorf("%q: %q, want %q", c.script, got, c.want)
+			t.Errorf("%v: %v, want %v", c.script, got, c.want)
 		}
 	}
 }
@@ -62,12 +62,12 @@ func TestParseNotesInDialogue(t *testing.T) {
 		{Type: lex.TypeDialog, Contents: "And more."},
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("got %q", got)
+		t.Errorf("got %v", got)
 	}
 	// a name with only a note after it is action, as without the note
 	got = body("BOB\n[[a note]]\n\nRain.\n")
 	if got[0].Type != lex.TypeAction {
-		t.Errorf("a name with only a note after it: %q", got)
+		t.Errorf("a name with only a note after it: %v", got)
 	}
 }
 
@@ -85,7 +85,7 @@ func TestParseNoteOverLines(t *testing.T) {
 		{Type: lex.TypeDialog, Contents: "Hi."},
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("got %q", got)
+		t.Errorf("got %v", got)
 	}
 	if s := lex.StripNotes(got[1].Contents); s != "Scott pauses. He looks around." {
 		t.Errorf("printed: %q", s)
@@ -101,7 +101,7 @@ func TestParseNoteOverLines(t *testing.T) {
 		{Type: lex.TypeDialog, Contents: "Hi.]]"},
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("unclosed: %q", got)
+		t.Errorf("unclosed: %v", got)
 	}
 
 	// closed, and another opened that is not
@@ -112,7 +112,7 @@ func TestParseNoteOverLines(t *testing.T) {
 		{Type: lex.TypeAction, Contents: "Done."},
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("closed, then unclosed: %q", got)
+		t.Errorf("closed, then unclosed: %v", got)
 	}
 	if s := lex.StripNotes(got[0].Contents); s != "Rain on [[the" {
 		t.Errorf("printed: %q", s)
@@ -166,6 +166,6 @@ CUT TO: [[later]]
 	}
 	second := Parse(en, strings.NewReader(out))
 	if !reflect.DeepEqual(first, second) {
-		t.Errorf("read back differently:\n%q\n%q\n%s", first, second, out)
+		t.Errorf("read back differently:\n%v\n%v\n%s", first, second, out)
 	}
 }

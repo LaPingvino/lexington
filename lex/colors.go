@@ -69,11 +69,13 @@ type ColorScheme struct {
 	Style ColorStyle
 	Block bool // marker, background: the whole block, not the heading
 	Tint  bool // line: a tint under the block
+	// Patterns: line, the bar in its color's pattern (BarPattern)
+	Patterns bool
 }
 
 // ParseColorScheme reads a scheme as String writes it: a style, then
-// "+block" (marker, background) or "+tint" (line): "background+block",
-// "line+tint"; "" is line.
+// "+block" (marker, background) or "+tint" and "+patterns" (line):
+// "background+block", "line+tint+patterns"; "" is line.
 func ParseColorScheme(text string) (ColorScheme, error) {
 	parts := strings.Split(strings.ToLower(strings.TrimSpace(text)), "+")
 	style, err := ParseColorStyle(parts[0])
@@ -87,8 +89,10 @@ func ParseColorScheme(text string) (ColorScheme, error) {
 			sch.Block = true
 		case p == "tint" && style == ColorLine:
 			sch.Tint = true
+		case p == "patterns" && style == ColorLine:
+			sch.Patterns = true
 		default:
-			return ColorScheme{}, fmt.Errorf("no color scheme %q: a marker or background can have +block, a line +tint", text)
+			return ColorScheme{}, fmt.Errorf("no color scheme %q: a marker or background can have +block, a line +tint and +patterns", text)
 		}
 	}
 	return sch, nil
@@ -105,6 +109,9 @@ func (c ColorScheme) String() string {
 	}
 	if c.Tint {
 		s += "+tint"
+	}
+	if c.Patterns {
+		s += "+patterns"
 	}
 	return s
 }

@@ -2,6 +2,7 @@ package lex
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -95,14 +96,14 @@ func TestPrintable(t *testing.T) {
 	orig := append(Screenplay(nil), s...)
 	got := Printable(s, false)
 	want := Screenplay{
-		{Type: TypeScene, Contents: "INT. HOUSE - DAY", Color: "blue"},
+		{Type: TypeScene, Contents: "INT. HOUSE - DAY", Color: "blue", Block: 1},
 		{Type: TypeEmpty},
 		{Type: TypeAction, Contents: "Action with inside."},
 		{Type: TypeEmpty},
 		{Type: TypeAction, Contents: "More."},
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("Printable:\n got %q\nwant %q", got, want)
+		t.Errorf("Printable:\n got %v\nwant %v", got, want)
 	}
 	if !reflect.DeepEqual(s, orig) {
 		t.Error("Printable changed its screenplay")
@@ -110,7 +111,7 @@ func TestPrintable(t *testing.T) {
 	kept := Printable(s, true)
 	if len(kept) != 8 || kept[4] != (Line{Type: TypeNote, Contents: "A standalone note"}) ||
 		kept[6] != (Line{Type: TypeNote, Contents: "a note in a .lex file"}) {
-		t.Errorf("Printable keeping notes: %q", kept)
+		t.Errorf("Printable keeping notes: %v", kept)
 	}
 }
 
@@ -130,7 +131,7 @@ func TestLexContinuedLines(t *testing.T) {
 		t.Errorf("lex:\n%s\nwant\n%s", b.String(), want)
 	}
 	if got := Parse(&b); !reflect.DeepEqual(got, s) {
-		t.Errorf("parsed back: %q", got)
+		t.Errorf("parsed back: %v", got)
 	}
 }
 
@@ -223,5 +224,56 @@ func TestColorTintAndSchemes(t *testing.T) {
 		if _, err := ParseColorScheme(bad); err == nil {
 			t.Errorf("%q: no error", bad)
 		}
+	}
+}
+
+// Blocks: two scenes of the same color are two blocks, with a gap
+// between them; a section is one block through its scenes without a
+// color; a scene's own color is a block of its own in it.
+func TestColorBlocks(t *testing.T) {
+	s := Printable(Screenplay{
+		{Type: TypeScene, Contents: "INT. A [[blue]]"}, {Type: TypeEmpty}, {Type: TypeAction, Contents: "a"}, {Type: TypeEmpty},
+		{Type: TypeScene, Contents: "INT. B [[blue]]"}, {Type: TypeEmpty}, {Type: TypeAction, Contents: "b"}, {Type: TypeEmpty},
+		{Type: TypeSection, Contents: "# Act [[red]]"}, {Type: TypeEmpty},
+		{Type: TypeScene, Contents: "INT. C"}, {Type: TypeEmpty},
+		{Type: TypeScene, Contents: "INT. D"}, {Type: TypeEmpty},
+		{Type: TypeScene, Contents: "INT. E [[red]]"}, {Type: TypeEmpty},
+		{Type: TypeScene, Contents: "INT. F"}, {Type: TypeEmpty},
+		{Type: TypeSection, Contents: "# Act Two"}, {Type: TypeEmpty},
+		{Type: TypeScene, Contents: "INT. G"},
+	}, false)
+	var got []string
+	for _, b := range ColorBlocks(s) {
+		got = append(got, fmt.Sprint(b))
+	}
+	// A: 1, the gap, B: 2, the gap, the act: 3 through C and D, the gap,
+	// E: 4, the gap, F: the act's again, 3; no gap to no color
+	want := "1 1 1 0 2 2 2 0 3 3 3 3 3 0 4 0 3 3 0 0 0"
+	if g := strings.Join(got, " "); g != want {
+		t.Errorf("blocks %s\n  want %s", g, want)
+	}
+}
+
+// Beat's twelve colors have twelve patterns, distinct in their stripes
+// and rhythm (their shape, not their tone); other colors one by a hash,
+// the same each time.
+func TestBarPatterns(t *testing.T) {
+	seen := map[string]string{}
+	for _, c := range []string{"red", "blue", "green", "pink", "magenta", "gray", "purple", "cyan", "teal", "yellow", "orange", "brown"} {
+		p := BarPattern(c)
+		key := fmt.Sprint(p.Stripes)
+		if other, ok := seen[key]; ok {
+			t.Errorf("%s and %s have the same pattern", c, other)
+		}
+		seen[key] = c
+	}
+	if fmt.Sprint(BarPattern("#3366ff")) != fmt.Sprint(BarPattern("#3366FF")) || BarPattern("grey").Name != BarPattern("gray").Name {
+		t.Error("a pattern that is not the same each time")
+	}
+	if sch, err := ParseColorScheme("line+tint+patterns"); err != nil || !sch.Patterns || sch.String() != "line+tint+patterns" {
+		t.Errorf("%v %v", sch, err)
+	}
+	if _, err := ParseColorScheme("marker+patterns"); err == nil {
+		t.Error("patterns on a marker")
 	}
 }
