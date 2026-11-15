@@ -115,8 +115,7 @@ func NoteColor(s string) string {
 func Printable(s Screenplay, keepNotes bool) Screenplay {
 	out := make(Screenplay, 0, len(s))
 	for i, l := range s {
-		stripped := StripNotes(l.Contents)
-		if l.Type == TypeNote || (stripped != l.Contents && strings.TrimSpace(stripped) == "" && printsText(l.Type)) {
+		if IsNoteLine(l) {
 			if keepNotes {
 				if HasNotes(l.Contents) { // (or printable already)
 					l.Contents = strings.Join(Notes(l.Contents), " ")
@@ -130,10 +129,21 @@ func Printable(s Screenplay, keepNotes bool) Screenplay {
 			}
 			continue
 		}
-		l.Contents = stripped
+		l.Contents = StripNotes(l.Contents)
 		out = append(out, l)
 	}
 	return out
+}
+
+// IsNoteLine reports whether a line is nothing but notes: a TypeNote
+// line, or script text (a .lex file's "action: [[...]]") with nothing
+// else in it.
+func IsNoteLine(l Line) bool {
+	if l.Type == TypeNote {
+		return true
+	}
+	stripped := StripNotes(l.Contents)
+	return stripped != l.Contents && strings.TrimSpace(stripped) == "" && printsText(l.Type)
 }
 
 // printsText reports whether a line of the type is the script's text,
