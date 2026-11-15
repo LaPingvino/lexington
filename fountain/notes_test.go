@@ -103,6 +103,20 @@ func TestParseNoteOverLines(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("unclosed: %q", got)
 	}
+
+	// closed, and another opened that is not
+	got = body("Rain [[falls\nhard]] on [[the\nroof.\n\nDone.\n")
+	want = lex.Screenplay{
+		{Type: lex.TypeAction, Contents: "Rain [[falls\nhard]] on [[the"},
+		{Type: lex.TypeAction, Contents: "roof."},
+		{Type: lex.TypeAction, Contents: "Done."},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("closed, then unclosed: %q", got)
+	}
+	if s := lex.StripNotes(got[0].Contents); s != "Rain on [[the" {
+		t.Errorf("printed: %q", s)
+	}
 }
 
 // Fountain written from a script keeps every note as it is, and reads

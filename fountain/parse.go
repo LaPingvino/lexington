@@ -200,19 +200,21 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 	return state.out
 }
 
-// openNote reports whether s has a note ([[) in it that it does not
-// close (]]).
-func openNote(s string) bool {
+// openNote is where the note ([[) that s opens and does not close (]])
+// starts in s, -1 if there is none.
+func openNote(s string) int {
+	at := 0
 	for {
-		open := strings.Index(s, "[[")
+		open := strings.Index(s[at:], "[[")
 		if open < 0 {
-			return false
+			return -1
 		}
+		open += at
 		end := strings.Index(s[open+2:], "]]")
 		if end < 0 {
-			return true
+			return open
 		}
-		s = s[open+2+end+2:]
+		at = open + 2 + end + 2
 	}
 }
 
@@ -220,23 +222,28 @@ func openNote(s string) bool {
 // the note the row opens, with line breaks: Fountain's notes may span
 // lines. A note goes on over a line of two spaces, not over a blank line:
 // when one comes first, or the script ends, the "[[" is no note, and
-// joinNote returns i.
+// joinNote returns i. (A row that closes the note and opens another that
+// is never closed is the last row joined, as a row by itself would be.)
 func joinNote(rows []string, i int) (int, string) {
 	joined := strings.TrimRight(rows[i], "\n\r")
-	if !openNote(joined) {
+	if openNote(joined) < 0 {
 		return i, joined
 	}
+	last, lastJoined := i, joined
 	for k := i + 1; k < len(rows); k++ {
 		r := strings.TrimRight(rows[k], "\n\r")
 		if strings.TrimSpace(r) == "" && !strings.HasPrefix(r, "  ") {
 			break
 		}
+		start := len(joined) + 1 // of row k in joined
 		joined += "\n" + r
-		if !openNote(joined) {
+		if open := openNote(joined); open < 0 {
 			return k, joined
+		} else if open >= start { // the notes before this row are closed
+			last, lastJoined = k, joined
 		}
 	}
-	return i, strings.TrimRight(rows[i], "\n\r")
+	return last, lastJoined
 }
 
 // The notes of a row are masked while it is read, so that they do not
