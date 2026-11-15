@@ -197,9 +197,10 @@ body {
     /* pagination (-pagination keep): headings, names and parentheticals
        never last on a page, transitions never first, a speech and dual
        dialogue not broken (no (MORE) in a browser) */
-    .scene-heading, .speaker, .parenthetical, .dialogue:has(+ .parenthetical),
-    .scene-heading + .empty, .speaker + .empty, .parenthetical + .empty,
-    :has(+ .transition), :has(+ .empty + .transition) { break-after: avoid; page-break-after: avoid; }
+    .scene-heading, .speaker, .parenthetical,
+    .scene-heading + .empty, .speaker + .empty, .parenthetical + .empty { break-after: avoid; page-break-after: avoid; }
+    /* (apart: a browser without :has() drops only these) */
+    .dialogue:has(+ .parenthetical), :has(+ .transition), :has(+ .empty + .transition) { break-after: avoid; page-break-after: avoid; }
     .scene-heading, .speaker, .parenthetical, .dialogue, .transition, .dual-dialogue { break-inside: avoid; page-break-inside: avoid; }
 {{- end}}
 {{- if .Config.Pagination.Widows}}

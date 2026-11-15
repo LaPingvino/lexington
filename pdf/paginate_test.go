@@ -282,3 +282,43 @@ func TestPaginationForcedBreak(t *testing.T) {
 		}
 	}
 }
+
+// A speech broken with (MORE) and CONT'D reads back as it was written:
+// one speech, without the marks or a page break.
+func TestMoreReadsBack(t *testing.T) {
+	broken := 0
+	for pad := 44; pad <= 56; pad++ {
+		file := filepath.Join(t.TempDir(), "x.pdf")
+		if err := (&pdf.PDFWriter{OutputFile: file, Elements: rules.Default}).Write(nil, script(pad, subjects["speaker"])); err != nil {
+			t.Fatal(err)
+		}
+		pages, err := pdfin.Pages(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(fmt.Sprint(pages), "(MORE)") {
+			broken++
+		}
+		back, err := pdfin.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var speeches []string
+		for k, l := range back {
+			switch {
+			case l.Type == lex.TypeNewPage, strings.Contains(l.Contents, "MORE"), strings.Contains(l.Contents, "CONT"):
+				t.Errorf("%d lines before: read back %s %q", pad, l.Type, l.Contents)
+			case l.Type == lex.TypeSpeaker:
+				if k+1 < len(back) {
+					speeches = append(speeches, l.Contents+": "+back[k+1].Contents)
+				}
+			}
+		}
+		if want := "ANNA: " + speech; len(speeches) != 1 || speeches[0] != want {
+			t.Errorf("%d lines before: speeches %q, want %q", pad, speeches, want)
+		}
+	}
+	if broken == 0 {
+		t.Error("no speech broken with (MORE)")
+	}
+}

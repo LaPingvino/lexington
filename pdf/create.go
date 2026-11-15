@@ -185,6 +185,7 @@ func (t *Tree) Render() {
 	if t.printing == nil {
 		t.printing = &printing{}
 	}
+	t.pagination = t.Rules.Pagination()
 	t.PDF.SetAcceptPageBreakFunc(func() bool {
 		auto, _ := t.PDF.GetAutoPageBreak()
 		if auto {
@@ -768,7 +769,6 @@ func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		Fonts:        newFonts(pdf),
 		Scale:        width / 8.5,
 		VScale:       height / 11,
-		pagination:   elements.Pagination(),
 	}
 	f.Render()
 	err := pdf.OutputFileAndClose(p.OutputFile) // Use the OutputFile from the PDFWriter struct

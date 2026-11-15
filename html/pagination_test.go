@@ -19,7 +19,7 @@ func TestHTMLPagination(t *testing.T) {
 		{Type: lex.TypeAction, Contents: "A line."}}
 	rulesOn := []string{
 		".scene-heading + .empty, .speaker + .empty, .parenthetical + .empty",
-		":has(+ .transition), :has(+ .empty + .transition) { break-after: avoid;",
+		".dialogue:has(+ .parenthetical), :has(+ .transition), :has(+ .empty + .transition) { break-after: avoid;",
 		".dialogue, .transition, .dual-dialogue { break-inside: avoid;",
 		".lyrics { orphans: 2; widows: 2; }",
 	}

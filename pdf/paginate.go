@@ -360,24 +360,24 @@ walk:
 		default:
 			consider(breakAt{row: j}, inSpeech && p.Keep)
 		}
-		if used+h > room { // in the row
-			switch {
-			case p.Keep && unbreakable(r.Type):
-			case inSpeech && p.More && r.Type == lex.TypeDialog:
-				t.speechBreaks(r, j, used, room, speech, func(k, rest int) bool {
-					return paraOff+k >= least && (!p.Widows || paraLen-paraOff-h+rest >= 2)
-				}, consider)
-			default:
-				for m := 1; m < h && used+m <= room; m++ {
-					if within(paraOff + m) {
-						consider(breakAt{row: j, lines: m}, inSpeech && p.Keep)
-					}
+		// in the row (also when it fits: a transition after it may need
+		// some of it to go over with it)
+		switch {
+		case p.Keep && unbreakable(r.Type):
+		case inSpeech && p.More && r.Type == lex.TypeDialog:
+			t.speechBreaks(r, j, used, room, speech, used+h > room, func(k, rest int) bool {
+				return paraOff+k >= least && (!p.Widows || paraLen-paraOff-h+rest >= 2)
+			}, consider)
+		default:
+			for m := 1; m < h && used+m <= room; m++ {
+				if within(paraOff + m) {
+					consider(breakAt{row: j, lines: m}, inSpeech && p.Keep)
 				}
 			}
-			used += h
+		}
+		if used += h; used > room {
 			break
 		}
-		used += h
 		paraOff += h
 		prevKeep = p.Keep && keepsWithNext(r.Type)
 	}
@@ -397,8 +397,8 @@ walk:
 // speechBreaks considers the breaks in a speech's dialogue: after its
 // sentences with (MORE) below them, where ok says the lines before the
 // break (k) and after it in the row (rest) may break; else, as a last
-// resort, between its words.
-func (t *Tree) speechBreaks(r lex.Line, j, used, room int, speech string, ok func(k, rest int) bool, consider func(breakAt, bool)) {
+// resort, between its words (when the row overflows the page).
+func (t *Tree) speechBreaks(r lex.Line, j, used, room int, speech string, overflows bool, ok func(k, rest int) bool, consider func(breakAt, bool)) {
 	text := r.Contents
 	try := func(at int, last bool) bool {
 		if strings.Count(text[:at], "*")%2 != 0 || strings.Count(text[:at], "_")%2 != 0 {
@@ -417,7 +417,7 @@ func (t *Tree) speechBreaks(r lex.Line, j, used, room int, speech string, ok fun
 			found = true
 		}
 	}
-	if found {
+	if found || !overflows {
 		return
 	}
 	for at, c := range text {
