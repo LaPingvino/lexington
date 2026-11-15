@@ -65,6 +65,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Toki Pona scene headings (`tok`).
 
 ### Fixed
+- **Emphasis** follows fountain.io exactly, in every writer, through one
+  reader (`lex.Emphasis`): bold, italics and underlining mix and nest
+  (`_**THE END**_`), `\*` is an asterisk, a marker with a space on its
+  inner side is text (`He dialed *69 and then *23`), nothing goes over
+  a line break, and an underscore within a word is text. The PDF no
+  longer reads a `<` in emphasised text as a tag.
+- **FDX** is read as Final Draft shows it: in capitals where it says
+  AllCaps (`edward (v.O.)` is `EDWARD (V.O.)`), with scene numbers
+  (`#12A#`), script notes and hidden text as Fountain notes, Final
+  Draft 13's outline, summaries and notes as sections, synopses and
+  notes, act breaks centred. Literal asterisks and underscores are
+  escaped. Written FDX has scene numbers, the paragraph types' settings
+  and notes as script notes.
 - **Fountain notes** (`[[...]]`) are never printed any more, in a line
   (a heading, action, dialogue, a section, a synopsis) or on a line of
   their own, over several lines too (an unclosed `[[` is left as it

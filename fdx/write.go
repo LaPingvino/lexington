@@ -84,6 +84,13 @@ const alignCenter = "Center"
 // buildDocument converts a screenplay into the FDX document structure.
 // Notes become script notes on the paragraph they are in, or on the next
 // one for a line of notes.
+//
+// The Version is 5, as a Final Draft file of ours has it (screenplay-tools'
+// TestFDX-FD.fdx); which Final Draft writes which Version is not known
+// for sure, except that Final Draft 13 writes 6, whose ids on every
+// paragraph and notes kept apart by character ranges Lexington does not
+// write. Script notes in the paragraph are as Final Draft files of
+// Versions 2 and 4 have them.
 func buildDocument(screenplay lex.Screenplay) FdxFile {
 	doc := FdxFile{DocumentType: "Script", Template: "No", Version: "5", ElementSettings: elementSettings}
 
