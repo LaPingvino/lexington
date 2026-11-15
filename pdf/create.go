@@ -296,6 +296,27 @@ func (t *Tree) extendBar(spans []span) {
 	}
 }
 
+// textArea is where the script's text can stand on the page: from the
+// leftmost to the rightmost margin of the elements a block holds, so that a
+// band covers every line of it and the bar stands left of all of them in
+// any format (Inverse puts names and dialogue left of the action).
+func (t *Tree) textArea() (left, right float64) {
+	pageWidth, _ := t.PDF.GetPageSize()
+	left, right = pageWidth, 0
+	for _, k := range []string{"scene", "action", "speaker", "dialog", "paren", "trans", "lyrics"} {
+		f, err := t.Rules.GetSafe(k)
+		if err != nil {
+			continue
+		}
+		left, right = min(left, f.Left), max(right, pageWidth-f.Right)
+	}
+	if right <= left { // no elements: the action's
+		a := t.Rules.Get("action")
+		return a.Left, pageWidth - a.Right
+	}
+	return left, right
+}
+
 // closeBar draws the bar so far, on its page.
 func (t *Tree) closeBar() {
 	b := t.bar
@@ -313,22 +334,21 @@ func (t *Tree) closeBar() {
 	if b.bottom > b.top {
 		now := t.PDF.PageNo()
 		t.PDF.SetPage(b.page)
-		action := t.Rules.Get("action") // (scaled to the page already)
+		left, right := t.textArea() // (scaled to the page already)
 		if c, ok := lex.ColorFor(band, b.drawn); ok && band != "" {
 			// a band across the text under the block: drawn after its text,
 			// multiplied, so that the text stays as it is (black on it)
-			pageWidth, _ := t.PDF.GetPageSize()
 			t.PDF.SetAlpha(1, "Multiply")
 			t.PDF.SetFillColor(int(c[0]), int(c[1]), int(c[2]))
-			t.PDF.Rect(action.Left-0.05, b.top, pageWidth-action.Left-action.Right+0.1, b.bottom-b.top, "F")
+			t.PDF.Rect(left-0.05, b.top, right-left+0.1, b.bottom-b.top, "F")
 			t.PDF.SetAlpha(1, "Normal")
 		}
 		if c, ok := lex.ColorFor(lex.ColorLine, b.drawn); ok && sch.Style == lex.ColorLine {
 			t.PDF.SetFillColor(int(c[0]), int(c[1]), int(c[2]))
 			if sch.Patterns {
-				t.patternBar(lex.BarPattern(b.drawn), action.Left-barGap, b.top, b.bottom)
+				t.patternBar(lex.BarPattern(b.drawn), left-barGap, b.top, b.bottom)
 			} else {
-				t.PDF.Rect(action.Left-barGap, b.top, barWidth*t.sc(), b.bottom-b.top, "F")
+				t.PDF.Rect(left-barGap, b.top, barWidth*t.sc(), b.bottom-b.top, "F")
 			}
 		}
 		t.PDF.SetPage(now)
