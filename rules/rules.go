@@ -97,6 +97,20 @@ func (s Set) PrintsNotes() bool {
 	return ok && !f.Hide
 }
 
+// Hides reports whether the set leaves the script's lines of a type out
+// (lex.Printable): lines of notes unless it prints them (PrintsNotes),
+// the boneyard, elements without a visible rule (sections and synopses,
+// in most).
+func (s Set) Hides(t lex.ElementType) bool {
+	switch t {
+	case lex.TypeNote:
+		return !s.PrintsNotes()
+	case lex.TypeBoneyard:
+		return true
+	}
+	return s.Get(t).Hide
+}
+
 // ShowsColors reports whether the set prints headings and sections in
 // their notes' colors: whether it has a visible notecolors rule.
 func (s Set) ShowsColors() bool {

@@ -91,6 +91,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Toki Pona scene headings (`tok`).
 
 ### Fixed
+- **Hidden lines leave no blank lines**: sections, synopses, the
+  boneyard and notes, where a format does not print them, are "ignored
+  completely" as Fountain has it: blank, section, blank prints one blank
+  line, a run of them the same, none at the top of the script or a page
+  (`lex.Printable` takes the format's `hides`, `rules.Set.Hides`).
+  Formats that print sections keep them and their blank lines.
+- **Color bars beside text only**: a block's bar, band or marker is
+  drawn on a page from its first line of text there to its last, never
+  on into blank lines at a page's foot or top, nor as a stub beside
+  nothing; in the PDF following where the text lands (it may break over
+  pages), in HTML, DOCX and ODT none on blank lines at a block's or a
+  page's edge (`lex.TrimBlocks`).
 - **Emphasis** follows fountain.io exactly, in every writer, through one
   reader (`lex.Emphasis`): bold, italics and underlining mix and nest
   (`_**THE END**_`), `\*` is an asterisk, a marker with a space on its

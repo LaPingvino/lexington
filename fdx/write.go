@@ -98,7 +98,7 @@ func buildDocument(screenplay lex.Screenplay) FdxFile {
 	i := 0
 	if len(screenplay) > 0 && screenplay[0].Type == lex.TypeTitlePage {
 		// (a title page has no lines of notes: the lines are the same)
-		doc.TitlePage, i = buildTitlePage(lex.Printable(screenplay, false))
+		doc.TitlePage, i = buildTitlePage(lex.Printable(screenplay, nil))
 	}
 
 	b := docBuilder{doc: &doc}

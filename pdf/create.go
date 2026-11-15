@@ -715,7 +715,7 @@ func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	f := &Tree{
 		PDF:          pdf,
 		Rules:        elements,
-		F:            lex.Printable(screenplay, elements.PrintsNotes()), // notes are not printed
+		F:            lex.Printable(screenplay, elements.Hides), // notes are not printed
 		DualDialogue: false,
 		DualColumn:   0,
 		DualBuffer:   []lex.Line{},

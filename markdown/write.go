@@ -68,7 +68,7 @@ func (m *MarkdownWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		inDualDialogue: false,
 	}
 
-	for _, line := range lex.Printable(screenplay, false) { // notes are not printed
+	for _, line := range lex.Printable(screenplay, nil) { // notes are not printed
 		if err := state.processLine(line); err != nil {
 			return err
 		}

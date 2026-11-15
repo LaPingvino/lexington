@@ -106,37 +106,66 @@ func NoteColor(s string) string {
 	return color
 }
 
-// Printable is a screenplay as it is printed: the notes taken out of
-// every line's text (StripNotes). Lines that are only notes are left out,
-// with one of the blank lines around them (so that "Action.", blank,
-// note, blank, "More." prints as two paragraphs with one blank line
-// between them), unless keepNotes: then they are kept, as TypeNote lines
-// with the notes' text. Scene headings and sections keep the color their
+// Printable is a screenplay as a format prints it, without its notes:
+// every line's text without them (StripNotes). Lines that are only notes
+// are left out, unless the format prints them (hides(TypeNote) is false):
+// then they are kept, as TypeNote lines with the notes' text. Other lines
+// the format does not print (hides: sections, synopses, the boneyard in
+// most) are kept, for the writers to skip, but as Fountain has them,
+// "ignored completely": the blank lines around them are as if they were
+// not there. Blank, hidden, blank prints one blank line; a run of hidden
+// lines the same; at the top of the script or a page, none. (Not in the
+// title page or dual dialogue, which are printed as they are.) hides
+// nil is Unprinted. Scene headings and sections keep the color their
 // notes give them in Color, or else the color of the section they are in
 // (the deepest one with a color): colors on sections, which are not
 // printed, color their scenes. Block numbers the block of a color a
 // heading begins or is in (see ColorBlocks). The screenplay itself is
 // not changed.
-func Printable(s Screenplay, keepNotes bool) Screenplay {
+func Printable(s Screenplay, hides func(ElementType) bool) Screenplay {
+	if hides == nil {
+		hides = Unprinted
+	}
 	out := make(Screenplay, 0, len(s))
 	var sections []Line // the sections a line is in, with their colors
 	blocks := 0         // the color blocks so far (more, if s is printable already)
 	for _, l := range s {
 		blocks = max(blocks, l.Block)
 	}
+	shown := TypeNewPage // the last line printed: at the start, a page's top
+	inTitle, inDual := false, false
+	skip := -1 // a blank line to leave out
+	// hidden: the line at i is not printed; the blank after it goes if
+	// one is before it (or the top of a page)
+	hidden := func(i int) {
+		if i+1 < len(s) && s[i+1].Type == TypeEmpty && (shown == TypeEmpty || shown == TypeNewPage) {
+			skip = i + 1
+		}
+	}
 	for i, l := range s {
+		switch l.Type {
+		case TypeTitlePage:
+			inTitle = true
+		case TypeNewPage:
+			inTitle = false
+		case TypeDualOpen:
+			inDual = true
+		case TypeDualClose:
+			inDual = false
+		}
+		if i == skip {
+			continue
+		}
 		if IsNoteLine(l) {
-			if keepNotes {
-				if HasNotes(l.Contents) { // (or printable already)
-					l.Contents = strings.Join(Notes(l.Contents), " ")
-				}
-				out = append(out, Line{Type: TypeNote, Contents: l.Contents})
+			if hides(TypeNote) {
+				hidden(i)
 				continue
 			}
-			// a blank line before it and after it: one of them goes
-			if len(out) > 0 && out[len(out)-1].Type == TypeEmpty && i+1 < len(s) && s[i+1].Type == TypeEmpty {
-				out = out[:len(out)-1]
+			if HasNotes(l.Contents) { // (or printable already)
+				l.Contents = strings.Join(Notes(l.Contents), " ")
 			}
+			out = append(out, Line{Type: TypeNote, Contents: l.Contents})
+			shown = TypeNote
 			continue
 		}
 		if l.Type == TypeScene || l.Type == TypeSection {
@@ -162,8 +191,32 @@ func Printable(s Screenplay, keepNotes bool) Screenplay {
 		}
 		l.Contents = StripNotes(l.Contents)
 		out = append(out, l)
+		if !inTitle && !inDual && !structural(l.Type) && hides(l.Type) {
+			hidden(i)
+			continue
+		}
+		shown = l.Type
 	}
 	return out
+}
+
+// TypeBoneyard is a line of Fountain's boneyard (/* ... */), which no
+// format prints.
+const TypeBoneyard ElementType = "boneyard"
+
+// Unprinted reports whether a line of a type is one no format prints:
+// a line of notes, the boneyard.
+func Unprinted(t ElementType) bool { return t == TypeNote || t == TypeBoneyard }
+
+// structural reports whether a line of the type is the script's form
+// rather than its text: a blank line, a page break, the title page's,
+// dual dialogue's. Every format prints it.
+func structural(t ElementType) bool {
+	switch t {
+	case TypeEmpty, TypeNewPage, TypeTitlePage, "metasection", TypeDualOpen, TypeDualNext, TypeDualClose:
+		return true
+	}
+	return false
 }
 
 // IsNoteLine reports whether a line is nothing but notes: a TypeNote

@@ -2,6 +2,7 @@ package html
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -307,5 +308,36 @@ func TestHTMLColors(t *testing.T) {
 		if strings.Contains(b.String(), "nothing") {
 			t.Error("prints a note")
 		}
+	}
+}
+
+// A block's wrapper (its bar, its band) is around its lines that print:
+// no blank line at its edges, at a page break or the next block; a
+// hidden section, blank lines around it, adds no blank line.
+func TestHTMLBlockEdges(t *testing.T) {
+	E := lex.Line{Type: lex.TypeEmpty}
+	s := lex.Screenplay{
+		{Type: lex.TypeSection, Contents: "# Part [[green]]"}, E, E,
+		{Type: lex.TypeScene, Contents: "INT. A [[blue]]"}, E, {Type: lex.TypeAction, Contents: "One."}, E,
+		{Type: lex.TypeNewPage}, E, {Type: lex.TypeAction, Contents: "Two."}, E, E,
+		{Type: lex.TypeScene, Contents: "INT. B"}, E, {Type: lex.TypeAction, Contents: "Three."}, E,
+		{Type: lex.TypeSection, Contents: "# More"}, E, {Type: lex.TypeAction, Contents: "Four."},
+	}
+	var b bytes.Buffer
+	if err := (&HTMLWriter{Elements: rules.Default.WithColors()}).Write(&b, s); err != nil {
+		t.Fatal(err)
+	}
+	h := b.String()
+	wrappers := regexp.MustCompile(`<div class="colorbar" style="[^"]*">(.*?</div>)</div>`).FindAllStringSubmatch(h, -1)
+	if len(wrappers) != 3 { // the blue scene's on its two pages, the green one's
+		t.Errorf("%d wrappers, want 3: %s", len(wrappers), h)
+	}
+	for _, w := range wrappers {
+		if strings.HasPrefix(w[1], `<div class="empty">`) || strings.HasSuffix(w[1], `<div class="empty"></div>`) {
+			t.Errorf("a blank line at a wrapper's edge: %s", w[1])
+		}
+	}
+	if !strings.Contains(h, `Three.</div></div><div class="empty"></div><div class="action" dir="auto">Four.`) {
+		t.Errorf("the hidden section adds a blank line: %s", h[strings.Index(h, "Three."):])
 	}
 }

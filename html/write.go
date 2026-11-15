@@ -432,7 +432,7 @@ func (h *HTMLWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	// Create combined template data
 	templateData := HTMLTemplateData{
 		Config:     config,
-		Screenplay: withBlocks(lex.Printable(screenplay, false), config.ColorScheme, h.elements()), // notes are not printed
+		Screenplay: withBlocks(lex.Printable(screenplay, printsNot), config.ColorScheme, h.elements()), // notes are not printed
 	}
 
 	// Parse and execute the HTML template with better error context
@@ -623,11 +623,8 @@ func withBlocks(s lex.Screenplay, text string, set rules.Set) lex.Screenplay {
 		switch s[i].Type {
 		case lex.TypeDualOpen, lex.TypeDualNext, lex.TypeDualClose:
 			return true
-		case lex.TypeScene, lex.TypeAction, "general", lex.TypeSpeaker, lex.TypeDialog, lex.TypeLyrics,
-			lex.TypeParen, lex.TypeTrans, lex.TypeCenter:
-			return strings.TrimSpace(lex.Unstyled(s[i].Contents)) != ""
 		}
-		return false
+		return !printsNot(s[i].Type) && strings.TrimSpace(lex.Unstyled(s[i].Contents)) != ""
 	}, func(i int) bool { return s[i].Type == lex.TypeNewPage })
 	var out lex.Screenplay
 	open := -1 // the block open, -1 for none
@@ -655,6 +652,17 @@ func withBlocks(s lex.Screenplay, text string, set rules.Set) lex.Screenplay {
 		out = append(out, lex.Line{Type: typeBarClose})
 	}
 	return out
+}
+
+// printsNot reports whether the page leaves out lines of a type (see
+// lex.Printable): the template prints these, and the title page's.
+func printsNot(t lex.ElementType) bool {
+	switch t {
+	case lex.TypeScene, lex.TypeAction, "general", lex.TypeSpeaker, lex.TypeDialog, lex.TypeLyrics,
+		lex.TypeParen, lex.TypeTrans, lex.TypeCenter:
+		return false
+	}
+	return true
 }
 
 // heading is a scene heading's text and its number (#12#), if any.

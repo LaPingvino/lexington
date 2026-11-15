@@ -197,7 +197,7 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 	if set == nil {
 		set = rules.Default
 	}
-	s = lex.Printable(s, set.PrintsNotes())
+	s = lex.Printable(s, set.Hides)
 	var out []Paragraph
 	var ids []int // the color block of each paragraph (lex.ColorBlocks)
 	add := func(p Paragraph, id int) {

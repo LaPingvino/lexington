@@ -94,7 +94,7 @@ func TestPrintable(t *testing.T) {
 		{Type: TypeAction, Contents: "More."},
 	}
 	orig := append(Screenplay(nil), s...)
-	got := Printable(s, false)
+	got := Printable(s, nil)
 	want := Screenplay{
 		{Type: TypeScene, Contents: "INT. HOUSE - DAY", Color: "blue", Block: 1},
 		{Type: TypeEmpty},
@@ -108,7 +108,7 @@ func TestPrintable(t *testing.T) {
 	if !reflect.DeepEqual(s, orig) {
 		t.Error("Printable changed its screenplay")
 	}
-	kept := Printable(s, true)
+	kept := Printable(s, func(t ElementType) bool { return t == TypeBoneyard })
 	if len(kept) != 8 || kept[4] != (Line{Type: TypeNote, Contents: "A standalone note"}) ||
 		kept[6] != (Line{Type: TypeNote, Contents: "a note in a .lex file"}) {
 		t.Errorf("Printable keeping notes: %v", kept)
@@ -162,7 +162,7 @@ func TestInheritedColors(t *testing.T) {
 		{Type: TypeScene, Contents: "INT. E"},
 	}
 	var got []string
-	for _, l := range Printable(Printable(s, false), false) {
+	for _, l := range Printable(Printable(s, nil), nil) {
 		got = append(got, l.Color)
 	}
 	if g := strings.Join(got, ","); g != ",red,red,blue,blue,green,red,red,," {
@@ -241,7 +241,7 @@ func TestColorBlocks(t *testing.T) {
 		{Type: TypeScene, Contents: "INT. F"}, {Type: TypeEmpty},
 		{Type: TypeSection, Contents: "# Act Two"}, {Type: TypeEmpty},
 		{Type: TypeScene, Contents: "INT. G"},
-	}, false)
+	}, nil)
 	var got []string
 	for _, b := range ColorBlocks(s) {
 		got = append(got, fmt.Sprint(b))
@@ -275,5 +275,73 @@ func TestBarPatterns(t *testing.T) {
 	}
 	if _, err := ParseColorScheme("marker+patterns"); err == nil {
 		t.Error("patterns on a marker")
+	}
+}
+
+// Lines a format does not print (sections, synopses, the boneyard, notes)
+// are as if they were not there: blank, hidden, blank is one blank line;
+// a run of them the same; none at the top of the script or a page. A
+// format that prints them keeps them and their blank lines.
+func TestPrintableHidden(t *testing.T) {
+	E, A := Line{Type: TypeEmpty}, func(s string) Line { return Line{Type: TypeAction, Contents: s} }
+	sec, syn := Line{Type: TypeSection, Contents: "# Act"}, Line{Type: TypeSynopsis, Contents: "What happens."}
+	bone, note := Line{Type: TypeBoneyard, Contents: "/* gone */"}, Line{Type: TypeNote, Contents: "[[a note]]"}
+	hides := func(t ElementType) bool { return t != TypeAction && t != TypeScene }
+	// shape is the printed lines: "a" for action, "_" blank, "|" a page
+	shape := func(s Screenplay) string {
+		var b strings.Builder
+		for _, l := range s {
+			switch {
+			case l.Type == TypeEmpty:
+				b.WriteString("_")
+			case l.Type == TypeNewPage:
+				b.WriteString("|")
+			case hides(l.Type):
+			default:
+				b.WriteString(l.Contents)
+			}
+		}
+		return b.String()
+	}
+	for _, c := range []struct {
+		name string
+		in   Screenplay
+		want string
+	}{
+		{"section", Screenplay{A("a"), E, sec, E, A("b")}, "a_b"},
+		{"synopsis", Screenplay{A("a"), E, syn, E, A("b")}, "a_b"},
+		{"boneyard", Screenplay{A("a"), E, bone, E, A("b")}, "a_b"},
+		{"note", Screenplay{A("a"), E, note, E, A("b")}, "a_b"},
+		{"a run", Screenplay{A("a"), E, sec, syn, syn, note, E, A("b")}, "a_b"},
+		{"a run with blanks", Screenplay{A("a"), E, sec, E, syn, E, bone, E, A("b")}, "a_b"},
+		{"at the top", Screenplay{sec, E, syn, E, A("a")}, "a"},
+		{"at a page's top", Screenplay{A("a"), {Type: TypeNewPage}, sec, E, A("b")}, "a|b"},
+		{"a page's blank, then", Screenplay{A("a"), {Type: TypeNewPage}, E, sec, E, A("b")}, "a|_b"},
+		{"the script's own double blank", Screenplay{A("a"), E, E, sec, E, A("b")}, "a__b"},
+		{"no blank after", Screenplay{A("a"), E, syn, A("b")}, "a_b"},
+	} {
+		if got := shape(Printable(c.in, hides)); got != c.want {
+			t.Errorf("%s: %q, want %q", c.name, got, c.want)
+		}
+	}
+	// the hidden lines are kept for the writers (a section's color, a
+	// bookmark); a format that prints sections keeps their blank lines
+	in := Screenplay{A("a"), E, sec, E, A("b")}
+	if got := Printable(in, hides); len(got) != 4 || got[2].Type != TypeSection {
+		t.Errorf("the section is not kept: %v", got)
+	}
+	if got := Printable(in, nil); len(got) != 5 {
+		t.Errorf("printing sections: %v", got)
+	}
+}
+
+// TrimBlocks: a block's color only from its first line that prints to
+// its last, page by page.
+func TestTrimBlocks(t *testing.T) {
+	// "t" prints, "_" does not, "|" a page break; with the blocks under it
+	lines, blocks := "_t_t__|_t_|_t_t_", []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2}
+	TrimBlocks(blocks, func(i int) bool { return lines[i] == 't' }, func(i int) bool { return lines[i] == '|' })
+	if got, want := fmt.Sprint(blocks), fmt.Sprint([]int{0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 2, 2, 2, 0}); got != want {
+		t.Errorf("TrimBlocks: %s, want %s", got, want)
 	}
 }

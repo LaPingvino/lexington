@@ -290,6 +290,16 @@ func preprocessDualDialogue(screenplay lex.Screenplay) lex.Screenplay {
 	return result
 }
 
+// printsNot reports whether the LaTeX leaves out lines of a type (see
+// lex.Printable): its template prints these, and the title page's.
+func printsNot(t lex.ElementType) bool {
+	switch t {
+	case lex.TypeScene, lex.TypeAction, lex.TypeSpeaker, lex.TypeDialog, lex.TypeParen, lex.TypeTrans, lex.TypeCenter:
+		return false
+	}
+	return true
+}
+
 // Write converts the internal lex.Screenplay format to a LaTeX file.
 // It implements the writer.Writer interface.
 //
@@ -299,7 +309,7 @@ func preprocessDualDialogue(screenplay lex.Screenplay) lex.Screenplay {
 // The PDF generation step is external to this Go program.
 func (l *LaTeXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	// Preprocess screenplay to handle dual dialogue; notes are not printed
-	screenplay = preprocessDualDialogue(lex.Printable(screenplay, false))
+	screenplay = preprocessDualDialogue(lex.Printable(screenplay, printsNot))
 
 	// Get template configuration from rules
 	config := l.getLatexConfig()

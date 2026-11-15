@@ -131,7 +131,7 @@ type ParseState struct {
 // Parse converts a Fountain file into the internal lex.Screenplay format.
 // TypeBoneyard is a line of Fountain's boneyard (/* ... */): kept, not
 // printed.
-const TypeBoneyard = "boneyard"
+const TypeBoneyard = lex.TypeBoneyard
 
 func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 	Scene = scenes

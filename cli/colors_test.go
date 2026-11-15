@@ -298,8 +298,10 @@ func TestSectionBlocks(t *testing.T) {
 		}
 		// one bar of the act's on each page after the title page (not one
 		// a scene: there are 12), the red scene's on the pages it is on
-		// (it breaks over two here), the act's again after it
-		if nb, nr := bars(blue), bars(red); pages < 4 || nr < 1 || nr > 2 || nb != pages-1 {
+		// (it breaks over two here), the act's again after it; none on the
+		// last page, Act Two's alone (the blank lines before it are not
+		// the act's to carry over)
+		if nb, nr := bars(blue), bars(red); pages < 4 || nr < 1 || nr > 2 || nb != pages-2 {
 			t.Errorf("%q: %d pages, %d blue bars, %d red", flags, pages, nb, nr)
 		}
 	}
@@ -380,5 +382,123 @@ func TestColorGapsAndPatterns(t *testing.T) {
 	plain := zipFile(t, export("docx", "-colors"), "word/document.xml")
 	if !regexp.MustCompile(`One\.</w:t></w:r></w:p><w:p>(<w:pPr><w:pStyle[^>]*/></w:pPr>)?</w:p>`).MatchString(plain) {
 		t.Errorf("docx: no gap after the first block")
+	}
+}
+
+// pdfPages are a PDF's pages (the content streams that print text): the
+// baselines of their lines of text, and their bars (barRects), in points
+// from the foot of the page.
+func pdfPages(t *testing.T, b []byte) (lines [][]float64, bars [][][3]float64) {
+	t.Helper()
+	text := regexp.MustCompile(`BT ([\d.]+) ([\d.]+) Td \((.*?)\)Tj ET`)
+	for _, m := range pdfStream.FindAllSubmatch(b, -1) {
+		r, err := zlib.NewReader(bytes.NewReader(m[1]))
+		if err != nil {
+			continue
+		}
+		d, err := io.ReadAll(r)
+		if err != nil || !bytes.Contains(d, []byte(" Td (")) {
+			continue
+		}
+		var ys []float64
+		for _, tm := range text.FindAllSubmatch(d, -1) {
+			if strings.TrimSpace(string(tm[3])) == "" {
+				continue
+			}
+			var y float64
+			fmt.Sscan(string(tm[2]), &y)
+			ys = append(ys, y)
+		}
+		lines, bars = append(lines, ys), append(bars, barRects(string(d)))
+	}
+	return lines, bars
+}
+
+// A block's bar is beside the lines of its text on a page and nothing
+// else: never on into the blank lines after the block's last line at a
+// page's foot, nor down from the blank lines before its first at the
+// next block's start (Joop's script: a bar on to the foot of the page,
+// a stub beside nothing at a page's top or foot). Scripts with the
+// boundaries at every line of the page.
+func TestColorBarsBesideText(t *testing.T) {
+	dir := t.TempDir()
+	in, out := filepath.Join(dir, "t.fountain"), filepath.Join(dir, "t.pdf")
+	conf := []string{"-config", filepath.Join(dir, "none.toml")}
+	// a line's cell: from 9.54pt above its baseline to 2.34pt below
+	const above, below, slack = 9.54, 2.34, 0.5
+	for k := 0; k < 56; k++ {
+		var b strings.Builder
+		b.WriteString("INT. LEAD - DAY\n\n")
+		for i := 0; i < k; i++ {
+			b.WriteString("Pad.\n")
+		}
+		b.WriteString("\nINT. BLUE - DAY [[blue]]\n\n")
+		for i := 0; i < 20; i++ {
+			fmt.Fprintf(&b, "Blue line %d.\n\n", i)
+		}
+		b.WriteString("\n\nINT. PLAIN - DAY\n\nPlain.\n\n# Part [[green]]\n\n\n\nINT. GREEN - DAY [[green]]\n\n")
+		for i := 0; i < 20; i++ {
+			fmt.Fprintf(&b, "Green line %d.\n\n", i)
+		}
+		b.WriteString("\n\nINT. END - DAY\n\nThe end.\n")
+		if err := os.WriteFile(in, []byte(b.String()), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		for _, flags := range [][]string{{"-colors"}, {"-colortint"}} {
+			if got := Main(context.Background(), append(append([]string{"-i", in, "-o", out}, conf...), flags...)); got != 0 {
+				t.Fatalf("exit %d", got)
+			}
+			data, _ := os.ReadFile(out)
+			lines, bars := pdfPages(t, data)
+			for p := range lines {
+				for _, r := range bars[p] {
+					top, bottom := r[0], r[1]
+					lo, hi, n := 1e9, -1e9, 0 // the baselines beside it
+					for _, y := range lines[p] {
+						if y-below < top && y+above > bottom {
+							lo, hi, n = min(lo, y), max(hi, y), n+1
+						}
+					}
+					if n == 0 || top > hi+above+slack || bottom < lo-below-slack {
+						t.Errorf("%d lines before, %q, page %d: a bar from %.2f to %.2f beside %d lines of text from %.2f to %.2f",
+							k, flags, p+1, top, bottom, n, hi+above, lo-below)
+					}
+				}
+			}
+		}
+	}
+}
+
+// Sections, synopses, the boneyard and notes are "ignored completely" in
+// the PDF: the lines print where they would without them.
+func TestHiddenLinesLeaveNoBlank(t *testing.T) {
+	dir := t.TempDir()
+	conf := []string{"-config", filepath.Join(dir, "none.toml")}
+	baselines := func(script string) []float64 {
+		t.Helper()
+		in, out := filepath.Join(dir, "t.fountain"), filepath.Join(dir, "t.pdf")
+		if err := os.WriteFile(in, []byte(script), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := Main(context.Background(), append([]string{"-i", in, "-o", out}, conf...)); got != 0 {
+			t.Fatalf("exit %d", got)
+		}
+		data, _ := os.ReadFile(out)
+		lines, _ := pdfPages(t, data)
+		var all []float64
+		for _, l := range lines {
+			all = append(all, l...)
+		}
+		return all
+	}
+	want := fmt.Sprint(baselines("INT. A - DAY\n\nOne.\n\nTwo.\n\n===\n\nThree.\n"))
+	for _, script := range []string{
+		"# Act\n\nINT. A - DAY\n\nOne.\n\n= What happens.\n\nTwo.\n\n===\n\nThree.\n",
+		"INT. A - DAY\n\nOne.\n\n## Part\n\n= What.\n\n= And more.\n\n[[a note]]\n\nTwo.\n\n===\n\n# Act Two\n\nThree.\n",
+		"INT. A - DAY\n\nOne.\n\n/* gone */\n\nTwo.\n\n===\n\n= At a page's top.\n\nThree.\n",
+	} {
+		if got := fmt.Sprint(baselines(script)); got != want {
+			t.Errorf("%q: lines at %s, want %s", script, got, want)
+		}
 	}
 }

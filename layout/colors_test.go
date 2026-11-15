@@ -45,3 +45,35 @@ func TestColors(t *testing.T) {
 		t.Error("the switch changes the margin")
 	}
 }
+
+// A blank line at a block's edge, or a page's, has none of its colors:
+// only blank lines between two of its lines that print, on one page.
+func TestBlankEdgesUncolored(t *testing.T) {
+	script := "# Part [[green]]\n\n\nINT. A [[blue]]\n\nOne.\n\nTwo.\n\n===\n\nThree.\n\n\n\nINT. B\n\nFour.\n\nINT. C [[green]]\n\nFive.\n"
+	s := fountain.Parse([]string{"INT"}, strings.NewReader(script))
+	for _, set := range []rules.Set{rules.Default.WithColors(), rules.Default.WithColorScheme(lex.ColorScheme{Style: lex.ColorBackground, Block: true})} {
+		ps := Paragraphs(s, set)
+		colored := func(p Paragraph) bool { return p.Colors != (Colors{}) }
+		for i, p := range ps {
+			if p.Type != "" || p.PageBreak || !colored(p) {
+				continue
+			}
+			prev, next := i-1, i+1
+			for prev >= 0 && ps[prev].Type == "" && !ps[prev].PageBreak {
+				prev--
+			}
+			for next < len(ps) && ps[next].Type == "" && !ps[next].PageBreak {
+				next++
+			}
+			if prev < 0 || next >= len(ps) || ps[prev].PageBreak || ps[next].PageBreak || !colored(ps[prev]) || !colored(ps[next]) {
+				t.Errorf("%v: blank paragraph %d colored at an edge", set.ColorScheme(), i)
+			}
+		}
+		// and between One and Two, it is
+		for i, p := range ps {
+			if p.Text() == "One." && !colored(ps[i+1]) {
+				t.Errorf("%v: the blank line within the block has no color", set.ColorScheme())
+			}
+		}
+	}
+}
