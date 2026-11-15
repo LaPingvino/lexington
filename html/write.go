@@ -212,21 +212,21 @@ body {
 <div class="title-meta">{{- $inMeta = true -}}{{-
     else if eq .Type "scene" -}}
 {{- $h := sceneHeading .Contents -}}
-<div class="scene-heading" dir="auto"{{headingColor $.Config.ColorStyle .Color}}>{{markerOpen $.Config.ColorStyle .Color}}{{- processInlineMarkup $h.Text -}}{{markerClose $.Config.ColorStyle .Color}}{{- if $h.Number -}}<span class="scene-number left">{{ $h.Number }}</span><span class="scene-number right">{{ $h.Number }}</span>{{- end -}}</div>{{-
+<div class="scene-heading" dir="auto"{{headingColor $.Config.ColorScheme .Color}}>{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup $h.Text -}}{{markerClose $.Config.ColorScheme .Color}}{{- if $h.Number -}}<span class="scene-number left">{{ $h.Number }}</span><span class="scene-number right">{{ $h.Number }}</span>{{- end -}}</div>{{-
     else if eq .Type "action" "general" -}}
-<div class="action" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
+<div class="action" dir="auto">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
     else if eq .Type "speaker" -}}
-<div class="speaker" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
+<div class="speaker" dir="auto">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
     else if eq .Type "dialog" -}}
-<div class="dialogue" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
+<div class="dialogue" dir="auto">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
     else if eq .Type "lyrics" -}}
-<div class="lyrics" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
+<div class="lyrics" dir="auto">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
     else if eq .Type "paren" -}}
-<div class="parenthetical" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
+<div class="parenthetical" dir="auto">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
     else if eq .Type "trans" -}}
-<div class="transition" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
+<div class="transition" dir="auto">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
     else if eq .Type "center" -}}
-<div class="center" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
+<div class="center" dir="auto">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
     else if eq .Type "newpage" -}}
 {{- if $inMeta -}}</div>{{- $inMeta = false -}}{{- end -}}
 {{- if $inTitle -}}</div>{{- $inTitle = false -}}{{- end -}}
@@ -236,7 +236,7 @@ body {
     else if eq .Type "empty" -}}
 <div class="empty"></div>{{-
     else if eq .Type "colorbar_open" -}}
-<div class="colorbar" style="background: linear-gradient(to right, transparent {{$.Config.BarLeft}}in, {{.Color}} {{$.Config.BarLeft}}in, {{.Color}} calc({{$.Config.BarLeft}}in + {{$.Config.BarWidth}}in), transparent calc({{$.Config.BarLeft}}in + {{$.Config.BarWidth}}in))">{{-
+<div class="colorbar" style="{{css .Contents}}">{{-
     else if eq .Type "colorbar_close" -}}
 </div>{{-
     else if eq .Type "dualspeaker_open" -}}
@@ -299,11 +299,9 @@ type TemplateConfig struct {
 	DualParenLeft     float64
 	DualParenRight    float64
 
-	// ColorStyle: how scene headings show their notes' colors
-	// (lex.ColorStyle); "" when they do not
-	ColorStyle string
-	BarLeft    float64 // where a scene's color bar is, in inches from the text's edge
-	BarWidth   float64
+	// ColorScheme: how scene headings show their notes' colors
+	// (lex.ColorScheme's String); "" when they do not
+	ColorScheme string
 
 	// Style configuration
 	SceneStyle  template.CSS
@@ -312,6 +310,14 @@ type TemplateConfig struct {
 }
 
 // getTemplateConfig creates TemplateConfig from rules configuration
+// elements are the writer's rules, rules.Default if it has none.
+func (h *HTMLWriter) elements() rules.Set {
+	if h.Elements == nil {
+		return rules.Default
+	}
+	return h.Elements
+}
+
 func (h *HTMLWriter) getTemplateConfig() TemplateConfig {
 	elements := h.Elements
 	if elements == nil {
@@ -408,9 +414,7 @@ func (h *HTMLWriter) getTemplateConfig() TemplateConfig {
 		DualParenLeft:     dualParenLeft,
 		DualParenRight:    dualParen.Right,
 
-		ColorStyle: colorStyleOf(elements),
-		BarLeft:    action.Left - barGap,
-		BarWidth:   barWidth,
+		ColorScheme: colorSchemeOf(elements),
 
 		// Style configuration
 		SceneStyle:  sceneStyle,
@@ -428,7 +432,7 @@ func (h *HTMLWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	// Create combined template data
 	templateData := HTMLTemplateData{
 		Config:     config,
-		Screenplay: withBars(lex.Printable(screenplay, false), config.ColorStyle), // notes are not printed
+		Screenplay: withBlocks(lex.Printable(screenplay, false), config.ColorScheme, h.elements()), // notes are not printed
 	}
 
 	// Parse and execute the HTML template with better error context
@@ -436,6 +440,7 @@ func (h *HTMLWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		"processInlineMarkup": processInlineMarkup,
 		"sceneHeading":        sceneHeading,
 		"headingColor":        headingColor,
+		"css":                 func(s string) template.CSS { return template.CSS(s) },
 		"markerOpen":          markerOpen,
 		"markerClose":         markerClose,
 	}).Parse(htmlTemplateString)
@@ -472,27 +477,33 @@ func printHeight(page string) string {
 	return "9in"
 }
 
-// colorStyleOf is how the rules show colors, "" when they do not.
-func colorStyleOf(set rules.Set) string {
+// colorSchemeOf is how the rules show colors, "" when they do not.
+func colorSchemeOf(set rules.Set) string {
 	if !set.ShowsColors() {
 		return ""
 	}
-	return string(set.ColorStyle())
+	return set.ColorScheme().String()
 }
 
 // The bar of a scene's color: its width, and how far it is before the
 // action's text, in inches.
 const (
 	barWidth = 0.04
-	barGap   = 0.3
+	barGap   = 1.0
 )
 
-// hexFor is a color in a style (lex.ColorFor), "" for none.
-func hexFor(style, color string) string {
-	if style == "" {
-		return ""
+// scheme reads the template's color scheme; ok is false for none.
+func scheme(text string) (lex.ColorScheme, bool) {
+	if text == "" {
+		return lex.ColorScheme{}, false
 	}
-	c, ok := lex.ColorFor(lex.ColorStyle(style), color)
+	sch, err := lex.ParseColorScheme(text)
+	return sch, err == nil
+}
+
+// hexFor is a color in a style (lex.ColorFor), "" for none.
+func hexFor(style lex.ColorStyle, color string) string {
+	c, ok := lex.ColorFor(style, color)
 	if !ok {
 		return ""
 	}
@@ -500,66 +511,104 @@ func hexFor(style, color string) string {
 }
 
 // headingColor is the style attribute of a heading in its color: the
-// text's color, or a band behind it.
-func headingColor(style, color string) template.HTMLAttr {
-	hex := hexFor(style, color)
+// text's color, or a band behind it (the heading's alone; a block's band
+// is its wrapper's).
+func headingColor(text, color string) template.HTMLAttr {
+	sch, ok := scheme(text)
 	switch {
-	case hex == "":
-	case style == string(lex.ColorText):
-		return template.HTMLAttr(` style="color: ` + hex + `"`)
-	case style == string(lex.ColorBackground):
-		return template.HTMLAttr(` style="background-color: ` + hex + `"`)
+	case !ok:
+	case sch.Style == lex.ColorText && hexFor(lex.ColorText, color) != "":
+		return template.HTMLAttr(` style="color: ` + hexFor(lex.ColorText, color) + `"`)
+	case sch.Style == lex.ColorBackground && !sch.Block && hexFor(lex.ColorBackground, color) != "":
+		return template.HTMLAttr(` style="background-color: ` + hexFor(lex.ColorBackground, color) + `"`)
 	}
 	return ""
 }
 
-// markerOpen and markerClose put a heading's text in a marker.
-func markerOpen(style, color string) template.HTML {
-	if hex := hexFor(style, color); hex != "" && style == string(lex.ColorMarker) {
-		return template.HTML(`<span class="marker" style="background-color: ` + hex + `">`)
+// markerOpen and markerClose put a line's text in a marker: a heading's,
+// or every line's of a block (withBlocks gives them its color).
+func markerOpen(text, color string) template.HTML {
+	if sch, ok := scheme(text); ok && sch.Style == lex.ColorMarker && hexFor(lex.ColorMarker, color) != "" {
+		return template.HTML(`<span class="marker" style="background-color: ` + hexFor(lex.ColorMarker, color) + `">`)
 	}
 	return ""
 }
 
-func markerClose(style, color string) template.HTML {
-	if hexFor(style, color) != "" && style == string(lex.ColorMarker) {
+func markerClose(text, color string) template.HTML {
+	if markerOpen(text, color) != "" {
 		return "</span>"
 	}
 	return ""
 }
 
-// Lines the template gets around the lines of a scene or section with a
-// color, in the line style: a bar beside them (Color, as #rrggbb).
+// Lines the template gets around a block of a color (a scene, or a
+// section whole) in the line style or a background over blocks: their
+// Contents is the wrapper's CSS (a bar, a band).
 const (
 	typeBarOpen  = "colorbar_open"
 	typeBarClose = "colorbar_close"
 )
 
-// withBars puts the lines of each scene and section with a color between
-// bar lines; a page break closes the bar, the next page opens it again.
-func withBars(s lex.Screenplay, style string) lex.Screenplay {
-	if style != string(lex.ColorLine) {
+// withBlocks puts the lines of each block of a color (a scene or section
+// with one, a color on a section covering it whole, a scene's own color
+// its own span) between wrapper lines with its bar or band; a page break
+// closes the wrapper, the next page opens it again. For a marker over
+// blocks, every line gets its block's color.
+func withBlocks(s lex.Screenplay, text string, set rules.Set) lex.Screenplay {
+	sch, ok := scheme(text)
+	if !ok || !(sch.Style == lex.ColorLine || sch.Block) {
 		return s
+	}
+	action := set.Get("action")
+	left, right := action.Left-0.05, action.Right-0.05
+	css := func(color string) string {
+		var layers []string
+		if sch.Style == lex.ColorLine {
+			if bar := hexFor(lex.ColorLine, color); bar != "" {
+				x := action.Left - barGap
+				layers = append(layers, fmt.Sprintf("linear-gradient(to right, transparent %.2fin, %s %.2fin, %s %.2fin, transparent %.2fin)",
+					x, bar, x, bar, x+barWidth, x+barWidth))
+			}
+		}
+		band := ""
+		switch {
+		case sch.Style == lex.ColorLine && sch.Tint:
+			band = hexFor(lex.ColorTint, color)
+		case sch.Style == lex.ColorBackground:
+			band = hexFor(lex.ColorBackground, color)
+		}
+		if band != "" {
+			layers = append(layers, fmt.Sprintf("linear-gradient(to right, transparent %.2fin, %s %.2fin, %s calc(100%% - %.2fin), transparent calc(100%% - %.2fin))",
+				left, band, left, band, right, right))
+		}
+		if len(layers) == 0 {
+			return ""
+		}
+		return "background: " + strings.Join(layers, ", ")
 	}
 	var out lex.Screenplay
 	open, color := "", ""
 	for _, l := range s {
 		if l.Type == lex.TypeScene || l.Type == lex.TypeSection {
-			color = hexFor(style, l.Color)
+			color = l.Color
 		}
-		want := color
+		want := ""
 		switch l.Type {
 		case lex.TypeNewPage, lex.TypeTitlePage:
-			want = ""
+		default:
+			want = css(color)
 		}
 		if want != open {
 			if open != "" {
 				out = append(out, lex.Line{Type: typeBarClose})
 			}
 			if want != "" {
-				out = append(out, lex.Line{Type: typeBarOpen, Color: want})
+				out = append(out, lex.Line{Type: typeBarOpen, Contents: want})
 			}
 			open = want
+		}
+		if sch.Style == lex.ColorMarker && l.Type != lex.TypeScene && l.Type != lex.TypeSection {
+			l.Color = color
 		}
 		out = append(out, l)
 	}

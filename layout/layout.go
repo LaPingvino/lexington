@@ -73,24 +73,38 @@ type Colors struct {
 	Color, Marker, Background, Bar string
 }
 
-// colors are a heading's (or a scene line's) colors in a style.
-func colors(style lex.ColorStyle, color string, heading bool) Colors {
-	c, ok := lex.ColorFor(style, color)
-	if !ok {
-		return Colors{}
+// colors are a line's colors in a scheme: of the block it is in (its
+// scene or section, which a color on a section covers whole), a heading
+// being its block's first line.
+func colors(sch lex.ColorScheme, color string, heading bool) Colors {
+	hex := func(style lex.ColorStyle) string {
+		c, ok := lex.ColorFor(style, color)
+		if !ok {
+			return ""
+		}
+		return lex.HexOf(c)
 	}
-	hex := lex.HexOf(c)
-	switch {
-	case style == lex.ColorLine:
-		return Colors{Bar: hex}
-	case !heading:
-		return Colors{}
-	case style == lex.ColorMarker:
-		return Colors{Marker: hex}
-	case style == lex.ColorBackground:
-		return Colors{Background: hex}
+	var out Colors
+	switch sch.Style {
+	case lex.ColorLine:
+		out.Bar = hex(lex.ColorLine)
+		if sch.Tint {
+			out.Background = hex(lex.ColorTint)
+		}
+	case lex.ColorMarker:
+		if heading || sch.Block {
+			out.Marker = hex(lex.ColorMarker)
+		}
+	case lex.ColorBackground:
+		if heading || sch.Block {
+			out.Background = hex(lex.ColorBackground)
+		}
+	case lex.ColorText:
+		if heading {
+			out.Color = hex(lex.ColorText)
+		}
 	}
-	return Colors{Color: hex}
+	return out
 }
 
 // Text is the line's text without styles.
@@ -180,7 +194,7 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 	s = lex.Printable(s, set.PrintsNotes())
 	var out []Paragraph
 	block, column := "", 0
-	style, color := set.ColorStyle(), "" // color: of the scene or section the row is in
+	sch, color := set.ColorScheme(), "" // color: of the scene or section the row is in
 	for _, row := range s {
 		t := row.Type
 		if !set.ShowsColors() {
@@ -191,7 +205,7 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 		}
 		bar := Colors{}
 		if block == "" && t != lex.TypeTitlePage && t != lex.TypeNewPage {
-			bar = colors(style, color, false)
+			bar = colors(sch, color, false)
 		}
 		switch t {
 		case lex.TypeNewPage:
@@ -257,7 +271,7 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 			Underline: strings.Contains(f.Style, "u")}
 		cs := bar
 		if t == lex.TypeScene || t == lex.TypeSection {
-			cs = colors(style, row.Color, true)
+			cs = colors(sch, row.Color, true)
 		}
 		out = append(out, Paragraph{Type: t, Block: block, Key: key, Left: left, Right: right, Align: align,
 			Spans: emphasis(text, base), Column: column, SceneNumber: number, Colors: cs})

@@ -75,8 +75,8 @@ func (t Tree) pr(a string, text string) {
 		}
 	}
 	text = f.Prefix + text + f.Postfix
-	if (a == "scene" || a == "section") && t.bar != nil {
-		t.headingColor(f, text, t.bar.heading)
+	if t.bar != nil && strings.TrimSpace(text) != "" {
+		t.headingColor(f, text, t.bar.block, a == "scene" || a == "section")
 	}
 	t.linePrint(f, text)
 }
@@ -109,14 +109,16 @@ func (t *Tree) Render() {
 	if t.bar == nil {
 		t.bar = &colorBar{}
 	}
-	style := lex.ColorStyle("")
+	style, sch := lex.ColorStyle(""), lex.ColorScheme{}
 	if t.Rules.ShowsColors() {
-		style = t.Rules.ColorStyle()
+		sch = t.Rules.ColorScheme()
+		style = sch.Style
 	}
 	for _, row := range t.F {
 		if row.Type == lex.TypeScene || row.Type == lex.TypeSection {
-			t.bar.color, t.bar.heading = "", row.Color
-			if style == lex.ColorLine {
+			// the block of a color (a scene, a section whole) starts
+			t.bar.color, t.bar.block = "", row.Color
+			if style == lex.ColorLine || (sch.Block && style == lex.ColorBackground) {
 				t.bar.color = row.Color
 			}
 		}
@@ -172,8 +174,8 @@ func (t *Tree) Render() {
 // style): drawn a page at a time, from top to bottom of what it is beside
 // there.
 type colorBar struct {
-	color       string // of the bar's scene or section; "" for none
-	heading     string // the color of the heading (marker, background)
+	color       string // of the block drawn beside (bar) or under (band); "" for none
+	block       string // the color of the block the line is in (its heading's)
 	drawn       string // the color of the bar drawn so far
 	page        int
 	top, bottom float64
@@ -219,26 +221,52 @@ func (t *Tree) closeBar() {
 	if b == nil || b.drawn == "" {
 		return
 	}
-	if c, ok := lex.ColorFor(lex.ColorLine, b.drawn); ok && b.bottom > b.top {
+	sch := t.Rules.ColorScheme()
+	band := lex.ColorStyle("")
+	switch {
+	case sch.Style == lex.ColorLine && sch.Tint:
+		band = lex.ColorTint
+	case sch.Style == lex.ColorBackground && sch.Block:
+		band = lex.ColorBackground
+	}
+	if b.bottom > b.top {
 		now := t.PDF.PageNo()
 		t.PDF.SetPage(b.page)
-		t.PDF.SetFillColor(int(c[0]), int(c[1]), int(c[2]))
-		x := (t.Rules.Get("action").Left - barGap) // the rules are scaled to the page already
-		t.PDF.Rect(x, b.top, barWidth*t.sc(), b.bottom-b.top, "F")
+		action := t.Rules.Get("action") // (scaled to the page already)
+		if c, ok := lex.ColorFor(band, b.drawn); ok && band != "" {
+			// a band across the text under the block: drawn after its text,
+			// multiplied, so that the text stays as it is (black on it)
+			pageWidth, _ := t.PDF.GetPageSize()
+			t.PDF.SetAlpha(1, "Multiply")
+			t.PDF.SetFillColor(int(c[0]), int(c[1]), int(c[2]))
+			t.PDF.Rect(action.Left-0.05, b.top, pageWidth-action.Left-action.Right+0.1, b.bottom-b.top, "F")
+			t.PDF.SetAlpha(1, "Normal")
+		}
+		if c, ok := lex.ColorFor(lex.ColorLine, b.drawn); ok && sch.Style == lex.ColorLine {
+			t.PDF.SetFillColor(int(c[0]), int(c[1]), int(c[2]))
+			t.PDF.Rect(action.Left-barGap, b.top, barWidth*t.sc(), b.bottom-b.top, "F")
+		}
 		t.PDF.SetPage(now)
 	}
 	b.drawn = ""
 }
 
-// headingColor draws a heading's marker or background before its text is
-// printed over it.
-func (t Tree) headingColor(f rules.Format, text, color string) {
+// headingColor draws a marker behind a line's text (a heading's, or any
+// line's of a block with a marker over blocks), or a heading's background,
+// before the text is printed over it.
+func (t Tree) headingColor(f rules.Format, text, color string, heading bool) {
 	if !t.Rules.ShowsColors() {
 		return
 	}
-	style := t.Rules.ColorStyle()
+	sch := t.Rules.ColorScheme()
+	style := sch.Style
 	c, ok := lex.ColorFor(style, color)
-	if !ok || (style != lex.ColorMarker && style != lex.ColorBackground) {
+	switch {
+	case !ok:
+		return
+	case style == lex.ColorMarker && (heading || sch.Block):
+	case style == lex.ColorBackground && heading && !sch.Block:
+	default:
 		return
 	}
 	pdf := t.PDF
