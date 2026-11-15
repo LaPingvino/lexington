@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-15
+
+### Fixed
+- **Colour bands and bars over every element**: the background band and the
+  bar were placed by the action's margins only, so in formats that put names
+  or dialogue further out (Inverse, the radio and stage play formats) text
+  stood outside the band and left of the bar. They now span the leftmost to
+  the rightmost margin of the elements.
+
 ## [1.5.0] - 2026-11-15
 
 ### New Features
