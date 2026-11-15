@@ -63,7 +63,7 @@ func TestBigFishSides(t *testing.T) {
 		if l.Type == lex.TypeSpeaker && !edward(l) {
 			// a cue: one line, its last four words, then EDWARD
 			if i+3 >= len(cue) || cue[i+1].Type != lex.TypeDialog || len(strings.Fields(cue[i+1].Contents)) > 4 || !edward(cue[i+3]) {
-				t.Fatalf("cue at %d: %q", i, cue[i:min(i+4, len(cue))])
+				t.Fatalf("cue at %d: %v", i, cue[i:min(i+4, len(cue))])
 			}
 		}
 	}

@@ -218,7 +218,7 @@ func TestColorBlocks(t *testing.T) {
 			if !strings.Contains(html, `<span class="marker" style="background-color: `+h+`">Rain falls.`) {
 				t.Errorf("html %q: no marker on the scene's lines", c.flags)
 			}
-		} else if !regexp.MustCompile(`<div class="colorbar" style="background: [^"]*`+h+`[^"]*">`).MatchString(html) ||
+		} else if !regexp.MustCompile(`<div class="colorbar" style="background-image: [^"]*`+h+`[^"]*">`).MatchString(html) ||
 			!strings.Contains(html[strings.Index(html, "colorbar"):], "Hi.") {
 			t.Errorf("html %q: no band over the block", c.flags)
 		}
@@ -302,5 +302,83 @@ func TestSectionBlocks(t *testing.T) {
 		if nb, nr := bars(blue), bars(red); pages < 4 || nr < 1 || nr > 2 || nb != pages-1 {
 			t.Errorf("%q: %d pages, %d blue bars, %d red", flags, pages, nb, nr)
 		}
+	}
+}
+
+// barRects are the rectangles of a PDF's color bars (at 36pt from the
+// page's edge), in order: their top and bottom, in points from the foot
+// of the page, and their width.
+func barRects(content string) (out [][3]float64) {
+	for _, m := range regexp.MustCompile(`(?m)^36\.00 ([\d.]+) ([\d.]+) -([\d.]+) re f$`).FindAllStringSubmatch(content, -1) {
+		var top, w, h float64
+		fmt.Sscan(m[1], &top)
+		fmt.Sscan(m[2], &w)
+		fmt.Sscan(m[3], &h)
+		out = append(out, [3]float64{top, top - h, w})
+	}
+	return out
+}
+
+// Where one block ends and another begins, the bar has a gap: between
+// colors, and between two scenes of the same color; patterns make each
+// color's bar a shape of its own, in every format that has bars.
+func TestColorGapsAndPatterns(t *testing.T) {
+	dir := t.TempDir()
+	in := filepath.Join(dir, "t.fountain")
+	script := "INT. A - DAY [[blue]]\n\nOne.\n\nINT. B - DAY [[blue]]\n\nTwo.\n\nINT. C - DAY [[red]]\n\nThree.\n\nINT. D - DAY\n\nFour.\n"
+	if err := os.WriteFile(in, []byte(script), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	export := func(to string, flags ...string) []byte {
+		t.Helper()
+		out := filepath.Join(dir, "out."+to)
+		if got := Main(context.Background(), append([]string{"-i", in, "-to", to, "-o", out, "-config", filepath.Join(dir, "none.toml")}, flags...)); got != 0 {
+			t.Fatalf("%s %q: exit %d", to, flags, got)
+		}
+		b, _ := os.ReadFile(out)
+		return b
+	}
+	bars := barRects(pdfContent(t, export("pdf", "-colors")))
+	if len(bars) != 3 {
+		t.Fatalf("%d bars, want 3 (blue, blue, red): %v", len(bars), bars)
+	}
+	for i := 1; i < len(bars); i++ { // at least 6pt between one and the next
+		if gap := bars[i-1][1] - bars[i][0]; gap < 6 {
+			t.Errorf("bar %d: a gap of %.1fpt after the one before", i, gap)
+		}
+	}
+	// with patterns: blue's dashes, red's solid, in more rectangles
+	patterned := pdfContent(t, export("pdf", "-colorpatterns"))
+	blue, _ := lex.ColorFor(lex.ColorLine, "blue")
+	red, _ := lex.ColorFor(lex.ColorLine, "red")
+	ops := func(c [3]uint8) string { // the drawing after a color's fill, up to the next fill
+		rg := fmt.Sprintf("%.3f %.3f %.3f rg", float64(c[0])/255, float64(c[1])/255, float64(c[2])/255)
+		i := strings.Index(patterned, rg)
+		if i < 0 {
+			return ""
+		}
+		rest := patterned[i+len(rg):]
+		if j := strings.Index(rest, " rg"); j >= 0 {
+			rest = rest[:j]
+		}
+		return regexp.MustCompile(`[\d.]+ [\d.]+ ([\d.]+) -([\d.]+) re f`).ReplaceAllString(rest, "w$1 h$2")
+	}
+	if b, r := ops(blue), ops(red); b == "" || r == "" || strings.Count(b, "re f")+strings.Count(b, " h") < 3 || b == r {
+		t.Errorf("patterns: blue %q, red %q", b, r)
+	}
+	// docx and odt: the borders' styles
+	docx := zipFile(t, export("docx", "-colorpatterns"), "word/document.xml")
+	odt := zipFile(t, export("odt", "-colorpatterns"), "content.xml")
+	for _, c := range []string{"blue", "red"} {
+		p := lex.BarPattern(c)
+		if !strings.Contains(docx, `<w:left w:val="`+p.Name+`"`) || !strings.Contains(odt, " "+p.ODF+" ") {
+			t.Errorf("%s: no %s / %s border", c, p.Name, p.ODF)
+		}
+	}
+	// docx without patterns: a blank paragraph without a border between
+	// the blocks
+	plain := zipFile(t, export("docx", "-colors"), "word/document.xml")
+	if !regexp.MustCompile(`One\.</w:t></w:r></w:p><w:p>(<w:pPr><w:pStyle[^>]*/></w:pPr>)?</w:p>`).MatchString(plain) {
+		t.Errorf("docx: no gap after the first block")
 	}
 }

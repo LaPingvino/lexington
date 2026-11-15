@@ -161,6 +161,9 @@ type Options struct {
 	// ColorTint puts a light tint under a line's block. A scope or a tint
 	// switches colors on too.
 	ColorTint bool
+	// ColorPatterns draws a line's bar in its color's pattern
+	// (lex.BarPattern), for those who tell colors apart badly.
+	ColorPatterns bool
 	// Tags keep only the scenes and sections with one of them as a note
 	// (lex.FilterTags).
 	Tags []string
@@ -191,6 +194,9 @@ func colorScheme(o Options, sch lex.ColorScheme) (lex.ColorScheme, error) {
 	}
 	if o.ColorTint {
 		sch.Tint = true
+	}
+	if o.ColorPatterns {
+		sch.Patterns = true
 	}
 	return lex.ParseColorScheme(sch.String()) // a combination that is one
 }
@@ -266,6 +272,8 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 	fs.StringVar(&o.ColorScope, "colorscope", "",
 		"What a marker or background covers: heading (the default) or block (the scene, or a section whole, with the color).")
 	fs.BoolVar(&o.ColorTint, "colortint", false, "With the line style: a light tint under the block too.")
+	fs.BoolVar(&o.ColorPatterns, "colorpatterns", false,
+		"With the line style: each color's bar in a pattern of its own (dashes, dots, double, ...), not told apart by hue alone.")
 	fs.Var((*tagList)(&o.Tags), "tag",
 		"Keep only the scenes and sections with this note ([[London]]) or color, with all under them; give it more than once for any of several.")
 	fs.StringVar(&o.Character, "character", "", "Keep this character's sides; needs -sides.")
@@ -357,7 +365,7 @@ func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.S
 	if err != nil {
 		return err
 	}
-	if o.Colors || o.ColorStyle != "" || o.ColorScope != "" || o.ColorTint {
+	if o.Colors || o.ColorStyle != "" || o.ColorScope != "" || o.ColorTint || o.ColorPatterns {
 		// the element settings with colors on, for every writer
 		set := conf.Elements[o.Elements]
 		sch, err := colorScheme(o, set.ColorScheme())

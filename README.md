@@ -196,6 +196,11 @@ lexington -colors -i script.fountain -o script.pdf
 lexington -colorstyle marker -i script.fountain -o script.docx
 lexington -colorstyle background -colorscope block -i script.fountain -o script.pdf
 lexington -colortint -i script.fountain -o script.html   # line+tint
+# Blocks are always apart: a gap (a blank line) between one block and the
+# next, also of the same color. -colorpatterns gives each color's bar a
+# pattern of its own (dashes, dots, double, ...), so that it does not
+# rest on hue alone; docx and odt use their nearest border styles.
+lexington -colorpatterns -i script.fountain -o script.pdf
 
 # only the scenes and sections with a note [[London]] or [[New York]]
 # (whole note, any case; a color is a tag too), with all under them
@@ -212,7 +217,8 @@ lexington -character EDWARD -sides cue -cuewords 5 -i bigfish.fdx -o edward.pdf
 The title page stays, scene numbers are the script's own, and the
 sections above a scene that is kept stay as headings. In a settings
 file, a set's `notecolors` rule switches colors on, its `Style` the
-color scheme: `line`, `marker+block`, `background+block`, `line+tint`, ... Programs use
+color scheme: `line`, `marker+block`, `background+block`, `line+tint`,
+`line+patterns`, ... Programs use
 `lex.FilterTags`, `lex.Sides` and `rules.Set.WithColors`. In FDX, a
 scene's color is Final Draft's scene color either way.
 

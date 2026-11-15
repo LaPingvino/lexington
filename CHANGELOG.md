@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### New Features
+- **Color blocks apart, and patterns** (`-colorpatterns`, `+patterns`):
+  a gap (the blank line) between two color blocks, also of the same
+  color, in every format (`lex.ColorBlocks`, `Line.Block`); each of
+  Beat's twelve colors' bars in a pattern of its own, others by a hash
+  (`lex.BarPattern`), Word's and ODF's nearest border styles in docx
+  and odt.
 - **Color blocks** (`-colorscope heading|block`, `-colortint`; schemes
   such as `marker+block`, `background+block`, `line+tint`): a marker or
   background over the whole scene, or section, with the color, page by
