@@ -24,13 +24,18 @@ type Set map[string]Format
 type ConfigKey string
 
 const (
-	KeyAction      ConfigKey = "action"
-	KeySpeaker     ConfigKey = "speaker"
-	KeyDialog      ConfigKey = "dialog"
-	KeyScene       ConfigKey = "scene"
-	KeyParen       ConfigKey = "paren"
-	KeyTrans       ConfigKey = "trans"
-	KeyNote        ConfigKey = "note"
+	KeyAction  ConfigKey = "action"
+	KeySpeaker ConfigKey = "speaker"
+	KeyDialog  ConfigKey = "dialog"
+	KeyScene   ConfigKey = "scene"
+	KeyParen   ConfigKey = "paren"
+	KeyTrans   ConfigKey = "trans"
+	// KeyPrintNotes is the format of lines that are only Fountain notes
+	// ([[...]]), which are printed only when a set has this rule (a
+	// visible one). Notes inside a line are never printed. (The rule is
+	// not called "note": that one was in Default, and so is in the
+	// configuration files written with it, from before notes were read.)
+	KeyPrintNotes  ConfigKey = "printnotes"
 	KeyAllCaps     ConfigKey = "allcaps"
 	KeyEmpty       ConfigKey = "empty"
 	KeyDualSpeaker ConfigKey = "dualspeaker"
@@ -52,7 +57,7 @@ func (k ConfigKey) String() string {
 func (k ConfigKey) IsValid() bool {
 	switch k {
 	case KeyAction, KeySpeaker, KeyDialog, KeyScene, KeyParen, KeyTrans,
-		KeyNote, KeyAllCaps, KeyEmpty, KeyDualSpeaker, KeyDualDialog,
+		KeyPrintNotes, KeyAllCaps, KeyEmpty, KeyDualSpeaker, KeyDualDialog,
 		KeyDualParen, KeyTitle, KeyMeta, KeyCenter, KeyLyrics, KeySection:
 		return true
 	default:
@@ -76,6 +81,13 @@ func (s Set) GetWithKey(key ConfigKey) Format {
 
 	// Apply defaults for missing values
 	return s.applyDefaults(f)
+}
+
+// PrintsNotes reports whether the set prints lines that are only notes:
+// whether it has a visible printnotes rule.
+func (s Set) PrintsNotes() bool {
+	f, ok := s[KeyPrintNotes.String()]
+	return ok && !f.Hide
 }
 
 // GetSafe retrieves a format safely with error reporting
@@ -188,10 +200,6 @@ var Default = Set{
 		Left:  1.5,
 		Right: 1,
 		Align: "R",
-	},
-	"note": {
-		Left:  1.5,
-		Right: 1,
 	},
 	"allcaps": {
 		Left:  1.5,

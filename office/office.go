@@ -89,7 +89,7 @@ var styleNames = map[string]string{
 	"center":      "Centered",
 	"lyrics":      "Lyrics",
 	"section":     "Section",
-	"note":        "Note",
+	"printnotes":  "Note",
 	"allcaps":     "All Caps",
 	"title":       "Title Page",
 	"meta":        "Title Page Details",
@@ -112,7 +112,7 @@ func prepare(s lex.Screenplay, set rules.Set, page Page) *doc {
 	}
 	for _, l := range s {
 		if l.Type == "Title" && d.title == "" {
-			d.title = strings.TrimSpace(string(l.Contents))
+			d.title = strings.TrimSpace(lex.StripNotes(string(l.Contents)))
 		}
 		if l.Type == lex.TypeTitlePage {
 			d.titlePage = true
