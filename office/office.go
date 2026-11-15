@@ -106,7 +106,7 @@ func prepare(s lex.Screenplay, set rules.Set, page Page) *doc {
 		margin: layout.Margin(set), byKey: map[string]*style{}}
 	d.rightMargin = math.Inf(1)
 	for k, f := range set {
-		if !strings.HasPrefix(k, "dual") && !f.Hide && f.Right < d.rightMargin {
+		if !strings.HasPrefix(k, "dual") && !rules.IsSwitch(k) && !f.Hide && f.Right < d.rightMargin {
 			d.rightMargin = f.Right
 		}
 	}

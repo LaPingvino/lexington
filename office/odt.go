@@ -190,11 +190,15 @@ func (d *doc) odtContent() (string, string) {
 			tabs = `<style:tab-stops><style:tab-stop style:position="` + in(d.textWidth()-st.Left-st.Right) +
 				`" style:type="right"/></style:tab-stops>`
 		}
-		if props != "" || master != "" || tabs != "" {
+		color := ""
+		if p.Color != "" {
+			color = `<style:text-properties fo:color="` + p.Color + `"/>`
+		}
+		if props != "" || master != "" || tabs != "" || color != "" {
 			n++
 			name = fmt.Sprintf("P%d", n)
 			addAuto(name, fmt.Sprintf(`<style:style style:name="%s" style:family="paragraph" style:parent-style-name="%s"%s>`+
-				`<style:paragraph-properties%s>%s</style:paragraph-properties></style:style>`, name, parent, master, props, tabs))
+				`<style:paragraph-properties%s>%s</style:paragraph-properties>%s</style:style>`, name, parent, master, props, tabs, color))
 		}
 		first = false
 		fmt.Fprintf(&body, `<text:p text:style-name="%s">`, name)

@@ -35,7 +35,11 @@ const (
 	// visible one). Notes inside a line are never printed. (The rule is
 	// not called "note": that one was in Default, and so is in the
 	// configuration files written with it, from before notes were read.)
-	KeyPrintNotes  ConfigKey = "printnotes"
+	KeyPrintNotes ConfigKey = "printnotes"
+	// KeyNoteColors, when a set has it (visible), prints scene headings
+	// and sections in the color their notes give them ([[red]],
+	// [[COLOR BLUE]], [[#3366ff]]: lex.NoteColor). Off by default.
+	KeyNoteColors  ConfigKey = "notecolors"
 	KeyAllCaps     ConfigKey = "allcaps"
 	KeyEmpty       ConfigKey = "empty"
 	KeyDualSpeaker ConfigKey = "dualspeaker"
@@ -57,7 +61,7 @@ func (k ConfigKey) String() string {
 func (k ConfigKey) IsValid() bool {
 	switch k {
 	case KeyAction, KeySpeaker, KeyDialog, KeyScene, KeyParen, KeyTrans,
-		KeyPrintNotes, KeyAllCaps, KeyEmpty, KeyDualSpeaker, KeyDualDialog,
+		KeyPrintNotes, KeyNoteColors, KeyAllCaps, KeyEmpty, KeyDualSpeaker, KeyDualDialog,
 		KeyDualParen, KeyTitle, KeyMeta, KeyCenter, KeyLyrics, KeySection:
 		return true
 	default:
@@ -88,6 +92,27 @@ func (s Set) GetWithKey(key ConfigKey) Format {
 func (s Set) PrintsNotes() bool {
 	f, ok := s[KeyPrintNotes.String()]
 	return ok && !f.Hide
+}
+
+// ShowsColors reports whether the set prints headings and sections in
+// their notes' colors: whether it has a visible notecolors rule.
+func (s Set) ShowsColors() bool {
+	f, ok := s[KeyNoteColors.String()]
+	return ok && !f.Hide
+}
+
+// IsSwitch reports whether a key of a set switches something on rather
+// than formats an element (notecolors): it has no margins to count.
+func IsSwitch(key string) bool { return key == KeyNoteColors.String() }
+
+// WithColors is a copy of the set that prints colors (ShowsColors).
+func (s Set) WithColors() Set {
+	out := Set{}
+	for k, f := range s {
+		out[k] = f
+	}
+	out[KeyNoteColors.String()] = Format{}
+	return out
 }
 
 // GetSafe retrieves a format safely with error reporting

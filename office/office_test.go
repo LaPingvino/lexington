@@ -125,3 +125,36 @@ func TestPresetStyles(t *testing.T) {
 		t.Errorf("page %+v", d.page)
 	}
 }
+
+// With colors, a heading's color is the text's color of its paragraph.
+func TestOfficeColors(t *testing.T) {
+	s := fountain.Parse(rules.DefaultConf().Scenes["en"], strings.NewReader("INT. HOUSE - DAY [[blue]]\n\nRain.\n"))
+	for _, c := range []struct {
+		w interface {
+			Write(io.Writer, lex.Screenplay) error
+		}
+		part string
+		want string
+	}{
+		{&DOCXWriter{Elements: rules.Default.WithColors()}, "word/document.xml", `<w:color w:val="0081EF"/>`},
+		{&ODTWriter{Elements: rules.Default.WithColors()}, "content.xml", `fo:color="#0081ef"`},
+		{&DOCXWriter{}, "word/document.xml", ""},
+	} {
+		var buf bytes.Buffer
+		if err := c.w.Write(&buf, s); err != nil {
+			t.Fatal(err)
+		}
+		z, _ := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+		for _, f := range z.File {
+			if f.Name != c.part {
+				continue
+			}
+			r, _ := f.Open()
+			x, _ := io.ReadAll(r)
+			r.Close()
+			if c.want == "" && strings.Contains(string(x), "color") || c.want != "" && !strings.Contains(string(x), c.want) {
+				t.Errorf("%s: want %q", c.part, c.want)
+			}
+		}
+	}
+}

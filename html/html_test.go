@@ -289,3 +289,22 @@ func TestHTMLNotes(t *testing.T) {
 		t.Errorf("html:\n%s", out[strings.Index(out, "<body>"):])
 	}
 }
+
+func TestHTMLColors(t *testing.T) {
+	s := lex.Screenplay{{Type: lex.TypeScene, Contents: "INT. HOUSE - DAY [[red]]"}, {Type: lex.TypeScene, Contents: "INT. YARD [[color nothing]]"}}
+	for _, c := range []struct {
+		set  rules.Set
+		want int
+	}{{rules.Default, 0}, {rules.Default.WithColors(), 1}} {
+		var b bytes.Buffer
+		if err := (&HTMLWriter{Elements: c.set}).Write(&b, s); err != nil {
+			t.Fatal(err)
+		}
+		if n := strings.Count(b.String(), `<div class="scene-heading" dir="auto" style="color: #ef0049">`); n != c.want {
+			t.Errorf("%d colored headings, want %d", n, c.want)
+		}
+		if strings.Contains(b.String(), "nothing") {
+			t.Error("prints a note")
+		}
+	}
+}

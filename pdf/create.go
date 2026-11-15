@@ -124,6 +124,12 @@ func (t *Tree) Render() {
 		if block == internal.ElementTitle || block == elementMeta {
 			row.Type = block
 		}
+		if c, ok := lex.ColorRGB(row.Color); ok && t.Rules.ShowsColors() {
+			t.PDF.SetTextColor(int(c[0]), int(c[1]), int(c[2]))
+			t.pr(row.Type, row.Contents)
+			t.PDF.SetTextColor(0, 0, 0)
+			continue
+		}
 		t.pr(row.Type, row.Contents)
 	}
 

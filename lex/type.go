@@ -38,6 +38,9 @@ type Screenplay []Line
 type Line struct {
 	Type     ElementType
 	Contents Content
+	// Color is the color the notes of a scene heading or section gave it
+	// (NoteColor), set by Printable, which takes the notes out.
+	Color string
 }
 
 // IsDialogueElement returns true if the line is part of dialogue

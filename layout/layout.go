@@ -59,6 +59,9 @@ type Line struct {
 	// SceneNumber of a scene heading (Fountain's #1A#), printed in the
 	// margins; on the heading's first line only.
 	SceneNumber string
+	// Color of a scene heading or section from its notes, as #rrggbb,
+	// when the rules print colors (rules.Set.ShowsColors); else "".
+	Color string
 }
 
 // Text is the line's text without styles.
@@ -111,6 +114,9 @@ type Paragraph struct {
 	Column int
 	// SceneNumber of a scene heading (Fountain's #1A#).
 	SceneNumber string
+	// Color of a scene heading or section from its notes, as #rrggbb,
+	// when the rules print colors (rules.Set.ShowsColors); else "".
+	Color string
 }
 
 // Text is the paragraph's text without styles.
@@ -126,7 +132,7 @@ func Margin(set rules.Set) float64 {
 	}
 	base := set.Get("action").Left
 	for k, f := range set {
-		if !strings.HasPrefix(k, "dual") && !f.Hide && f.Left < base {
+		if !strings.HasPrefix(k, "dual") && !rules.IsSwitch(k) && !f.Hide && f.Left < base {
 			base = f.Left
 		}
 	}
@@ -209,8 +215,12 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 		}
 		style := Span{Bold: strings.Contains(f.Style, "b"), Italic: strings.Contains(f.Style, "i"),
 			Underline: strings.Contains(f.Style, "u")}
+		color := ""
+		if set.ShowsColors() {
+			color = lex.ColorHex(row.Color)
+		}
 		out = append(out, Paragraph{Type: t, Block: block, Key: key, Left: left, Right: right, Align: align,
-			Spans: emphasis(text, style), Column: column, SceneNumber: number})
+			Spans: emphasis(text, style), Column: column, SceneNumber: number, Color: color})
 	}
 	return out
 }
@@ -233,7 +243,7 @@ func Lay(s lex.Screenplay, set rules.Set) []Line {
 		number := p.SceneNumber
 		for _, spans := range wrap(p.Spans, width) {
 			out = append(out, Line{Type: p.Type, Block: p.Block, Indent: indent, Width: width, Align: p.Align,
-				Spans: spans, Column: p.Column, SceneNumber: number})
+				Spans: spans, Column: p.Column, SceneNumber: number, Color: p.Color})
 			number = ""
 		}
 	}

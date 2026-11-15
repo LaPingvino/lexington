@@ -196,15 +196,18 @@ func (d *doc) docxParagraph(b *strings.Builder, p layout.Paragraph, breakBefore 
 	}
 	for _, sp := range p.Spans {
 		b.WriteString(`<w:r>`)
-		if st != nil && (sp.Bold != st.Bold || sp.Italic != st.Italic || sp.Underline != st.Underline) {
+		if p.Color != "" || st != nil && (sp.Bold != st.Bold || sp.Italic != st.Italic || sp.Underline != st.Underline) {
 			b.WriteString(`<w:rPr>`)
-			if sp.Bold != st.Bold {
+			if p.Color != "" {
+				fmt.Fprintf(b, `<w:color w:val="%s"/>`, strings.ToUpper(p.Color[1:]))
+			}
+			if st != nil && sp.Bold != st.Bold {
 				b.WriteString(onOff("b", sp.Bold))
 			}
-			if sp.Italic != st.Italic {
+			if st != nil && sp.Italic != st.Italic {
 				b.WriteString(onOff("i", sp.Italic))
 			}
-			if sp.Underline != st.Underline {
+			if st != nil && sp.Underline != st.Underline {
 				if sp.Underline {
 					b.WriteString(`<w:u w:val="single"/>`)
 				} else {

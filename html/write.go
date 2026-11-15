@@ -208,7 +208,7 @@ body {
 <div class="title-meta">{{- $inMeta = true -}}{{-
     else if eq .Type "scene" -}}
 {{- $h := sceneHeading .Contents -}}
-<div class="scene-heading" dir="auto">{{- processInlineMarkup $h.Text -}}{{- if $h.Number -}}<span class="scene-number left">{{ $h.Number }}</span><span class="scene-number right">{{ $h.Number }}</span>{{- end -}}</div>{{-
+<div class="scene-heading" dir="auto"{{if $.Config.ShowColors}}{{colorStyle .Color}}{{end}}>{{- processInlineMarkup $h.Text -}}{{- if $h.Number -}}<span class="scene-number left">{{ $h.Number }}</span><span class="scene-number right">{{ $h.Number }}</span>{{- end -}}</div>{{-
     else if eq .Type "action" "general" -}}
 <div class="action" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "speaker" -}}
@@ -290,6 +290,9 @@ type TemplateConfig struct {
 	DualDialogRight   float64
 	DualParenLeft     float64
 	DualParenRight    float64
+
+	// ShowColors: scene headings in their notes' colors
+	ShowColors bool
 
 	// Style configuration
 	SceneStyle  template.CSS
@@ -394,6 +397,8 @@ func (h *HTMLWriter) getTemplateConfig() TemplateConfig {
 		DualParenLeft:     dualParenLeft,
 		DualParenRight:    dualParen.Right,
 
+		ShowColors: elements.ShowsColors(),
+
 		// Style configuration
 		SceneStyle:  sceneStyle,
 		TransAlign:  transAlign,
@@ -417,6 +422,7 @@ func (h *HTMLWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	tmpl, err := template.New("screenplay").Funcs(template.FuncMap{
 		"processInlineMarkup": processInlineMarkup,
 		"sceneHeading":        sceneHeading,
+		"colorStyle":          colorStyle,
 	}).Parse(htmlTemplateString)
 	if err != nil {
 		return fmt.Errorf("failed to parse HTML template: %w", err)
@@ -449,6 +455,15 @@ func printHeight(page string) string {
 		return "6.27in"
 	}
 	return "9in"
+}
+
+// colorStyle is the style attribute of a color from notes (lex.Line's
+// Color), or nothing for one that is no color.
+func colorStyle(color string) template.HTMLAttr {
+	if hex := lex.ColorHex(color); hex != "" {
+		return template.HTMLAttr(` style="color: ` + hex + `"`)
+	}
+	return ""
 }
 
 // heading is a scene heading's text and its number (#12#), if any.

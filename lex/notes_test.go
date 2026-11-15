@@ -94,7 +94,7 @@ func TestPrintable(t *testing.T) {
 	orig := append(Screenplay(nil), s...)
 	got := Printable(s, false)
 	want := Screenplay{
-		{Type: TypeScene, Contents: "INT. HOUSE - DAY"},
+		{Type: TypeScene, Contents: "INT. HOUSE - DAY", Color: "blue"},
 		{Type: TypeEmpty},
 		{Type: TypeAction, Contents: "Action with inside."},
 		{Type: TypeEmpty},
@@ -130,5 +130,16 @@ func TestLexContinuedLines(t *testing.T) {
 	}
 	if got := Parse(&b); !reflect.DeepEqual(got, s) {
 		t.Errorf("parsed back: %q", got)
+	}
+}
+
+func TestColorHex(t *testing.T) {
+	for in, want := range map[string]string{
+		"red": "#ef0049", "BLUE": "#0081ef", "#3366FF": "#3366ff", "goldenrod": "#d7940f",
+		"#12345": "", "#zzzzzz": "", "whatever": "", "": "",
+	} {
+		if got := ColorHex(in); got != want {
+			t.Errorf("ColorHex(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
