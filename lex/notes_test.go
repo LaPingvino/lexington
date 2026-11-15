@@ -3,6 +3,7 @@ package lex
 import (
 	"bytes"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -141,5 +142,62 @@ func TestColorHex(t *testing.T) {
 		if got := ColorHex(in); got != want {
 			t.Errorf("ColorHex(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// Scenes and sections without a color of their own take their section's;
+// a deeper section's wins, the scene's own wins over both.
+func TestInheritedColors(t *testing.T) {
+	s := Screenplay{
+		{Type: TypeScene, Contents: "INT. BEFORE"},
+		{Type: TypeSection, Contents: "# Act One [[red]]"},
+		{Type: TypeScene, Contents: "INT. A"},
+		{Type: TypeSection, Contents: "## Part [[blue]]"},
+		{Type: TypeScene, Contents: "INT. B"},
+		{Type: TypeScene, Contents: "INT. C [[green]]"},
+		{Type: TypeSection, Contents: "## Other part"},
+		{Type: TypeScene, Contents: "INT. D"},
+		{Type: TypeSection, Contents: "# Act Two"},
+		{Type: TypeScene, Contents: "INT. E"},
+	}
+	var got []string
+	for _, l := range Printable(Printable(s, false), false) {
+		got = append(got, l.Color)
+	}
+	if g := strings.Join(got, ","); g != ",red,red,blue,blue,green,red,red,," {
+		t.Errorf("colors %s", g)
+	}
+}
+
+// Every style keeps the text readable for every color: Beat's and hex
+// extremes.
+func TestColorForContrast(t *testing.T) {
+	colors := []string{"red", "blue", "green", "pink", "magenta", "gray", "purple", "cyan", "teal", "yellow", "orange", "brown",
+		"#ffff00", "#ffffff", "#000000", "#111111", "#00ffff"}
+	black, white := [3]uint8{}, [3]uint8{255, 255, 255}
+	for _, c := range colors {
+		for style, check := range map[ColorStyle]func([3]uint8) float64{
+			ColorMarker:     func(f [3]uint8) float64 { return Contrast(f, black) - ContrastFill },
+			ColorBackground: func(f [3]uint8) float64 { return Contrast(f, black) - ContrastFill },
+			ColorText:       func(f [3]uint8) float64 { return Contrast(f, white) - ContrastText },
+			ColorLine:       func(f [3]uint8) float64 { return Contrast(f, white) - ContrastBar },
+		} {
+			rgb, ok := ColorFor(style, c)
+			if !ok || check(rgb) < 0 {
+				t.Errorf("%s %s: %s, short of its contrast by %.2f", style, c, HexOf(rgb), -check(rgb))
+			}
+		}
+	}
+	if _, ok := ColorFor(ColorLine, "whatever"); ok {
+		t.Error("a color of what is none")
+	}
+	// a background is lighter than a marker; a dark text color is kept
+	m, _ := ColorFor(ColorMarker, "blue")
+	b, _ := ColorFor(ColorBackground, "blue")
+	if luminance(b) <= luminance(m) {
+		t.Errorf("background %s not lighter than marker %s", HexOf(b), HexOf(m))
+	}
+	if c, _ := ColorFor(ColorText, "#111111"); HexOf(c) != "#111111" {
+		t.Errorf("dark text changed: %s", HexOf(c))
 	}
 }

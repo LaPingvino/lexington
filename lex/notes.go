@@ -112,9 +112,12 @@ func NoteColor(s string) string {
 // note, blank, "More." prints as two paragraphs with one blank line
 // between them), unless keepNotes: then they are kept, as TypeNote lines
 // with the notes' text. Scene headings and sections keep the color their
-// notes give them in Color. The screenplay itself is not changed.
+// notes give them in Color, or else the color of the section they are in
+// (the deepest one with a color): colors on sections, which are not
+// printed, color their scenes. The screenplay itself is not changed.
 func Printable(s Screenplay, keepNotes bool) Screenplay {
 	out := make(Screenplay, 0, len(s))
+	var sections []Line // the sections a line is in, with their colors
 	for i, l := range s {
 		if IsNoteLine(l) {
 			if keepNotes {
@@ -131,7 +134,21 @@ func Printable(s Screenplay, keepNotes bool) Screenplay {
 			continue
 		}
 		if l.Type == TypeScene || l.Type == TypeSection {
-			l.Color = NoteColor(l.Contents)
+			if c := NoteColor(l.Contents); c != "" {
+				l.Color = c
+			}
+			if l.Type == TypeSection {
+				lv := sectionLevel(l)
+				for len(sections) > 0 && sectionLevel(sections[len(sections)-1]) >= lv {
+					sections = sections[:len(sections)-1]
+				}
+			}
+			for k := len(sections) - 1; k >= 0 && l.Color == ""; k-- {
+				l.Color = sections[k].Color // the deepest section's with one
+			}
+			if l.Type == TypeSection {
+				sections = append(sections, l)
+			}
 		}
 		l.Contents = StripNotes(l.Contents)
 		out = append(out, l)

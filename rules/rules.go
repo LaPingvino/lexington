@@ -4,6 +4,8 @@ package rules
 
 import (
 	"fmt"
+
+	"github.com/LaPingvino/lexington/lex"
 )
 
 type Format struct {
@@ -38,7 +40,8 @@ const (
 	KeyPrintNotes ConfigKey = "printnotes"
 	// KeyNoteColors, when a set has it (visible), prints scene headings
 	// and sections in the color their notes give them ([[red]],
-	// [[COLOR BLUE]], [[#3366ff]]: lex.NoteColor). Off by default.
+	// [[COLOR BLUE]], [[#3366ff]]: lex.NoteColor). Off by default. Its
+	// Style is how: line (the default), marker, background or text.
 	KeyNoteColors  ConfigKey = "notecolors"
 	KeyAllCaps     ConfigKey = "allcaps"
 	KeyEmpty       ConfigKey = "empty"
@@ -105,13 +108,29 @@ func (s Set) ShowsColors() bool {
 // than formats an element (notecolors): it has no margins to count.
 func IsSwitch(key string) bool { return key == KeyNoteColors.String() }
 
-// WithColors is a copy of the set that prints colors (ShowsColors).
+// WithColors is a copy of the set that prints colors (ShowsColors), in
+// the style it has (ColorStyle).
 func (s Set) WithColors() Set {
+	return s.WithColorStyle(s.ColorStyle())
+}
+
+// ColorStyle is how the set shows colors: its notecolors rule's Style,
+// line, marker, background or text; line when it is none of them.
+func (s Set) ColorStyle() lex.ColorStyle {
+	st, err := lex.ParseColorStyle(s[KeyNoteColors.String()].Style)
+	if err != nil {
+		return lex.ColorLine
+	}
+	return st
+}
+
+// WithColorStyle is a copy of the set that prints colors in a style.
+func (s Set) WithColorStyle(style lex.ColorStyle) Set {
 	out := Set{}
 	for k, f := range s {
 		out[k] = f
 	}
-	out[KeyNoteColors.String()] = Format{}
+	out[KeyNoteColors.String()] = Format{Style: string(style)}
 	return out
 }
 

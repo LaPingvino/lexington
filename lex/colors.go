@@ -2,6 +2,7 @@ package lex
 
 import (
 	"fmt"
+	"math"
 	"strings"
 )
 
@@ -41,3 +42,104 @@ func ColorHex(color string) string {
 	}
 	return fmt.Sprintf("#%02x%02x%02x", c[0], c[1], c[2])
 }
+
+// ColorStyle is how a color is shown.
+type ColorStyle string
+
+const (
+	// ColorLine is a bar in the left margin down the scene (or section).
+	ColorLine ColorStyle = "line"
+	// ColorMarker is a highlighter behind the heading's text.
+	ColorMarker ColorStyle = "marker"
+	// ColorBackground is a band behind the heading, across the text's width.
+	ColorBackground ColorStyle = "background"
+	// ColorText is the heading's text in the color.
+	ColorText ColorStyle = "text"
+)
+
+// ParseColorStyle reads a style by its name; "" is line.
+func ParseColorStyle(name string) (ColorStyle, error) {
+	switch st := ColorStyle(strings.ToLower(strings.TrimSpace(name))); st {
+	case "":
+		return ColorLine, nil
+	case ColorLine, ColorMarker, ColorBackground, ColorText:
+		return st, nil
+	}
+	return "", fmt.Errorf("no color style %q: choose line, marker, background or text", name)
+}
+
+// The contrasts ColorFor keeps (WCAG 2): black text on a marker or
+// background at least 7:1 (AAA), colored text on white at least 4.5:1
+// (AA), a bar against white at least 3:1 (non-text).
+const (
+	ContrastFill = 7.0
+	ContrastText = 4.5
+	ContrastBar  = 3.0
+)
+
+// ColorFor is the RGB a color (as NoteColor gives it) is drawn with in a
+// style, the same in every format: for a marker and a background a tint,
+// mixed with white (a marker less) until black text on it has
+// ContrastFill; for text the color, darkened (its hue kept) until it has
+// ContrastText on white; for a line the color, darkened until it has
+// ContrastBar on white. ok is false for what is no color.
+func ColorFor(style ColorStyle, color string) (rgb [3]uint8, ok bool) {
+	c, ok := ColorRGB(color)
+	if !ok {
+		return rgb, false
+	}
+	black, white := [3]uint8{}, [3]uint8{255, 255, 255}
+	switch style {
+	case ColorMarker, ColorBackground:
+		t := 0.55 // white in a marker
+		if style == ColorBackground {
+			t = 0.75
+		}
+		for ; t < 1 && Contrast(mix(c, white, t), black) < ContrastFill; t += 0.01 {
+		}
+		return mix(c, white, min(t, 1)), true
+	}
+	need := ContrastBar
+	if style == ColorText {
+		need = ContrastText
+	}
+	t := 0.0
+	for ; t < 1 && Contrast(mix(c, black, t), white) < need; t += 0.01 {
+	}
+	return mix(c, black, min(t, 1)), true
+}
+
+// mix is a with t of b in it.
+func mix(a, b [3]uint8, t float64) [3]uint8 {
+	var out [3]uint8
+	for i := range a {
+		out[i] = uint8(math.Round(float64(a[i])*(1-t) + float64(b[i])*t))
+	}
+	return out
+}
+
+// Contrast is the WCAG contrast ratio of two colors, from 1 to 21.
+func Contrast(a, b [3]uint8) float64 {
+	la, lb := luminance(a), luminance(b)
+	if la < lb {
+		la, lb = lb, la
+	}
+	return (la + 0.05) / (lb + 0.05)
+}
+
+// luminance is a color's relative luminance (WCAG 2, sRGB).
+func luminance(c [3]uint8) float64 {
+	var l [3]float64
+	for i, v := range c {
+		x := float64(v) / 255
+		if x <= 0.04045 {
+			l[i] = x / 12.92
+		} else {
+			l[i] = math.Pow((x+0.055)/1.055, 2.4)
+		}
+	}
+	return 0.2126*l[0] + 0.7152*l[1] + 0.0722*l[2]
+}
+
+// HexOf is an RGB color as #rrggbb.
+func HexOf(c [3]uint8) string { return fmt.Sprintf("#%02x%02x%02x", c[0], c[1], c[2]) }
