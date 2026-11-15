@@ -45,7 +45,9 @@ func TestNoteColor(t *testing.T) {
 		"= A synopsis [[blue]]":                      "blue",
 		"INT. HOUSE - DAY [[a remark]]":              "",
 		"INT. HOUSE - DAY [[#12345]]":                "",
-		"INT. HOUSE - DAY [[#zzzzzz]]":               "",
+		"INT. HOUSE - DAY [[#zzzzzz]]":               "#zzzzzz", // Beat: any seven characters after "#"
+		"INT. HOUSE - DAY [[ red ]]":                 "",        // Beat doesn't trim
+		"INT. HOUSE - DAY [[color  red]]":            " red",
 		"INT. HOUSE - DAY [[reddish]]":               "",
 		"INT. HOUSE - DAY":                           "",
 		"INT. HOUSE - DAY [[red":                     "",

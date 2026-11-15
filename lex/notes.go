@@ -1,7 +1,6 @@
 package lex
 
 import (
-	"regexp"
 	"strings"
 	"unicode"
 )
@@ -84,25 +83,23 @@ var noteColors = map[string]bool{
 	"purple": true, "cyan": true, "teal": true, "yellow": true, "orange": true, "brown": true,
 }
 
-var hexColor = regexp.MustCompile(`^#[0-9a-f]{6}$`)
-
 // NoteColor is the color the notes on a scene heading, section or
-// synopsis give it, as Beat (ContinuousFountainParser's colorForHeading)
-// reads them, in lower case: "[[color red]]" (any case) is the text after
-// "color ", "[[red]]" a color's name (red, blue, green, pink, magenta,
-// gray, purple, cyan, teal, yellow, orange, brown) and "[[#ff0000]]" a
-// hex color. The last color note wins; other notes do not count. "" when
-// there is none. Beat itself writes "[[red]]" at the end of the heading.
+// synopsis give it, exactly as Beat (ContinuousFountainParser's
+// colorForHeading, checked 2026-11-15) reads them: each note in lower case,
+// not trimmed; one starting with "color " gives the rest of it ("[[COLOR
+// BLUE]]" is "blue"), one that is a color's name (red, blue, green, pink,
+// magenta, gray, purple, cyan, teal, yellow, orange, brown) or seven
+// characters starting with "#" ("[[#ff0000]]") gives itself. The last
+// color note wins; other notes do not count. "" when there is none. Beat
+// itself writes "[[red]]" at the end of the heading.
 func NoteColor(s string) string {
 	color := ""
 	for _, n := range Notes(s) {
-		n = strings.ToLower(strings.TrimSpace(n))
+		n = strings.ToLower(n)
 		switch {
 		case strings.HasPrefix(n, "color "):
-			if c := strings.TrimSpace(n[len("color "):]); c != "" {
-				color = c
-			}
-		case noteColors[n], hexColor.MatchString(n):
+			color = n[len("color "):]
+		case noteColors[n], len(n) == 7 && n[0] == '#':
 			color = n
 		}
 	}
