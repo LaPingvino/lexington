@@ -46,7 +46,8 @@ type style struct {
 	Bold, Italic, Underline bool
 	Font                    string
 	Size                    float64
-	KeepNext                bool
+	KeepNext                bool // keep with the next paragraph
+	KeepLines               bool // keep the paragraph's lines on one page
 }
 
 // block is a paragraph or a dual dialogue table.
@@ -56,6 +57,9 @@ type block struct {
 	// BreakBefore: a page break before; SpaceBefore in inches.
 	BreakBefore bool
 	SpaceBefore float64
+	// KeepNext: keep with the next paragraph, beyond what the style
+	// keeps (a blank line after a heading, the line before a transition)
+	KeepNext bool
 }
 
 // doc is a screenplay prepared for a word processor.
@@ -70,6 +74,7 @@ type doc struct {
 	styles      []*style
 	byKey       map[string]*style
 	blocks      []block
+	pagination  rules.Pagination
 }
 
 // Dual dialogue's columns on a Letter page, as in the PDF and the layout.
@@ -110,7 +115,7 @@ func prepare(s lex.Screenplay, set rules.Set, page Page) *doc {
 		set = rules.Default
 	}
 	d := &doc{page: page, scale: page.Width / layout.PageWidth, vscale: page.Height / 11,
-		margin: layout.Margin(set), byKey: map[string]*style{}}
+		margin: layout.Margin(set), byKey: map[string]*style{}, pagination: set.Pagination()}
 	d.rightMargin = math.Inf(1)
 	for k, f := range set {
 		if !strings.HasPrefix(k, "dual") && !rules.IsSwitch(k) && !f.Hide && f.Right < d.rightMargin {
@@ -178,7 +183,52 @@ func prepare(s lex.Screenplay, set rules.Set, page Page) *doc {
 		d.blocks = append(d.blocks, b)
 		brk = false
 	}
+	if d.pagination.Keep {
+		d.keep()
+	}
 	return d
+}
+
+// keepsWithNext are the elements kept with the paragraph after them
+// (rules.Pagination.Keep): never the last on a page.
+func keepsWithNext(key string) bool {
+	switch key {
+	case "scene", "section", "speaker", "paren", "dualspeaker", "dualparen":
+		return true
+	}
+	return false
+}
+
+// keep keeps with the next paragraph what the styles cannot: the blank
+// lines after a heading, a name or a parenthetical (or the heading keeps
+// with the blank line only), the line before a transition and the blank
+// lines between (a page does not start with one), the dialogue before a
+// parenthetical in the same speech (a speech goes over whole: Word and
+// Writer have no (MORE) and CONT'D).
+func (d *doc) keep() {
+	blank := func(k int) bool { b := d.blocks[k]; return b.P.Type == "" && b.P.Column == 0 }
+	for k, b := range d.blocks {
+		if b.P.Column != 0 {
+			continue
+		}
+		switch {
+		case keepsWithNext(b.P.Key):
+			for n := k + 1; n < len(d.blocks) && blank(n); n++ {
+				d.blocks[n].KeepNext = true
+			}
+		case b.P.Type == lex.TypeTrans:
+			for n := k - 1; n >= 0; n-- {
+				d.blocks[n].KeepNext = true
+				if !blank(n) {
+					break
+				}
+			}
+		case b.P.Type == lex.TypeDialog && k+1 < len(d.blocks):
+			if next := d.blocks[k+1].P; next.Column == 0 && (next.Type == lex.TypeParen || next.Type == lex.TypeDialog) {
+				d.blocks[k].KeepNext = true
+			}
+		}
+	}
 }
 
 // addStyle adds the style of p's element, from its first paragraph.
@@ -194,8 +244,8 @@ func (d *doc) addStyle(set rules.Set, p layout.Paragraph) {
 	st := &style{Key: p.Key, Name: name, ID: strings.ReplaceAll(name, " ", ""), Align: p.Align,
 		Bold: strings.Contains(f.Style, "b"), Italic: strings.Contains(f.Style, "i"),
 		Underline: strings.Contains(f.Style, "u"), Font: fontName(f.Font), Size: f.Size,
-		KeepNext: p.Key == "scene" || p.Key == "speaker" || p.Key == "paren" ||
-			p.Key == "dualspeaker" || p.Key == "dualparen"}
+		KeepNext:  d.pagination.Keep && keepsWithNext(p.Key),
+		KeepLines: d.pagination.Keep && (keepsWithNext(p.Key) || p.Key == "trans" || p.Key == "dialog" || p.Key == "dualdialog")}
 	if p.Column != 0 { // within its column
 		start := d.columnStart(p.Column)
 		st.Left = (p.Left - start) * d.scale

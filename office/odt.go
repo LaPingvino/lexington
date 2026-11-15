@@ -118,13 +118,16 @@ func odtText(bold, italic, underline, all bool) string {
 func (d *doc) odtStyles() string {
 	var b strings.Builder
 	b.WriteString(`<office:styles><style:default-style style:family="paragraph">` +
-		`<style:paragraph-properties fo:line-height="12pt" fo:margin-top="0in" fo:margin-bottom="0in"/>` +
+		`<style:paragraph-properties fo:line-height="12pt" fo:margin-top="0in" fo:margin-bottom="0in"` + widows(d.pagination.Widows) + `/>` +
 		`<style:text-properties style:font-name="Courier Prime" fo:font-size="12pt"/></style:default-style>` +
 		`<style:style style:name="Standard" style:family="paragraph" style:class="text"/>`)
 	for _, st := range d.styles {
 		var props, text string
 		if st.KeepNext {
 			props = ` fo:keep-with-next="always"`
+		}
+		if st.KeepLines {
+			props += ` fo:keep-together="always"`
 		}
 		text = odtText(st.Bold, st.Italic, st.Underline, false)
 		if st.Font != "Courier Prime" {
@@ -164,7 +167,7 @@ func (d *doc) odtContent() (string, string) {
 		}
 	}
 	first, numbered, n := true, false, 0
-	para := func(p layout.Paragraph, breakBefore bool, spaceBefore float64) {
+	para := func(p layout.Paragraph, breakBefore bool, spaceBefore float64, keepNext bool) {
 		st := d.byKey[p.Key]
 		parent := "Standard"
 		if st != nil {
@@ -182,6 +185,9 @@ func (d *doc) odtContent() (string, string) {
 		}
 		if spaceBefore > 0 {
 			props += ` fo:margin-top="` + in(spaceBefore*d.vscale) + `"`
+		}
+		if keepNext {
+			props += ` fo:keep-with-next="always"`
 		}
 		if first && d.titlePage {
 			master = ` style:master-page-name="First_20_Page"`
@@ -245,35 +251,55 @@ func (d *doc) odtContent() (string, string) {
 	tables := 0
 	for _, bl := range d.blocks {
 		if bl.P.Column == 0 {
-			para(bl.P, bl.BreakBefore, bl.SpaceBefore)
+			para(bl.P, bl.BreakBefore, bl.SpaceBefore, bl.KeepNext)
 			continue
 		}
 		if bl.BreakBefore {
-			para(layout.Paragraph{}, true, 0)
+			para(layout.Paragraph{}, true, 0, false)
 		}
 		indent, col, gap := d.dualTable()
 		addAuto("Dual", fmt.Sprintf(`<style:style style:name="Dual" style:family="table"><style:table-properties style:width="%s" fo:margin-left="%s" table:align="left"/></style:style>`+
 			`<style:style style:name="Dual.A" style:family="table-column"><style:table-column-properties style:column-width="%s"/></style:style>`+
 			`<style:style style:name="Dual.B" style:family="table-column"><style:table-column-properties style:column-width="%s"/></style:style>`+
-			`<style:style style:name="Dual.cell" style:family="table-cell"><style:table-cell-properties fo:padding="0in" fo:border="none"/></style:style>`,
-			in(2*col+gap), in(indent), in(col), in(gap)))
+			`<style:style style:name="Dual.cell" style:family="table-cell"><style:table-cell-properties fo:padding="0in" fo:border="none"/></style:style>`+
+			`<style:style style:name="Dual.row" style:family="table-row"><style:table-row-properties fo:keep-together="%s"/></style:style>`,
+			in(2*col+gap), in(indent), in(col), in(gap), keepTogether(d.pagination.Keep)))
 		tables++
 		fmt.Fprintf(&body, `<table:table table:name="Dual%d" table:style-name="Dual">`+
 			`<table:table-column table:style-name="Dual.A"/><table:table-column table:style-name="Dual.B"/>`+
-			`<table:table-column table:style-name="Dual.A"/><table:table-row>`, tables)
+			`<table:table-column table:style-name="Dual.A"/><table:table-row table:style-name="Dual.row">`, tables)
 		for _, ps := range [][]layout.Paragraph{bl.Dual[0], nil, bl.Dual[1]} {
 			body.WriteString(`<table:table-cell table:style-name="Dual.cell" office:value-type="string">`)
 			if len(ps) == 0 {
 				body.WriteString(`<text:p/>`)
 			}
 			for _, p := range ps {
-				para(p, false, 0)
+				para(p, false, 0, false)
 			}
 			body.WriteString(`</table:table-cell>`)
 		}
 		body.WriteString(`</table:table-row></table:table>`)
 	}
 	return body.String(), auto.String()
+}
+
+// widows are the default paragraph's widow and orphan control: two
+// lines on each side of a page break, or none (rules.Pagination.Widows).
+func widows(on bool) string {
+	n := "0"
+	if on {
+		n = "2"
+	}
+	return ` fo:widows="` + n + `" fo:orphans="` + n + `"`
+}
+
+// keepTogether is a table row's keep-together: dual dialogue is not
+// broken over pages (rules.Pagination.Keep), or may be.
+func keepTogether(on bool) string {
+	if on {
+		return "always"
+	}
+	return "auto"
 }
 
 // odtEsc escapes text and keeps runs of spaces, which ODF would collapse.

@@ -164,6 +164,14 @@ type Options struct {
 	// ColorPatterns draws a line's bar in its color's pattern
 	// (lex.BarPattern), for those who tell colors apart badly.
 	ColorPatterns bool
+	// Pagination is how pdf, docx, odt and printed html break pages
+	// (rules.ParsePagination): "all" (keep headings, names and
+	// parentheticals with what follows, transitions with what is before,
+	// two lines of a paragraph on each side of a break, speeches broken
+	// with (MORE) and CONT'D), "none", or some of keep, widows and more
+	// joined with "+". "" is the format's own (all, unless its settings
+	// say otherwise).
+	Pagination string
 	// Tags keep only the scenes and sections with one of them as a note
 	// (lex.FilterTags).
 	Tags []string
@@ -274,6 +282,8 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 	fs.BoolVar(&o.ColorTint, "colortint", false, "With the line style: a light tint under the block too.")
 	fs.BoolVar(&o.ColorPatterns, "colorpatterns", false,
 		"With the line style: each color's bar in a pattern of its own (dashes, dots, double, ...), not told apart by hue alone.")
+	fs.StringVar(&o.Pagination, "pagination", "",
+		"How pages break in pdf, docx, odt and printed html: all (the default: headings, names and parentheticals never last on a page, transitions never first, two lines of a paragraph on each side of a break, speeches broken after a sentence with (MORE) and CONT'D), none, or keep, widows and more joined with + (keep+widows).")
 	fs.Var((*tagList)(&o.Tags), "tag",
 		"Keep only the scenes and sections with this note ([[London]]) or color, with all under them; give it more than once for any of several.")
 	fs.StringVar(&o.Character, "character", "", "Keep this character's sides; needs -sides.")
@@ -377,6 +387,18 @@ func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.S
 			elements[k] = set
 		}
 		elements[o.Elements] = set.WithColorScheme(sch)
+		conf.Elements = elements
+	}
+	if o.Pagination != "" {
+		p, err := rules.ParsePagination(o.Pagination)
+		if err != nil {
+			return err
+		}
+		elements := map[string]rules.Set{}
+		for k, set := range conf.Elements {
+			elements[k] = set
+		}
+		elements[o.Elements] = conf.Elements[o.Elements].WithPagination(p)
 		conf.Elements = elements
 	}
 	f, ok := FormatFor(o.To)

@@ -140,6 +140,32 @@ script in Fountain, and [examples/](examples) for a sample of every kind.
 - **LaTeX to PDF**: Uses pdflatex/xelatex for high-quality typesetting (requires LaTeX)
 - Industry-standard page layouts and proper spacing
 
+### Page breaks
+
+Pages break as screenplay software breaks them (on by default, in the
+PDF, docx, odt and printed HTML):
+
+- **keep**: a scene heading, a printed section, a character name and a
+  parenthetical are never the last thing on a page, but go over with the
+  first two lines of what follows; a transition is never the first thing
+  on a page, but goes with the line before it; dual dialogue is never
+  broken.
+- **widows**: a paragraph broken over two pages leaves at least two lines
+  on each.
+- **more**: a speech broken over two pages breaks after a sentence, with
+  `(MORE)` below it and `NAME (CONT'D)` above the rest (PDF only; Word,
+  Writer and browsers keep a speech whole on the next page instead).
+
+`-pagination` chooses: `all` (the default), `none` (each page fills to
+its foot), or parts joined with `+` (`keep+widows`). A format's settings
+can do the same with a `pagination` rule (`Style = "keep+widows"`, or
+`Hide = true` for none); programs set `cli.Options.Pagination`.
+Forced page breaks (`===`) are kept as they are.
+
+```bash
+lexington -pagination none -i script.fountain -o script.pdf
+```
+
 ### Reading PDFs
 
 Lexington reads a printed screenplay back into a script: from its own

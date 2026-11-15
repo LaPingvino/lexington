@@ -193,6 +193,21 @@ body {
     .transition, .center, .lyrics, .dual-dialogue { margin-top: 0; margin-bottom: 0; }
     .empty { height: 12pt; margin: 0; }
     .newpage { page-break-after: always; break-after: page; }
+{{- if .Config.Pagination.Keep}}
+    /* pagination (-pagination keep): headings, names and parentheticals
+       never last on a page, transitions never first, a speech and dual
+       dialogue not broken (no (MORE) in a browser) */
+    .scene-heading, .speaker, .parenthetical, .dialogue:has(+ .parenthetical),
+    .scene-heading + .empty, .speaker + .empty, .parenthetical + .empty,
+    :has(+ .transition), :has(+ .empty + .transition) { break-after: avoid; page-break-after: avoid; }
+    .scene-heading, .speaker, .parenthetical, .dialogue, .transition, .dual-dialogue { break-inside: avoid; page-break-inside: avoid; }
+{{- end}}
+{{- if .Config.Pagination.Widows}}
+    /* (-pagination widows): two lines of a paragraph on each side of a break */
+    .action, .general, .dialogue, .center, .lyrics { orphans: 2; widows: 2; }
+{{- else}}
+    .action, .general, .dialogue, .center, .lyrics { orphans: 1; widows: 1; }
+{{- end}}
 }
 </style>
 </head>
@@ -302,6 +317,9 @@ type TemplateConfig struct {
 	// ColorScheme: how scene headings show their notes' colors
 	// (lex.ColorScheme's String); "" when they do not
 	ColorScheme string
+
+	// Pagination: how printing breaks pages (the rules')
+	Pagination rules.Pagination
 
 	// Style configuration
 	SceneStyle  template.CSS
@@ -415,6 +433,7 @@ func (h *HTMLWriter) getTemplateConfig() TemplateConfig {
 		DualParenRight:    dualParen.Right,
 
 		ColorScheme: colorSchemeOf(elements),
+		Pagination:  elements.Pagination(),
 
 		// Style configuration
 		SceneStyle:  sceneStyle,

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### New Features
+- **Page breaks as screenplay software makes them** (`-pagination`,
+  `rules.Pagination`, `cli.Options.Pagination`; on by default): scene
+  headings, sections, character names and parentheticals are never the
+  last thing on a page and keep the first two lines of what follows; a
+  transition never starts a page; dual dialogue is never broken; a
+  paragraph keeps two lines on each side of a break (widow/orphan
+  control); in the PDF a speech breaks after a sentence with `(MORE)` and
+  `NAME (CONT'D)`. Word gets keepNext/keepLines/widowControl, Writer
+  keep-with-next/keep-together/widows/orphans, printed HTML
+  break-after/break-inside/orphans/widows. `-pagination none` (or a
+  hidden `pagination` rule) prints as before; `keep`, `widows` and `more`
+  can be chosen apart.
+- `pdfin.Pages`: the text lines of each page of a PDF, where printed.
+
+### Fixed
+- A scene heading, character name or parenthetical could be the last line
+  of a PDF page; in docx and odt the heading kept only with the blank
+  paragraph after it.
+
 ## [1.5.1] - 2026-11-15
 
 ### Fixed

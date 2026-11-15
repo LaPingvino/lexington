@@ -45,6 +45,9 @@ type Tree struct {
 	VScale       float64    // of vertical ones
 	bar          *colorBar  // the color bar being drawn (line style)
 	printing     *printing  // where the text being printed lands
+	pagination   rules.Pagination
+	foot         float64 // the page's bottom margin, while a row's break raises it (0: none)
+	heights      map[[2]string]int
 }
 
 // span is where printed text is on a page: from its top to its foot.
@@ -120,29 +123,35 @@ func (t Tree) vsc() float64 {
 // pr prints a line, and draws its marker or band (headingColor) on the
 // spans it fills, which it returns (none for a blank line).
 func (t Tree) pr(a string, text string) []span {
-	if a == lex.TypeNote {
-		a = rules.KeyPrintNotes.String()
-	}
-	f := t.Rules.Get(a)
-	switch a {
-	case "section":
-		text = lex.SectionText(text)
-	case "scene":
-		var number string
-		if text, number = lex.SceneNumber(text); number != "" {
+	f, printed := t.format(a, text)
+	if a == lex.TypeScene {
+		if _, number := lex.SceneNumber(text); number != "" {
 			t.sceneNumber(f, number)
 		}
 	}
-	text = f.Prefix + text + f.Postfix
+	return t.prf(f, printed, a == lex.TypeScene || a == lex.TypeSection)
+}
+
+// prf prints text in a format (see pr), a heading's or not.
+func (t Tree) prf(f rules.Format, text string, heading bool) []span {
 	if strings.TrimSpace(text) == "" {
 		t.linePrint(f, text)
 		return nil
 	}
 	spans := t.printed(func() { t.linePrint(f, text) })
 	if t.bar != nil {
-		t.headingColor(f, text, t.bar.block, a == "scene" || a == "section", spans)
+		t.headingColor(f, text, t.bar.block, heading, spans)
 	}
 	return spans
+}
+
+// restoreFoot puts the page's bottom margin back when a row's break
+// (paginate) raised it.
+func (t *Tree) restoreFoot() {
+	if t.foot != 0 {
+		t.PDF.SetAutoPageBreak(true, t.foot)
+		t.foot = 0
+	}
 }
 
 // sceneNumber prints a scene's number in both margins, on the line the
@@ -181,6 +190,7 @@ func (t *Tree) Render() {
 		if auto {
 			t.printing.cut(t.PDF)
 		}
+		t.restoreFoot()
 		return auto
 	})
 	style, sch := lex.ColorStyle(""), lex.ColorScheme{}
@@ -188,13 +198,18 @@ func (t *Tree) Render() {
 		sch = t.Rules.ColorScheme()
 		style = sch.Style
 	}
-	blocks, colorOf := lex.ColorBlocks(t.F), map[int]string{} // the color block of each row, its color
-	for _, row := range t.F {
+	rows := t.F
+	blocks, colorOf := lex.ColorBlocks(rows), map[int]string{} // the color block of each row, its color
+	for _, row := range rows {
 		if row.Block != 0 && colorOf[row.Block] == "" {
 			colorOf[row.Block] = row.Color
 		}
 	}
-	for i, row := range t.F {
+	for i := 0; i < len(rows); i++ {
+		if block == "" && !t.DualDialogue {
+			rows, blocks = t.paginate(rows, blocks, i)
+		}
+		row := rows[i]
 		// the block of a color (a scene, a section whole) the row is in;
 		// none on the blank lines between two blocks
 		t.bar.id, t.bar.color, t.bar.block = blocks[i], "", colorOf[blocks[i]]
@@ -203,6 +218,16 @@ func (t *Tree) Render() {
 		}
 		if row.Type == lex.TypeScene || row.Type == lex.TypeSection {
 			t.bar.block = row.Color
+		}
+		switch row.Type {
+		case typeBreak:
+			t.PDF.AddPage()
+			continue
+		case typeMore:
+			f := t.Rules.Get(lex.TypeSpeaker)
+			f.Prefix, f.Postfix = "", ""
+			t.extendBar(t.prf(f, row.Contents, false))
+			continue
 		}
 		if row.Type == lex.TypeDualClose && !t.DualDialogue {
 			continue
@@ -241,6 +266,7 @@ func (t *Tree) Render() {
 			continue
 		}
 		spans := t.pr(row.Type, row.Contents)
+		t.restoreFoot()
 		if block == "" {
 			t.extendBar(spans)
 		}
@@ -742,6 +768,7 @@ func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		Fonts:        newFonts(pdf),
 		Scale:        width / 8.5,
 		VScale:       height / 11,
+		pagination:   elements.Pagination(),
 	}
 	f.Render()
 	err := pdf.OutputFileAndClose(p.OutputFile) // Use the OutputFile from the PDFWriter struct

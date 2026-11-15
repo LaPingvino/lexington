@@ -65,7 +65,7 @@ func (k ConfigKey) IsValid() bool {
 	switch k {
 	case KeyAction, KeySpeaker, KeyDialog, KeyScene, KeyParen, KeyTrans,
 		KeyPrintNotes, KeyNoteColors, KeyAllCaps, KeyEmpty, KeyDualSpeaker, KeyDualDialog,
-		KeyDualParen, KeyTitle, KeyMeta, KeyCenter, KeyLyrics, KeySection:
+		KeyDualParen, KeyTitle, KeyMeta, KeyCenter, KeyLyrics, KeySection, KeyPagination:
 		return true
 	default:
 		return false
@@ -119,8 +119,9 @@ func (s Set) ShowsColors() bool {
 }
 
 // IsSwitch reports whether a key of a set switches something on rather
-// than formats an element (notecolors): it has no margins to count.
-func IsSwitch(key string) bool { return key == KeyNoteColors.String() }
+// than formats an element (notecolors, pagination): it has no margins to
+// count.
+func IsSwitch(key string) bool { return key == KeyNoteColors.String() || key == KeyPagination.String() }
 
 // WithColors is a copy of the set that prints colors (ShowsColors), in
 // the scheme it has (ColorScheme).

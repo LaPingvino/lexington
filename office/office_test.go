@@ -30,8 +30,16 @@ func parts(t *testing.T, w interface {
 	Write(io.Writer, lex.Screenplay) error
 }) (map[string]string, []*zip.File) {
 	t.Helper()
+	return partsOf(t, w, script(t))
+}
+
+// partsOf is parts of the document of a screenplay.
+func partsOf(t *testing.T, w interface {
+	Write(io.Writer, lex.Screenplay) error
+}, s lex.Screenplay) (map[string]string, []*zip.File) {
+	t.Helper()
 	var buf bytes.Buffer
-	if err := w.Write(&buf, script(t)); err != nil {
+	if err := w.Write(&buf, s); err != nil {
 		t.Fatal(err)
 	}
 	z, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))

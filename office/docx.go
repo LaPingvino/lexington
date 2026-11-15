@@ -117,13 +117,16 @@ func (d *doc) docxStyles() string {
 	b.WriteString(xmlHeader + `<w:styles ` + wNS + `>`)
 	b.WriteString(`<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Courier Prime" w:hAnsi="Courier Prime" w:cs="Courier Prime" w:eastAsia="Courier Prime"/>` +
 		`<w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:rPrDefault>` +
-		`<w:pPrDefault><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="exact"/></w:pPr></w:pPrDefault></w:docDefaults>`)
+		`<w:pPrDefault><w:pPr>` + onOff("widowControl", d.pagination.Widows) + `<w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="exact"/></w:pPr></w:pPrDefault></w:docDefaults>`)
 	b.WriteString(`<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>`)
 	for _, st := range d.styles {
 		fmt.Fprintf(&b, `<w:style w:type="paragraph" w:customStyle="1" w:styleId="%s"><w:name w:val="%s"/>`+
 			`<w:basedOn w:val="Normal"/><w:qFormat/><w:pPr>`, st.ID, esc(st.Name))
 		if st.KeepNext {
 			b.WriteString(`<w:keepNext/>`)
+		}
+		if st.KeepLines {
+			b.WriteString(`<w:keepLines/>`)
 		}
 		fmt.Fprintf(&b, `<w:ind w:left="%d" w:right="%d"/>%s</w:pPr><w:rPr>`, twips(st.Left), twips(st.Right), docxJc(st.Align))
 		if st.Font != "Courier Prime" {
@@ -157,7 +160,7 @@ func (d *doc) docxDocument() string {
 			lastTable = true
 			continue
 		}
-		d.docxParagraph(&b, bl.P, bl.BreakBefore, bl.SpaceBefore)
+		d.docxParagraph(&b, bl.P, bl.BreakBefore, bl.SpaceBefore, bl.KeepNext)
 		lastTable = false
 	}
 	if lastTable {
@@ -175,14 +178,17 @@ func (d *doc) docxDocument() string {
 	return b.String()
 }
 
-func (d *doc) docxParagraph(b *strings.Builder, p layout.Paragraph, breakBefore bool, spaceBefore float64) {
+func (d *doc) docxParagraph(b *strings.Builder, p layout.Paragraph, breakBefore bool, spaceBefore float64, keepNext bool) {
 	b.WriteString(`<w:p>`)
 	st := d.byKey[p.Key]
 	bar := p.Bar != "" && p.Column == 0
-	if st != nil || breakBefore || spaceBefore > 0 || bar || p.Background != "" {
+	if st != nil || breakBefore || spaceBefore > 0 || bar || p.Background != "" || keepNext {
 		b.WriteString(`<w:pPr>`)
 		if st != nil {
 			fmt.Fprintf(b, `<w:pStyle w:val="%s"/>`, st.ID)
+		}
+		if keepNext {
+			b.WriteString(`<w:keepNext/>`)
 		}
 		if breakBefore {
 			b.WriteString(`<w:pageBreakBefore/>`)
@@ -252,13 +258,16 @@ func (d *doc) docxDual(b *strings.Builder, bl block) {
 		`<w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar>`+
 		`</w:tblPr><w:tblGrid><w:gridCol w:w="%[3]d"/><w:gridCol w:w="%[4]d"/><w:gridCol w:w="%[3]d"/></w:tblGrid><w:tr>`,
 		twips(2*col+gap), twips(indent), twips(col), twips(gap))
+	if d.pagination.Keep { // dual dialogue is not broken over pages
+		b.WriteString(`<w:trPr><w:cantSplit/></w:trPr>`)
+	}
 	cell := func(w float64, ps []layout.Paragraph) {
 		fmt.Fprintf(b, `<w:tc><w:tcPr><w:tcW w:w="%d" w:type="dxa"/></w:tcPr>`, twips(w))
 		if len(ps) == 0 {
 			b.WriteString(`<w:p/>`)
 		}
 		for _, p := range ps {
-			d.docxParagraph(b, p, false, 0)
+			d.docxParagraph(b, p, false, 0, false)
 		}
 		b.WriteString(`</w:tc>`)
 	}
