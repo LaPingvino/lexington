@@ -3,7 +3,13 @@ package lex
 import (
 	"fmt"
 	"io"
+	"strings"
 )
+
+// Continued is the type of a lex line that goes on with the text of the
+// line before it, after a line break (a Fountain note over several
+// lines): "+: " and the next line of the text, as it is.
+const Continued = "+"
 
 // LexWriter implements the writer.Writer interface for LEX output.
 type LexWriter struct{}
@@ -12,9 +18,15 @@ type LexWriter struct{}
 // It implements the writer.Writer interface.
 func (l *LexWriter) Write(w io.Writer, screenplay Screenplay) error {
 	for _, line := range screenplay {
-		_, err := fmt.Fprintf(w, "%s: %s\n", line.Type, line.Contents)
-		if err != nil {
+		text, rest, more := strings.Cut(line.Contents, "\n")
+		if _, err := fmt.Fprintf(w, "%s: %s\n", line.Type, text); err != nil {
 			return err
+		}
+		for more {
+			text, rest, more = strings.Cut(rest, "\n")
+			if _, err := fmt.Fprintf(w, "%s: %s\n", Continued, text); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

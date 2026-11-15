@@ -29,6 +29,8 @@ const (
 	TypeNewPage   ElementType = "newpage"
 	TypeCenter    ElementType = "center"
 	TypeLyrics    ElementType = "lyrics"
+	TypeSection   ElementType = "section"
+	TypeSynopsis  ElementType = "synopse"
 )
 
 type Screenplay []Line
@@ -56,15 +58,19 @@ func (l Line) IsEmpty() bool {
 var sceneNumber = regexp.MustCompile(`\s*#([^#\s]+)#\s*$`)
 
 // SceneNumber splits Fountain's scene number off a scene heading:
-// "INT. HOUSE - DAY #1A#" is "INT. HOUSE - DAY" and "1A".
+// "INT. HOUSE - DAY #1A#" is "INT. HOUSE - DAY" and "1A". Notes are left
+// out (StripNotes), wherever they are: "INT. HOUSE - DAY #1A# [[red]]" is
+// the same.
 func SceneNumber(heading string) (string, string) {
+	heading = StripNotes(heading)
 	if m := sceneNumber.FindStringSubmatchIndex(heading); m != nil {
 		return heading[:m[0]], heading[m[2]:m[3]]
 	}
 	return heading, ""
 }
 
-// SectionText is a section's title, without the #s of its level.
+// SectionText is a section's title, without the #s of its level or its
+// notes.
 func SectionText(section string) string {
-	return strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(section), "#"))
+	return strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(StripNotes(section)), "#"))
 }
