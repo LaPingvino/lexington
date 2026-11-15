@@ -71,6 +71,9 @@ type Line struct {
 // so that the lines' bars make one).
 type Colors struct {
 	Color, Marker, Background, Bar string
+	// Pattern, when bars have patterns: the color whose pattern
+	// (lex.BarPattern) the bar has.
+	Pattern string
 }
 
 // colors are a line's colors in a scheme: of the block it is in (its
@@ -88,6 +91,9 @@ func colors(sch lex.ColorScheme, color string, heading bool) Colors {
 	switch sch.Style {
 	case lex.ColorLine:
 		out.Bar = hex(lex.ColorLine)
+		if sch.Patterns && out.Bar != "" {
+			out.Pattern = color
+		}
 		if sch.Tint {
 			out.Background = hex(lex.ColorTint)
 		}
@@ -194,18 +200,21 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 	s = lex.Printable(s, set.PrintsNotes())
 	var out []Paragraph
 	block, column := "", 0
-	sch, color := set.ColorScheme(), "" // color: of the scene or section the row is in
+	sch := set.ColorScheme()
+	blocks, colorOf := lex.ColorBlocks(s), map[int]string{} // the block each row is in, and its color
 	for _, row := range s {
+		if row.Block != 0 && colorOf[row.Block] == "" {
+			colorOf[row.Block] = row.Color
+		}
+	}
+	for i, row := range s {
 		t := row.Type
 		if !set.ShowsColors() {
-			row.Color = ""
-		}
-		if t == lex.TypeScene || t == lex.TypeSection {
-			color = row.Color
+			row.Color, blocks[i] = "", 0
 		}
 		bar := Colors{}
-		if block == "" && t != lex.TypeTitlePage && t != lex.TypeNewPage {
-			bar = colors(sch, color, false)
+		if block == "" && t != lex.TypeTitlePage && t != lex.TypeNewPage && blocks[i] != 0 {
+			bar = colors(sch, colorOf[blocks[i]], false)
 		}
 		switch t {
 		case lex.TypeNewPage:

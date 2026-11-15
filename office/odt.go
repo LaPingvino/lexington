@@ -210,8 +210,13 @@ func (d *doc) odtContent() (string, string) {
 			if st != nil {
 				stLeft = st.Left
 			}
+			// (in its color's pattern: the nearest of ODF's border styles)
+			style := "solid"
+			if p.Pattern != "" {
+				style = lex.BarPattern(p.Pattern).ODF
+			}
 			props += ` fo:margin-left="-` + in(barGap) + `" fo:padding-left="` + in(stLeft+barGap-barWidth) +
-				`" fo:border-left="` + in(barWidth) + ` solid ` + p.Bar + `"`
+				`" fo:border-left="` + in(barWidth) + ` ` + style + ` ` + p.Bar + `"`
 		}
 		if props != "" || master != "" || tabs != "" || color != "" {
 			n++

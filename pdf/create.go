@@ -114,13 +114,21 @@ func (t *Tree) Render() {
 		sch = t.Rules.ColorScheme()
 		style = sch.Style
 	}
+	blocks, colorOf := lex.ColorBlocks(t.F), map[int]string{} // the color block of each row, its color
 	for _, row := range t.F {
+		if row.Block != 0 && colorOf[row.Block] == "" {
+			colorOf[row.Block] = row.Color
+		}
+	}
+	for i, row := range t.F {
+		// the block of a color (a scene, a section whole) the row is in;
+		// none on the blank lines between two blocks
+		t.bar.id, t.bar.color, t.bar.block = blocks[i], "", colorOf[blocks[i]]
+		if style == lex.ColorLine || (sch.Block && style == lex.ColorBackground) {
+			t.bar.color = t.bar.block
+		}
 		if row.Type == lex.TypeScene || row.Type == lex.TypeSection {
-			// the block of a color (a scene, a section whole) starts
-			t.bar.color, t.bar.block = "", row.Color
-			if style == lex.ColorLine || (sch.Block && style == lex.ColorBackground) {
-				t.bar.color = row.Color
-			}
+			t.bar.block = row.Color
 		}
 		page, y := t.PDF.PageNo(), t.PDF.GetY()
 		if t.handleSpecialCases(row, &block, &lastsection) {
@@ -174,9 +182,11 @@ func (t *Tree) Render() {
 // style): drawn a page at a time, from top to bottom of what it is beside
 // there.
 type colorBar struct {
+	id          int    // the block the line is in (lex.ColorBlocks)
 	color       string // of the block drawn beside (bar) or under (band); "" for none
 	block       string // the color of the block the line is in (its heading's)
 	drawn       string // the color of the bar drawn so far
+	drawnID     int    // and its block
 	page        int
 	top, bottom float64
 }
@@ -195,14 +205,14 @@ func (t *Tree) extendBar(page int, y float64) {
 	if b == nil {
 		return
 	}
-	if b.color != b.drawn || (b.drawn != "" && page != b.page) {
+	if b.id != b.drawnID || b.color != b.drawn || (b.drawn != "" && page != b.page) {
 		t.closeBar()
 	}
-	if b.color == "" {
+	if b.color == "" || b.id == 0 {
 		return
 	}
 	if b.drawn == "" {
-		b.drawn, b.page, b.top = b.color, page, y
+		b.drawn, b.drawnID, b.page, b.top = b.color, b.id, page, y
 	}
 	if now := t.PDF.PageNo(); now != b.page { // it went on to the next page
 		_, margin := t.PDF.GetAutoPageBreak()
@@ -210,7 +220,7 @@ func (t *Tree) extendBar(page int, y float64) {
 		b.bottom = height - margin
 		t.closeBar()
 		_, top, _, _ := t.PDF.GetMargins()
-		b.drawn, b.page, b.top = b.color, now, top
+		b.drawn, b.drawnID, b.page, b.top = b.color, b.id, now, top
 	}
 	b.bottom = t.PDF.GetY()
 }
@@ -244,11 +254,41 @@ func (t *Tree) closeBar() {
 		}
 		if c, ok := lex.ColorFor(lex.ColorLine, b.drawn); ok && sch.Style == lex.ColorLine {
 			t.PDF.SetFillColor(int(c[0]), int(c[1]), int(c[2]))
-			t.PDF.Rect(action.Left-barGap, b.top, barWidth*t.sc(), b.bottom-b.top, "F")
+			if sch.Patterns {
+				t.patternBar(lex.BarPattern(b.drawn), action.Left-barGap, b.top, b.bottom)
+			} else {
+				t.PDF.Rect(action.Left-barGap, b.top, barWidth*t.sc(), b.bottom-b.top, "F")
+			}
 		}
 		t.PDF.SetPage(now)
 	}
-	b.drawn = ""
+	b.drawn, b.drawnID = "", 0
+}
+
+// patternWidth is the width of a bar with a pattern, in inches: wider
+// than a plain one, for its stripes to show.
+const patternWidth = 0.07
+
+// patternBar draws a bar in a pattern, from top to bottom at x: its
+// stripes, solid or dashed (lengths in points).
+func (t *Tree) patternBar(p lex.Pattern, x, top, bottom float64) {
+	w := patternWidth * t.sc()
+	for _, s := range p.Stripes {
+		x0, sw := x+s.From*w, (s.To-s.From)*w
+		if len(s.Dash) == 0 {
+			t.PDF.Rect(x0, top, sw, bottom-top, "F")
+			continue
+		}
+		y, on := top+s.Offset/72, true
+		for k := 0; y < bottom; k++ {
+			l := s.Dash[k%len(s.Dash)] / 72
+			if on {
+				t.PDF.Rect(x0, y, sw, min(l, bottom-y), "F")
+			}
+			y += l
+			on = !on
+		}
+	}
 }
 
 // headingColor draws a marker behind a line's text (a heading's, or any

@@ -188,8 +188,13 @@ func (d *doc) docxParagraph(b *strings.Builder, p layout.Paragraph, breakBefore 
 			b.WriteString(`<w:pageBreakBefore/>`)
 		}
 		if bar { // a left border: Word draws it before the paragraph's indent
-			fmt.Fprintf(b, `<w:pBdr><w:left w:val="single" w:sz="%d" w:space="%d" w:color="%s"/></w:pBdr>`,
-				int(math.Round(barWidth*72*8)), int(math.Round(barGap*72)), hexVal(p.Bar))
+			// (in its color's pattern: the nearest of Word's borders)
+			style := "single"
+			if p.Pattern != "" {
+				style = lex.BarPattern(p.Pattern).Name
+			}
+			fmt.Fprintf(b, `<w:pBdr><w:left w:val="%s" w:sz="%d" w:space="%d" w:color="%s"/></w:pBdr>`,
+				style, int(math.Round(barWidth*72*8)), int(math.Round(barGap*72)), hexVal(p.Bar))
 		}
 		if p.Background != "" {
 			fmt.Fprintf(b, `<w:shd w:val="clear" w:color="auto" w:fill="%s"/>`, hexVal(p.Background))

@@ -488,8 +488,9 @@ func colorSchemeOf(set rules.Set) string {
 // The bar of a scene's color: its width, and how far it is before the
 // action's text, in inches.
 const (
-	barWidth = 0.04
-	barGap   = 1.0
+	barWidth     = 0.04
+	barGap       = 1.0
+	patternWidth = 0.07 // of a bar with a pattern, for its stripes to show
 )
 
 // scheme reads the template's color scheme; ok is false for none.
@@ -561,13 +562,35 @@ func withBlocks(s lex.Screenplay, text string, set rules.Set) lex.Screenplay {
 	}
 	action := set.Get("action")
 	left, right := action.Left-0.05, action.Right-0.05
+	// css is a block's background: layers of an image, its place, its size
 	css := func(color string) string {
-		var layers []string
-		if sch.Style == lex.ColorLine {
-			if bar := hexFor(lex.ColorLine, color); bar != "" {
-				x := action.Left - barGap
-				layers = append(layers, fmt.Sprintf("linear-gradient(to right, transparent %.2fin, %s %.2fin, %s %.2fin, transparent %.2fin)",
-					x, bar, x, bar, x+barWidth, x+barWidth))
+		var images, places, sizes []string
+		layer := func(image, place, size string) {
+			images, places, sizes = append(images, image), append(places, place), append(sizes, size)
+		}
+		if bar := hexFor(lex.ColorLine, color); bar != "" && sch.Style == lex.ColorLine {
+			x := action.Left - barGap
+			if !sch.Patterns {
+				layer("linear-gradient("+bar+", "+bar+")", fmt.Sprintf("%.2fin 0", x), fmt.Sprintf("%.2fin 100%%", barWidth))
+			} else {
+				for _, st := range lex.BarPattern(color).Stripes {
+					x0, w := x+st.From*patternWidth, (st.To-st.From)*patternWidth
+					image := "linear-gradient(" + bar + ", " + bar + ")"
+					if len(st.Dash) > 0 { // dashes: a gradient repeated down the bar
+						var stops []string
+						at := 0.0
+						for k, l := range st.Dash {
+							c := bar
+							if k%2 == 1 {
+								c = "transparent"
+							}
+							stops = append(stops, fmt.Sprintf("%s %.1fpt %.1fpt", c, at, at+l))
+							at += l
+						}
+						image = "repeating-linear-gradient(to bottom, " + strings.Join(stops, ", ") + ")"
+					}
+					layer(image, fmt.Sprintf("%.3fin %.1fpt", x0, st.Offset), fmt.Sprintf("%.3fin 100%%", w))
+				}
 			}
 		}
 		band := ""
@@ -578,32 +601,35 @@ func withBlocks(s lex.Screenplay, text string, set rules.Set) lex.Screenplay {
 			band = hexFor(lex.ColorBackground, color)
 		}
 		if band != "" {
-			layers = append(layers, fmt.Sprintf("linear-gradient(to right, transparent %.2fin, %s %.2fin, %s calc(100%% - %.2fin), transparent calc(100%% - %.2fin))",
-				left, band, left, band, right, right))
+			layer("linear-gradient("+band+", "+band+")", fmt.Sprintf("%.2fin 0", left),
+				fmt.Sprintf("calc(100%% - %.2fin - %.2fin) 100%%", left, right))
 		}
-		if len(layers) == 0 {
+		if len(images) == 0 {
 			return ""
 		}
-		return "background: " + strings.Join(layers, ", ")
+		return "background-image: " + strings.Join(images, ", ") + "; background-position: " + strings.Join(places, ", ") +
+			"; background-size: " + strings.Join(sizes, ", ") + "; background-repeat: no-repeat"
+	}
+	blocks, colorOf := lex.ColorBlocks(s), map[int]string{}
+	for _, l := range s {
+		if l.Block != 0 && colorOf[l.Block] == "" {
+			colorOf[l.Block] = l.Color
+		}
 	}
 	var out lex.Screenplay
-	open, color := "", ""
-	for _, l := range s {
-		if l.Type == lex.TypeScene || l.Type == lex.TypeSection {
-			color = l.Color
-		}
-		want := ""
-		switch l.Type {
-		case lex.TypeNewPage, lex.TypeTitlePage:
-		default:
-			want = css(color)
+	open := -1 // the block open, -1 for none
+	for i, l := range s {
+		want, color := blocks[i], colorOf[blocks[i]]
+		switch {
+		case l.Type == lex.TypeNewPage, l.Type == lex.TypeTitlePage, css(color) == "":
+			want = -1
 		}
 		if want != open {
-			if open != "" {
+			if open >= 0 {
 				out = append(out, lex.Line{Type: typeBarClose})
 			}
-			if want != "" {
-				out = append(out, lex.Line{Type: typeBarOpen, Contents: want})
+			if want >= 0 {
+				out = append(out, lex.Line{Type: typeBarOpen, Contents: css(color)})
 			}
 			open = want
 		}
@@ -612,7 +638,7 @@ func withBlocks(s lex.Screenplay, text string, set rules.Set) lex.Screenplay {
 		}
 		out = append(out, l)
 	}
-	if open != "" {
+	if open >= 0 {
 		out = append(out, lex.Line{Type: typeBarClose})
 	}
 	return out
