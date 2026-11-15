@@ -43,6 +43,7 @@ type Tree struct {
 	Fonts        *fonts     // the rules' fonts (nil: Courier only)
 	Scale        float64    // of horizontal positions: the page's width to Letter's (0: 1)
 	VScale       float64    // of vertical ones
+	bar          *colorBar  // the color bar being drawn (line style)
 }
 
 func (t Tree) sc() float64 {
@@ -73,7 +74,11 @@ func (t Tree) pr(a string, text string) {
 			t.sceneNumber(f, number)
 		}
 	}
-	t.linePrint(f, f.Prefix+text+f.Postfix)
+	text = f.Prefix + text + f.Postfix
+	if (a == "scene" || a == "section") && t.bar != nil {
+		t.headingColor(f, text, t.bar.heading)
+	}
+	t.linePrint(f, text)
 }
 
 // sceneNumber prints a scene's number in both margins, on the line the
@@ -101,8 +106,25 @@ func (t *Tree) Render() {
 	var block string
 	var lastsection int
 
+	if t.bar == nil {
+		t.bar = &colorBar{}
+	}
+	style := lex.ColorStyle("")
+	if t.Rules.ShowsColors() {
+		style = t.Rules.ColorStyle()
+	}
 	for _, row := range t.F {
+		if row.Type == lex.TypeScene || row.Type == lex.TypeSection {
+			t.bar.color, t.bar.heading = "", row.Color
+			if style == lex.ColorLine {
+				t.bar.color = row.Color
+			}
+		}
+		page, y := t.PDF.PageNo(), t.PDF.GetY()
 		if t.handleSpecialCases(row, &block, &lastsection) {
+			if row.Type == lex.TypeDualClose {
+				t.extendBar(page, y)
+			}
 			continue
 		}
 
@@ -124,18 +146,123 @@ func (t *Tree) Render() {
 		if block == internal.ElementTitle || block == elementMeta {
 			row.Type = block
 		}
-		if c, ok := lex.ColorRGB(row.Color); ok && t.Rules.ShowsColors() {
+		if c, ok := lex.ColorFor(lex.ColorText, row.Color); ok && style == lex.ColorText &&
+			(row.Type == lex.TypeScene || row.Type == lex.TypeSection) {
 			t.PDF.SetTextColor(int(c[0]), int(c[1]), int(c[2]))
 			t.pr(row.Type, row.Contents)
 			t.PDF.SetTextColor(0, 0, 0)
 			continue
 		}
 		t.pr(row.Type, row.Contents)
+		if block == "" {
+			t.extendBar(page, y)
+		}
 	}
 
 	// Flush any remaining dual dialogue at the end
 	if t.DualDialogue {
+		page, y := t.PDF.PageNo(), t.PDF.GetY()
 		t.flushDualDialogue()
+		t.extendBar(page, y)
+	}
+	t.closeBar()
+}
+
+// colorBar is the bar of a scene's color in the left margin (the line
+// style): drawn a page at a time, from top to bottom of what it is beside
+// there.
+type colorBar struct {
+	color       string // of the bar's scene or section; "" for none
+	heading     string // the color of the heading (marker, background)
+	drawn       string // the color of the bar drawn so far
+	page        int
+	top, bottom float64
+}
+
+// The bar: its width, and how far it is before the action's text, in
+// inches (before the scene numbers).
+const (
+	barWidth = 0.04
+	barGap   = 1.0
+)
+
+// extendBar draws the bar of the scene's color beside what was just
+// printed, from page and y on.
+func (t *Tree) extendBar(page int, y float64) {
+	b := t.bar
+	if b == nil {
+		return
+	}
+	if b.color != b.drawn || (b.drawn != "" && page != b.page) {
+		t.closeBar()
+	}
+	if b.color == "" {
+		return
+	}
+	if b.drawn == "" {
+		b.drawn, b.page, b.top = b.color, page, y
+	}
+	if now := t.PDF.PageNo(); now != b.page { // it went on to the next page
+		_, margin := t.PDF.GetAutoPageBreak()
+		_, height := t.PDF.GetPageSize()
+		b.bottom = height - margin
+		t.closeBar()
+		_, top, _, _ := t.PDF.GetMargins()
+		b.drawn, b.page, b.top = b.color, now, top
+	}
+	b.bottom = t.PDF.GetY()
+}
+
+// closeBar draws the bar so far, on its page.
+func (t *Tree) closeBar() {
+	b := t.bar
+	if b == nil || b.drawn == "" {
+		return
+	}
+	if c, ok := lex.ColorFor(lex.ColorLine, b.drawn); ok && b.bottom > b.top {
+		now := t.PDF.PageNo()
+		t.PDF.SetPage(b.page)
+		t.PDF.SetFillColor(int(c[0]), int(c[1]), int(c[2]))
+		x := (t.Rules.Get("action").Left - barGap) // the rules are scaled to the page already
+		t.PDF.Rect(x, b.top, barWidth*t.sc(), b.bottom-b.top, "F")
+		t.PDF.SetPage(now)
+	}
+	b.drawn = ""
+}
+
+// headingColor draws a heading's marker or background before its text is
+// printed over it.
+func (t Tree) headingColor(f rules.Format, text, color string) {
+	if !t.Rules.ShowsColors() {
+		return
+	}
+	style := t.Rules.ColorStyle()
+	c, ok := lex.ColorFor(style, color)
+	if !ok || (style != lex.ColorMarker && style != lex.ColorBackground) {
+		return
+	}
+	pdf := t.PDF
+	fontName, _ := t.Fonts.font(f.Font, text)
+	pdf.SetFont(fontName, f.Style, f.Size)
+	pageWidth, _ := pdf.GetPageSize()
+	room := pageWidth - f.Left - f.Right
+	lines := pdf.SplitText(lex.Unstyled(text), room)
+	y := pdf.GetY()
+	pdf.SetFillColor(int(c[0]), int(c[1]), int(c[2]))
+	if style == lex.ColorBackground {
+		pdf.Rect(f.Left-0.05, y, room+0.1, float64(len(lines))*lineHeight, "F")
+		return
+	}
+	for i, l := range lines {
+		w := pdf.GetStringWidth(l)
+		x := f.Left
+		switch strings.ToUpper(f.Align) {
+		case "C":
+			x += (room - w) / 2
+		case "R":
+			x += room - w
+		}
+		pdf.Rect(x-0.03, y+float64(i)*lineHeight, w+0.06, lineHeight, "F")
 	}
 }
 

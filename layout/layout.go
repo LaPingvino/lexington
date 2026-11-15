@@ -59,9 +59,38 @@ type Line struct {
 	// SceneNumber of a scene heading (Fountain's #1A#), printed in the
 	// margins; on the heading's first line only.
 	SceneNumber string
-	// Color of a scene heading or section from its notes, as #rrggbb,
-	// when the rules print colors (rules.Set.ShowsColors); else "".
-	Color string
+	// Colors of the line, as #rrggbb (or ""), when the rules print
+	// colors (rules.Set.ShowsColors), in their style (ColorStyle).
+	Colors
+}
+
+// Colors are how a line or paragraph shows its scene's color
+// (lex.ColorFor, readable on the page), as #rrggbb, "" for none: the
+// text's color, a marker behind the text, a band behind the line, a bar
+// in the left margin (on every line of a scene or section with a color,
+// so that the lines' bars make one).
+type Colors struct {
+	Color, Marker, Background, Bar string
+}
+
+// colors are a heading's (or a scene line's) colors in a style.
+func colors(style lex.ColorStyle, color string, heading bool) Colors {
+	c, ok := lex.ColorFor(style, color)
+	if !ok {
+		return Colors{}
+	}
+	hex := lex.HexOf(c)
+	switch {
+	case style == lex.ColorLine:
+		return Colors{Bar: hex}
+	case !heading:
+		return Colors{}
+	case style == lex.ColorMarker:
+		return Colors{Marker: hex}
+	case style == lex.ColorBackground:
+		return Colors{Background: hex}
+	}
+	return Colors{Color: hex}
 }
 
 // Text is the line's text without styles.
@@ -114,9 +143,9 @@ type Paragraph struct {
 	Column int
 	// SceneNumber of a scene heading (Fountain's #1A#).
 	SceneNumber string
-	// Color of a scene heading or section from its notes, as #rrggbb,
-	// when the rules print colors (rules.Set.ShowsColors); else "".
-	Color string
+	// Colors of the line, as #rrggbb (or ""), when the rules print
+	// colors (rules.Set.ShowsColors), in their style (ColorStyle).
+	Colors
 }
 
 // Text is the paragraph's text without styles.
@@ -151,8 +180,19 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 	s = lex.Printable(s, set.PrintsNotes())
 	var out []Paragraph
 	block, column := "", 0
+	style, color := set.ColorStyle(), "" // color: of the scene or section the row is in
 	for _, row := range s {
 		t := row.Type
+		if !set.ShowsColors() {
+			row.Color = ""
+		}
+		if t == lex.TypeScene || t == lex.TypeSection {
+			color = row.Color
+		}
+		bar := Colors{}
+		if block == "" && t != lex.TypeTitlePage && t != lex.TypeNewPage {
+			bar = colors(style, color, false)
+		}
 		switch t {
 		case lex.TypeNewPage:
 			block = ""
@@ -175,7 +215,7 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 			column = 0
 			continue
 		case lex.TypeEmpty:
-			out = append(out, Paragraph{Block: block, Column: column})
+			out = append(out, Paragraph{Block: block, Column: column, Colors: bar})
 			continue
 		}
 		key := string(t)
@@ -213,14 +253,14 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 		if a := strings.ToUpper(f.Align); a == "C" || a == "R" {
 			align = a[0]
 		}
-		style := Span{Bold: strings.Contains(f.Style, "b"), Italic: strings.Contains(f.Style, "i"),
+		base := Span{Bold: strings.Contains(f.Style, "b"), Italic: strings.Contains(f.Style, "i"),
 			Underline: strings.Contains(f.Style, "u")}
-		color := ""
-		if set.ShowsColors() {
-			color = lex.ColorHex(row.Color)
+		cs := bar
+		if t == lex.TypeScene || t == lex.TypeSection {
+			cs = colors(style, row.Color, true)
 		}
 		out = append(out, Paragraph{Type: t, Block: block, Key: key, Left: left, Right: right, Align: align,
-			Spans: emphasis(text, style), Column: column, SceneNumber: number, Color: color})
+			Spans: emphasis(text, base), Column: column, SceneNumber: number, Colors: cs})
 	}
 	return out
 }
@@ -235,7 +275,7 @@ func Lay(s lex.Screenplay, set rules.Set) []Line {
 			out = append(out, Line{PageBreak: true})
 			continue
 		case p.Type == "":
-			out = append(out, Line{Block: p.Block, Column: p.Column})
+			out = append(out, Line{Block: p.Block, Column: p.Column, Colors: p.Colors})
 			continue
 		}
 		indent := int(math.Round((p.Left - base) * CharsPerInch))
@@ -243,7 +283,7 @@ func Lay(s lex.Screenplay, set rules.Set) []Line {
 		number := p.SceneNumber
 		for _, spans := range wrap(p.Spans, width) {
 			out = append(out, Line{Type: p.Type, Block: p.Block, Indent: indent, Width: width, Align: p.Align,
-				Spans: spans, Column: p.Column, SceneNumber: number, Color: p.Color})
+				Spans: spans, Column: p.Column, SceneNumber: number, Colors: p.Colors})
 			number = ""
 		}
 	}

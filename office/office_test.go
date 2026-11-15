@@ -128,6 +128,8 @@ func TestPresetStyles(t *testing.T) {
 
 // With colors, a heading's color is the text's color of its paragraph.
 func TestOfficeColors(t *testing.T) {
+	rgb, _ := lex.ColorFor(lex.ColorText, "blue")
+	blue := lex.HexOf(rgb)
 	s := fountain.Parse(rules.DefaultConf().Scenes["en"], strings.NewReader("INT. HOUSE - DAY [[blue]]\n\nRain.\n"))
 	for _, c := range []struct {
 		w interface {
@@ -136,8 +138,8 @@ func TestOfficeColors(t *testing.T) {
 		part string
 		want string
 	}{
-		{&DOCXWriter{Elements: rules.Default.WithColors()}, "word/document.xml", `<w:color w:val="0081EF"/>`},
-		{&ODTWriter{Elements: rules.Default.WithColors()}, "content.xml", `fo:color="#0081ef"`},
+		{&DOCXWriter{Elements: rules.Default.WithColorStyle(lex.ColorText)}, "word/document.xml", `<w:color w:val="` + strings.ToUpper(blue[1:]) + `"/>`},
+		{&ODTWriter{Elements: rules.Default.WithColorStyle(lex.ColorText)}, "content.xml", `fo:color="` + blue + `"`},
 		{&DOCXWriter{}, "word/document.xml", ""},
 	} {
 		var buf bytes.Buffer

@@ -160,6 +160,10 @@ body {
     text-align: start;
 }
 .scene-heading { position: relative; }
+/* colors (-colors): a bar before the text down a scene, a marker, a band;
+   printed as shown */
+.colorbar, .marker, .scene-heading[style] { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.marker { padding: 0 0.05em; }
 .scene-number { position: absolute; top: 0; font-weight: normal; }
 .scene-number.left { inset-inline-end: calc(100% + 0.25in); }
 .scene-number.right { inset-inline-start: calc(100% + 0.25in); }
@@ -208,7 +212,7 @@ body {
 <div class="title-meta">{{- $inMeta = true -}}{{-
     else if eq .Type "scene" -}}
 {{- $h := sceneHeading .Contents -}}
-<div class="scene-heading" dir="auto"{{if $.Config.ShowColors}}{{colorStyle .Color}}{{end}}>{{- processInlineMarkup $h.Text -}}{{- if $h.Number -}}<span class="scene-number left">{{ $h.Number }}</span><span class="scene-number right">{{ $h.Number }}</span>{{- end -}}</div>{{-
+<div class="scene-heading" dir="auto"{{headingColor $.Config.ColorStyle .Color}}>{{markerOpen $.Config.ColorStyle .Color}}{{- processInlineMarkup $h.Text -}}{{markerClose $.Config.ColorStyle .Color}}{{- if $h.Number -}}<span class="scene-number left">{{ $h.Number }}</span><span class="scene-number right">{{ $h.Number }}</span>{{- end -}}</div>{{-
     else if eq .Type "action" "general" -}}
 <div class="action" dir="auto">{{- processInlineMarkup .Contents -}}</div>{{-
     else if eq .Type "speaker" -}}
@@ -231,6 +235,10 @@ body {
 <div class="page">{{-
     else if eq .Type "empty" -}}
 <div class="empty"></div>{{-
+    else if eq .Type "colorbar_open" -}}
+<div class="colorbar" style="background: linear-gradient(to right, transparent {{$.Config.BarLeft}}in, {{.Color}} {{$.Config.BarLeft}}in, {{.Color}} calc({{$.Config.BarLeft}}in + {{$.Config.BarWidth}}in), transparent calc({{$.Config.BarLeft}}in + {{$.Config.BarWidth}}in))">{{-
+    else if eq .Type "colorbar_close" -}}
+</div>{{-
     else if eq .Type "dualspeaker_open" -}}
 <table class="dual-dialogue"><tr><td>{{-
     else if eq .Type "dualspeaker_next" -}}
@@ -291,8 +299,11 @@ type TemplateConfig struct {
 	DualParenLeft     float64
 	DualParenRight    float64
 
-	// ShowColors: scene headings in their notes' colors
-	ShowColors bool
+	// ColorStyle: how scene headings show their notes' colors
+	// (lex.ColorStyle); "" when they do not
+	ColorStyle string
+	BarLeft    float64 // where a scene's color bar is, in inches from the text's edge
+	BarWidth   float64
 
 	// Style configuration
 	SceneStyle  template.CSS
@@ -397,7 +408,9 @@ func (h *HTMLWriter) getTemplateConfig() TemplateConfig {
 		DualParenLeft:     dualParenLeft,
 		DualParenRight:    dualParen.Right,
 
-		ShowColors: elements.ShowsColors(),
+		ColorStyle: colorStyleOf(elements),
+		BarLeft:    action.Left - barGap,
+		BarWidth:   barWidth,
 
 		// Style configuration
 		SceneStyle:  sceneStyle,
@@ -415,14 +428,16 @@ func (h *HTMLWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	// Create combined template data
 	templateData := HTMLTemplateData{
 		Config:     config,
-		Screenplay: lex.Printable(screenplay, false), // notes are not printed
+		Screenplay: withBars(lex.Printable(screenplay, false), config.ColorStyle), // notes are not printed
 	}
 
 	// Parse and execute the HTML template with better error context
 	tmpl, err := template.New("screenplay").Funcs(template.FuncMap{
 		"processInlineMarkup": processInlineMarkup,
 		"sceneHeading":        sceneHeading,
-		"colorStyle":          colorStyle,
+		"headingColor":        headingColor,
+		"markerOpen":          markerOpen,
+		"markerClose":         markerClose,
 	}).Parse(htmlTemplateString)
 	if err != nil {
 		return fmt.Errorf("failed to parse HTML template: %w", err)
@@ -457,13 +472,101 @@ func printHeight(page string) string {
 	return "9in"
 }
 
-// colorStyle is the style attribute of a color from notes (lex.Line's
-// Color), or nothing for one that is no color.
-func colorStyle(color string) template.HTMLAttr {
-	if hex := lex.ColorHex(color); hex != "" {
+// colorStyleOf is how the rules show colors, "" when they do not.
+func colorStyleOf(set rules.Set) string {
+	if !set.ShowsColors() {
+		return ""
+	}
+	return string(set.ColorStyle())
+}
+
+// The bar of a scene's color: its width, and how far it is before the
+// action's text, in inches.
+const (
+	barWidth = 0.04
+	barGap   = 0.3
+)
+
+// hexFor is a color in a style (lex.ColorFor), "" for none.
+func hexFor(style, color string) string {
+	if style == "" {
+		return ""
+	}
+	c, ok := lex.ColorFor(lex.ColorStyle(style), color)
+	if !ok {
+		return ""
+	}
+	return lex.HexOf(c)
+}
+
+// headingColor is the style attribute of a heading in its color: the
+// text's color, or a band behind it.
+func headingColor(style, color string) template.HTMLAttr {
+	hex := hexFor(style, color)
+	switch {
+	case hex == "":
+	case style == string(lex.ColorText):
 		return template.HTMLAttr(` style="color: ` + hex + `"`)
+	case style == string(lex.ColorBackground):
+		return template.HTMLAttr(` style="background-color: ` + hex + `"`)
 	}
 	return ""
+}
+
+// markerOpen and markerClose put a heading's text in a marker.
+func markerOpen(style, color string) template.HTML {
+	if hex := hexFor(style, color); hex != "" && style == string(lex.ColorMarker) {
+		return template.HTML(`<span class="marker" style="background-color: ` + hex + `">`)
+	}
+	return ""
+}
+
+func markerClose(style, color string) template.HTML {
+	if hexFor(style, color) != "" && style == string(lex.ColorMarker) {
+		return "</span>"
+	}
+	return ""
+}
+
+// Lines the template gets around the lines of a scene or section with a
+// color, in the line style: a bar beside them (Color, as #rrggbb).
+const (
+	typeBarOpen  = "colorbar_open"
+	typeBarClose = "colorbar_close"
+)
+
+// withBars puts the lines of each scene and section with a color between
+// bar lines; a page break closes the bar, the next page opens it again.
+func withBars(s lex.Screenplay, style string) lex.Screenplay {
+	if style != string(lex.ColorLine) {
+		return s
+	}
+	var out lex.Screenplay
+	open, color := "", ""
+	for _, l := range s {
+		if l.Type == lex.TypeScene || l.Type == lex.TypeSection {
+			color = hexFor(style, l.Color)
+		}
+		want := color
+		switch l.Type {
+		case lex.TypeNewPage, lex.TypeTitlePage:
+			want = ""
+		}
+		if want != open {
+			if open != "" {
+				out = append(out, lex.Line{Type: typeBarClose})
+			}
+			if want != "" {
+				out = append(out, lex.Line{Type: typeBarOpen, Color: want})
+			}
+			open = want
+		}
+		out = append(out, l)
+	}
+	if open != "" {
+		out = append(out, lex.Line{Type: typeBarClose})
+	}
+	return out
 }
 
 // heading is a scene heading's text and its number (#12#), if any.

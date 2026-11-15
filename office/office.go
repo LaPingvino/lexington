@@ -79,6 +79,13 @@ const (
 	dualGap   = 0.5
 )
 
+// The bar of a scene's color (layout.Colors.Bar): its width, and how far
+// it is before the text, in inches.
+const (
+	barWidth = 0.04
+	barGap   = 0.3
+)
+
 var styleNames = map[string]string{
 	"scene":       "Scene Heading",
 	"action":      "Action",

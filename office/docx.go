@@ -178,13 +178,21 @@ func (d *doc) docxDocument() string {
 func (d *doc) docxParagraph(b *strings.Builder, p layout.Paragraph, breakBefore bool, spaceBefore float64) {
 	b.WriteString(`<w:p>`)
 	st := d.byKey[p.Key]
-	if st != nil || breakBefore || spaceBefore > 0 {
+	bar := p.Bar != "" && p.Column == 0
+	if st != nil || breakBefore || spaceBefore > 0 || bar || p.Background != "" {
 		b.WriteString(`<w:pPr>`)
 		if st != nil {
 			fmt.Fprintf(b, `<w:pStyle w:val="%s"/>`, st.ID)
 		}
 		if breakBefore {
 			b.WriteString(`<w:pageBreakBefore/>`)
+		}
+		if bar { // a left border: Word draws it before the paragraph's indent
+			fmt.Fprintf(b, `<w:pBdr><w:left w:val="single" w:sz="%d" w:space="%d" w:color="%s"/></w:pBdr>`,
+				int(math.Round(barWidth*72*8)), int(math.Round(barGap*72)), hexVal(p.Bar))
+		}
+		if p.Background != "" {
+			fmt.Fprintf(b, `<w:shd w:val="clear" w:color="auto" w:fill="%s"/>`, hexVal(p.Background))
 		}
 		if p.SceneNumber != "" && st != nil {
 			fmt.Fprintf(b, `<w:tabs><w:tab w:val="right" w:pos="%d"/></w:tabs>`, twips(d.textWidth()-st.Right))
@@ -196,16 +204,16 @@ func (d *doc) docxParagraph(b *strings.Builder, p layout.Paragraph, breakBefore 
 	}
 	for _, sp := range p.Spans {
 		b.WriteString(`<w:r>`)
-		if p.Color != "" || st != nil && (sp.Bold != st.Bold || sp.Italic != st.Italic || sp.Underline != st.Underline) {
+		if p.Color != "" || p.Marker != "" || st != nil && (sp.Bold != st.Bold || sp.Italic != st.Italic || sp.Underline != st.Underline) {
 			b.WriteString(`<w:rPr>`)
-			if p.Color != "" {
-				fmt.Fprintf(b, `<w:color w:val="%s"/>`, strings.ToUpper(p.Color[1:]))
-			}
 			if st != nil && sp.Bold != st.Bold {
 				b.WriteString(onOff("b", sp.Bold))
 			}
 			if st != nil && sp.Italic != st.Italic {
 				b.WriteString(onOff("i", sp.Italic))
+			}
+			if p.Color != "" {
+				fmt.Fprintf(b, `<w:color w:val="%s"/>`, hexVal(p.Color))
 			}
 			if st != nil && sp.Underline != st.Underline {
 				if sp.Underline {
@@ -213,6 +221,9 @@ func (d *doc) docxParagraph(b *strings.Builder, p layout.Paragraph, breakBefore 
 				} else {
 					b.WriteString(`<w:u w:val="none"/>`)
 				}
+			}
+			if p.Marker != "" { // a highlighter: the run's shading
+				fmt.Fprintf(b, `<w:shd w:val="clear" w:color="auto" w:fill="%s"/>`, hexVal(p.Marker))
 			}
 			b.WriteString(`</w:rPr>`)
 		}
@@ -223,6 +234,9 @@ func (d *doc) docxParagraph(b *strings.Builder, p layout.Paragraph, breakBefore 
 	}
 	b.WriteString(`</w:p>`)
 }
+
+// hexVal is a #rrggbb color as Word has it: RRGGBB.
+func hexVal(c string) string { return strings.ToUpper(strings.TrimPrefix(c, "#")) }
 
 func (d *doc) docxDual(b *strings.Builder, bl block) {
 	if bl.BreakBefore {

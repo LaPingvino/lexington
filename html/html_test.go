@@ -295,12 +295,13 @@ func TestHTMLColors(t *testing.T) {
 	for _, c := range []struct {
 		set  rules.Set
 		want int
-	}{{rules.Default, 0}, {rules.Default.WithColors(), 1}} {
+	}{{rules.Default, 0}, {rules.Default.WithColorStyle(lex.ColorText), 1}} {
 		var b bytes.Buffer
 		if err := (&HTMLWriter{Elements: c.set}).Write(&b, s); err != nil {
 			t.Fatal(err)
 		}
-		if n := strings.Count(b.String(), `<div class="scene-heading" dir="auto" style="color: #ef0049">`); n != c.want {
+		red, _ := lex.ColorFor(lex.ColorText, "red")
+		if n := strings.Count(b.String(), `<div class="scene-heading" dir="auto" style="color: `+lex.HexOf(red)+`">`); n != c.want {
 			t.Errorf("%d colored headings, want %d", n, c.want)
 		}
 		if strings.Contains(b.String(), "nothing") {

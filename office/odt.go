@@ -192,7 +192,26 @@ func (d *doc) odtContent() (string, string) {
 		}
 		color := ""
 		if p.Color != "" {
-			color = `<style:text-properties fo:color="` + p.Color + `"/>`
+			color += ` fo:color="` + p.Color + `"`
+		}
+		if p.Marker != "" {
+			color += ` fo:background-color="` + p.Marker + `"`
+		}
+		if color != "" {
+			color = `<style:text-properties` + color + `/>`
+		}
+		if p.Background != "" {
+			props += ` fo:background-color="` + p.Background + `"`
+		}
+		if p.Bar != "" && p.Column == 0 {
+			// a bar at the same place for every paragraph: in the margin
+			// before the text, the paragraph's indent as padding
+			stLeft := 0.0
+			if st != nil {
+				stLeft = st.Left
+			}
+			props += ` fo:margin-left="-` + in(barGap) + `" fo:padding-left="` + in(stLeft+barGap-barWidth) +
+				`" fo:border-left="` + in(barWidth) + ` solid ` + p.Bar + `"`
 		}
 		if props != "" || master != "" || tabs != "" || color != "" {
 			n++
