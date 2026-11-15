@@ -62,6 +62,9 @@ func (t Tree) vsc() float64 {
 }
 
 func (t Tree) pr(a string, text string) {
+	if a == lex.TypeNote {
+		a = rules.KeyPrintNotes.String()
+	}
 	f := t.Rules.Get(a)
 	switch a {
 	case "section":
@@ -192,9 +195,9 @@ func (t *Tree) processBookmarkContent(row lex.Line, lastsection int) (string, in
 
 	switch row.Type {
 	case "section":
-		contents = strings.TrimLeft(row.Contents, "#")
-		level = len(row.Contents) - len(contents)
-		contents = strings.TrimLeft(contents, " ")
+		section := strings.TrimSpace(row.Contents)
+		level = len(section) - len(strings.TrimLeft(section, "#"))
+		contents = lex.SectionText(section)
 	case "scene":
 		level = lastsection + 1
 		contents, _ = lex.SceneNumber(row.Contents)
@@ -205,6 +208,9 @@ func (t *Tree) processBookmarkContent(row lex.Line, lastsection int) (string, in
 
 // shouldSkipElement determines if an element should be skipped
 func (t *Tree) shouldSkipElement(row lex.Line, block string) bool {
+	if row.Type == lex.TypeNote {
+		return !t.Rules.PrintsNotes()
+	}
 	return t.Rules.Get(row.Type).Hide && block == ""
 }
 
@@ -427,7 +433,7 @@ func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	f := &Tree{
 		PDF:          pdf,
 		Rules:        elements,
-		F:            screenplay, // Use the screenplay passed to the Write method
+		F:            lex.Printable(screenplay, elements.PrintsNotes()), // notes are not printed
 		HTML:         pdf.HTMLBasicNew(),
 		DualDialogue: false,
 		DualColumn:   0,

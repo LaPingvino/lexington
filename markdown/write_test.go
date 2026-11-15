@@ -508,3 +508,24 @@ func TestEmptyLinesAndSpacing(t *testing.T) {
 		t.Error("Expected action line after dialogue block")
 	}
 }
+
+// Notes and the boneyard are not printed; a synopsis is, without its
+// notes.
+func TestMarkdownNotes(t *testing.T) {
+	s := lex.Screenplay{
+		{Type: lex.TypeScene, Contents: "INT. HOUSE - DAY [[COLOR BLUE]]"},
+		{Type: lex.TypeNote, Contents: "[[A standalone note]]"},
+		{Type: "boneyard", Contents: "/* cut */"},
+		{Type: lex.TypeSection, Contents: "# War 6 [[#3366ff]]"},
+		{Type: lex.TypeSynopsis, Contents: "A synopsis [[blue]]"},
+		{Type: lex.TypeAction, Contents: "Action with [[a note]] inside."},
+	}
+	var b bytes.Buffer
+	if err := (&MarkdownWriter{}).Write(&b, s); err != nil {
+		t.Fatal(err)
+	}
+	want := "## INT. HOUSE - DAY\n\n### War 6\n\n> A synopsis\n\nAction with inside.\n\n"
+	if b.String() != want {
+		t.Errorf("got %q, want %q", b.String(), want)
+	}
+}

@@ -419,7 +419,7 @@ func (h *HTMLWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	// Create combined template data
 	templateData := HTMLTemplateData{
 		Config:     config,
-		Screenplay: screenplay,
+		Screenplay: lex.Printable(screenplay, false), // notes are not printed
 	}
 
 	// Parse and execute the HTML template with better error context

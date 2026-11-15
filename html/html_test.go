@@ -265,3 +265,23 @@ func TestInlineMarkupWithoutMarkupChars(t *testing.T) {
 		t.Errorf("processInlineMarkup should return unchanged text when no markup characters present")
 	}
 }
+
+// Notes are not printed: a heading keeps its number with a note after
+// or before it, a line of notes is left out.
+func TestHTMLNotes(t *testing.T) {
+	var b bytes.Buffer
+	s := lex.Screenplay{
+		{Type: lex.TypeScene, Contents: "INT. HOUSE - DAY [[blue]] #12#"},
+		{Type: lex.TypeNote, Contents: "[[A standalone note]]"},
+		{Type: lex.TypeDialog, Contents: "Hello [[dialogue note]] there."},
+	}
+	if err := (&HTMLWriter{}).Write(&b, s); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	if strings.Contains(out, "[[") || strings.Contains(out, "note") ||
+		!strings.Contains(out, `dir="auto">INT. HOUSE - DAY<span class="scene-number left">12</span>`) ||
+		!strings.Contains(out, ">Hello there.</div>") {
+		t.Errorf("html:\n%s", out[strings.Index(out, "<body>"):])
+	}
+}

@@ -165,6 +165,7 @@ const alignCenter = "Center"
 
 // buildDocument converts a screenplay into the FDX document structure.
 func buildDocument(screenplay lex.Screenplay) FdxFile {
+	screenplay = lex.Printable(screenplay, false) // notes are not printed
 	doc := FdxFile{DocumentType: "Script", Template: "No", Version: "5"}
 
 	i := 0

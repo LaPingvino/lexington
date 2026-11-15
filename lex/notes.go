@@ -121,7 +121,10 @@ func Printable(s Screenplay, keepNotes bool) Screenplay {
 		stripped := StripNotes(l.Contents)
 		if l.Type == TypeNote || (stripped != l.Contents && strings.TrimSpace(stripped) == "" && printsText(l.Type)) {
 			if keepNotes {
-				out = append(out, Line{Type: TypeNote, Contents: strings.Join(Notes(l.Contents), " ")})
+				if HasNotes(l.Contents) { // (or printable already)
+					l.Contents = strings.Join(Notes(l.Contents), " ")
+				}
+				out = append(out, Line{Type: TypeNote, Contents: l.Contents})
 				continue
 			}
 			// a blank line before it and after it: one of them goes

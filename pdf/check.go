@@ -26,7 +26,7 @@ func Unsupported(s lex.Screenplay) (missing []rune, rtl bool) {
 	courierOnce.Do(func() { courier, _ = sfnt.Parse(font.GetFont(font.CourierPrimeName, "")) })
 	var buf sfnt.Buffer
 	seen := map[rune]bool{}
-	for _, l := range s {
+	for _, l := range lex.Printable(s, false) {
 		for _, r := range string(l.Contents) {
 			if seen[r] || unicode.IsSpace(r) || unicode.IsControl(r) || unicode.Is(unicode.Cf, r) { // marks print as nothing
 				continue

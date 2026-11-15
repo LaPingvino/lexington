@@ -60,7 +60,7 @@ func (m *MarkdownWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		inDualDialogue: false,
 	}
 
-	for _, line := range screenplay {
+	for _, line := range lex.Printable(screenplay, false) { // notes are not printed
 		if err := state.processLine(line); err != nil {
 			return err
 		}
@@ -245,6 +245,9 @@ func (s *markdownState) processSectionLine(line lex.Line) error {
 
 // processDefaultLine handles unrecognized line types
 func (s *markdownState) processDefaultLine(line lex.Line) error {
+	if line.Type == "boneyard" || line.Type == lex.TypeNote { // never printed
+		return nil
+	}
 	if strings.TrimSpace(line.Contents) != "" {
 		return s.writeFormatted("%s\n\n", processInlineMarkup(line.Contents))
 	}

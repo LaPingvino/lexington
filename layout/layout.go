@@ -140,13 +140,15 @@ func Margin(set rules.Set) float64 {
 }
 
 // Paragraphs are a screenplay's printed elements with a set of rules
-// (rules.Default if nil): hidden elements left out, prefixes and
-// postfixes added, scene headings and names in capitals, Fountain's
+// (rules.Default if nil): hidden elements and Fountain's notes left out
+// (lex.Printable; lines of notes are printed with the set's printnotes
+// rule, if it has one), prefixes and postfixes added, scene headings and names in capitals, Fountain's
 // emphasis as styled spans.
 func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 	if set == nil {
 		set = rules.Default
 	}
+	s = lex.Printable(s, set.PrintsNotes())
 	var out []Paragraph
 	block, column := "", 0
 	for _, row := range s {
@@ -177,7 +179,9 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 			continue
 		}
 		key := string(t)
-		if block != "" {
+		if t == lex.TypeNote {
+			key = rules.KeyPrintNotes.String()
+		} else if block != "" {
 			key = block // title page fields: the title or meta format
 		} else if column != 0 && (t == lex.TypeSpeaker || t == lex.TypeDialog || t == lex.TypeParen) {
 			key = "dual" + string(t)

@@ -317,8 +317,8 @@ func preprocessDualDialogue(screenplay lex.Screenplay) lex.Screenplay {
 // (like `screenwright` or `fountain-latex`) installed on the system.
 // The PDF generation step is external to this Go program.
 func (l *LaTeXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
-	// Preprocess screenplay to handle dual dialogue
-	screenplay = preprocessDualDialogue(screenplay)
+	// Preprocess screenplay to handle dual dialogue; notes are not printed
+	screenplay = preprocessDualDialogue(lex.Printable(screenplay, false))
 
 	// Get template configuration from rules
 	config := l.getLatexConfig()
