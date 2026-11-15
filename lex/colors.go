@@ -57,6 +57,58 @@ const (
 	ColorText ColorStyle = "text"
 )
 
+// ColorTint is no style of its own: the light wash a line style can put
+// under its block (ColorScheme.Tint).
+const ColorTint ColorStyle = "tint"
+
+// ColorScheme is how colors show: a style; for marker and background,
+// over the heading only or the whole block (the scene or section, up to
+// the next heading or section); for line, a light tint under the block
+// besides the bar.
+type ColorScheme struct {
+	Style ColorStyle
+	Block bool // marker, background: the whole block, not the heading
+	Tint  bool // line: a tint under the block
+}
+
+// ParseColorScheme reads a scheme as String writes it: a style, then
+// "+block" (marker, background) or "+tint" (line): "background+block",
+// "line+tint"; "" is line.
+func ParseColorScheme(text string) (ColorScheme, error) {
+	parts := strings.Split(strings.ToLower(strings.TrimSpace(text)), "+")
+	style, err := ParseColorStyle(parts[0])
+	if err != nil {
+		return ColorScheme{}, err
+	}
+	sch := ColorScheme{Style: style}
+	for _, p := range parts[1:] {
+		switch {
+		case p == "block" && (style == ColorMarker || style == ColorBackground):
+			sch.Block = true
+		case p == "tint" && style == ColorLine:
+			sch.Tint = true
+		default:
+			return ColorScheme{}, fmt.Errorf("no color scheme %q: a marker or background can have +block, a line +tint", text)
+		}
+	}
+	return sch, nil
+}
+
+// String is the scheme as ParseColorScheme reads it.
+func (c ColorScheme) String() string {
+	s := string(c.Style)
+	if s == "" {
+		s = string(ColorLine)
+	}
+	if c.Block {
+		s += "+block"
+	}
+	if c.Tint {
+		s += "+tint"
+	}
+	return s
+}
+
 // ParseColorStyle reads a style by its name; "" is line.
 func ParseColorStyle(name string) (ColorStyle, error) {
 	switch st := ColorStyle(strings.ToLower(strings.TrimSpace(name))); st {
@@ -79,6 +131,7 @@ const (
 
 // ColorFor is the RGB a color (as NoteColor gives it) is drawn with in a
 // style, the same in every format: for a marker and a background a tint,
+// for ColorTint (the wash under a line's block) a lighter one still,
 // mixed with white (a marker less) until black text on it has
 // ContrastFill; for text the color, darkened (its hue kept) until it has
 // ContrastText on white; for a line the color, darkened until it has
@@ -90,12 +143,15 @@ func ColorFor(style ColorStyle, color string) (rgb [3]uint8, ok bool) {
 	}
 	black, white := [3]uint8{}, [3]uint8{255, 255, 255}
 	switch style {
-	case ColorMarker, ColorBackground:
+	case ColorMarker, ColorBackground, ColorTint:
 		t := 0.55 // white in a marker
-		if style == ColorBackground {
+		if style != ColorMarker {
 			t = 0.75
 		}
 		for ; t < 1 && Contrast(mix(c, white, t), black) < ContrastFill; t += 0.01 {
+		}
+		if style == ColorTint { // lighter than a background
+			t = max(t+0.08, 0.88)
 		}
 		return mix(c, white, min(t, 1)), true
 	}

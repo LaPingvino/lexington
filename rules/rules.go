@@ -109,29 +109,39 @@ func (s Set) ShowsColors() bool {
 func IsSwitch(key string) bool { return key == KeyNoteColors.String() }
 
 // WithColors is a copy of the set that prints colors (ShowsColors), in
-// the style it has (ColorStyle).
+// the scheme it has (ColorScheme).
 func (s Set) WithColors() Set {
-	return s.WithColorStyle(s.ColorStyle())
+	return s.WithColorScheme(s.ColorScheme())
 }
 
-// ColorStyle is how the set shows colors: its notecolors rule's Style,
-// line, marker, background or text; line when it is none of them.
-func (s Set) ColorStyle() lex.ColorStyle {
-	st, err := lex.ParseColorStyle(s[KeyNoteColors.String()].Style)
+// ColorScheme is how the set shows colors: its notecolors rule's Style,
+// as lex.ParseColorScheme reads it (line, marker+block, line+tint, ...);
+// line when it is none.
+func (s Set) ColorScheme() lex.ColorScheme {
+	sch, err := lex.ParseColorScheme(s[KeyNoteColors.String()].Style)
 	if err != nil {
-		return lex.ColorLine
+		return lex.ColorScheme{Style: lex.ColorLine}
 	}
-	return st
+	return sch
 }
 
-// WithColorStyle is a copy of the set that prints colors in a style.
-func (s Set) WithColorStyle(style lex.ColorStyle) Set {
+// ColorStyle is the style of the set's ColorScheme.
+func (s Set) ColorStyle() lex.ColorStyle { return s.ColorScheme().Style }
+
+// WithColorScheme is a copy of the set that prints colors in a scheme.
+func (s Set) WithColorScheme(sch lex.ColorScheme) Set {
 	out := Set{}
 	for k, f := range s {
 		out[k] = f
 	}
-	out[KeyNoteColors.String()] = Format{Style: string(style)}
+	out[KeyNoteColors.String()] = Format{Style: sch.String()}
 	return out
+}
+
+// WithColorStyle is a copy of the set that prints colors in a style, over
+// headings and without a tint.
+func (s Set) WithColorStyle(style lex.ColorStyle) Set {
+	return s.WithColorScheme(lex.ColorScheme{Style: style})
 }
 
 // GetSafe retrieves a format safely with error reporting

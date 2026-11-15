@@ -179,6 +179,7 @@ func TestColorForContrast(t *testing.T) {
 		for style, check := range map[ColorStyle]func([3]uint8) float64{
 			ColorMarker:     func(f [3]uint8) float64 { return Contrast(f, black) - ContrastFill },
 			ColorBackground: func(f [3]uint8) float64 { return Contrast(f, black) - ContrastFill },
+			ColorTint:       func(f [3]uint8) float64 { return Contrast(f, black) - ContrastFill },
 			ColorText:       func(f [3]uint8) float64 { return Contrast(f, white) - ContrastText },
 			ColorLine:       func(f [3]uint8) float64 { return Contrast(f, white) - ContrastBar },
 		} {
@@ -199,5 +200,28 @@ func TestColorForContrast(t *testing.T) {
 	}
 	if c, _ := ColorFor(ColorText, "#111111"); HexOf(c) != "#111111" {
 		t.Errorf("dark text changed: %s", HexOf(c))
+	}
+}
+
+// The tint under a line's block is lighter than a background; schemes
+// read as written, only the combinations that are some.
+func TestColorTintAndSchemes(t *testing.T) {
+	for _, c := range []string{"red", "blue", "yellow", "#000000", "#3366ff"} {
+		b, _ := ColorFor(ColorBackground, c)
+		w, _ := ColorFor(ColorTint, c)
+		if luminance(w) <= luminance(b) {
+			t.Errorf("%s: tint %s not lighter than background %s", c, HexOf(w), HexOf(b))
+		}
+	}
+	for in, want := range map[string]string{"": "line", "line": "line", "Marker+Block": "marker+block",
+		"background+block": "background+block", "line+tint": "line+tint", "text": "text"} {
+		if sch, err := ParseColorScheme(in); err != nil || sch.String() != want {
+			t.Errorf("ParseColorScheme(%q) = %v, %v", in, sch, err)
+		}
+	}
+	for _, bad := range []string{"text+block", "line+block", "marker+tint", "neon", "marker+all"} {
+		if _, err := ParseColorScheme(bad); err == nil {
+			t.Errorf("%q: no error", bad)
+		}
 	}
 }
