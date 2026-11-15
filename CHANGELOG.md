@@ -65,6 +65,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Toki Pona scene headings (`tok`).
 
 ### Fixed
+- **Fountain notes** (`[[...]]`) are never printed any more, in a line
+  (a heading, action, dialogue, a section, a synopsis) or on a line of
+  their own, over several lines too (an unclosed `[[` is left as it
+  is). They stay in the text: Fountain and lex written back keep them.
+  `lex.StripNotes` takes them out, every writer prints through
+  `lex.Printable`, and `lex.SceneNumber` and `lex.SectionText` leave
+  them out, so `INT. HOUSE - DAY [[red]] #12#` is still scene 12.
+  `lex.NoteColor` gives a heading's, section's or synopsis's color the
+  way Beat reads it (`[[COLOR BLUE]]`, `[[red]]`, `[[#3366ff]]`).
+  Lines of notes print only with a `printnotes` rule; the old `note`
+  rule is gone from the defaults. Fountain written back now keeps the
+  `=` of a synopsis, and Markdown no longer prints the boneyard.
 - **Dual dialogue** in PDFs was printed too far left: the dialogue of
   the left column started at 1" from the page's edge, left of the 1.5"
   margin. The columns are now those of afterwriting, Better Fountain and
