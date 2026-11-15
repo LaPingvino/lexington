@@ -167,7 +167,11 @@ func TestNotesAreNeverPrinted(t *testing.T) {
 			} else {
 				out = written(t, c.script, format)
 			}
-			for _, bad := range []string{"[[", "]]", "note", "COLOR", "Cut this", "stew"} {
+			bads := []string{"[[", "]]", "note", "COLOR", "Cut this", "stew"}
+			if format != "markdown" { // which prints synopses, as quotes
+				bads = append(bads, "A synopsis", "The first act", "Anna cooks", "Back inside")
+			}
+			for _, bad := range bads {
 				if i := strings.Index(out, bad); i >= 0 {
 					t.Errorf("%s, %s: prints %q: …%s…", name, format, bad, out[max(0, i-60):min(len(out), i+60)])
 				}

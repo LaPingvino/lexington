@@ -626,9 +626,9 @@ func titleAuthor(screenplay lex.Screenplay) (title, author string) {
 	for _, line := range screenplay {
 		switch line.Type {
 		case "Title":
-			title = line.Contents
+			title = lex.StripNotes(line.Contents)
 		case "Author":
-			author = line.Contents
+			author = lex.StripNotes(line.Contents)
 		}
 	}
 	return title, author
