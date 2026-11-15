@@ -82,33 +82,64 @@ func titleRole(t lex.ElementType) string {
 const alignCenter = "Center"
 
 // buildDocument converts a screenplay into the FDX document structure.
+// Notes become script notes on the paragraph they are in, or on the next
+// one for a line of notes.
 func buildDocument(screenplay lex.Screenplay) FdxFile {
-	screenplay = lex.Printable(screenplay, false) // notes are not printed
-	doc := FdxFile{DocumentType: "Script", Template: "No", Version: "5"}
+	doc := FdxFile{DocumentType: "Script", Template: "No", Version: "5", ElementSettings: elementSettings}
 
 	i := 0
 	if len(screenplay) > 0 && screenplay[0].Type == lex.TypeTitlePage {
-		doc.TitlePage, i = buildTitlePage(screenplay)
+		// (a title page has no lines of notes: the lines are the same)
+		doc.TitlePage, i = buildTitlePage(lex.Printable(screenplay, false))
 	}
 
 	b := docBuilder{doc: &doc}
-	for _, line := range screenplay[i:] {
-		b.add(line)
+	for k := i; k < len(screenplay); k++ {
+		line := screenplay[k]
+		if lex.IsNoteLine(line) {
+			b.notes = append(b.notes, lex.Notes(line.Contents)...)
+			if b.blanks > 0 && k+1 < len(screenplay) && screenplay[k+1].Type == lex.TypeEmpty {
+				b.blanks-- // one blank line around it goes, as in print
+			}
+			continue
+		}
+		notes := lex.Notes(line.Contents)
+		line.Contents = lex.StripNotes(line.Contents)
+		b.add(line, notes)
 	}
 	b.closeDual()
+	if ps := doc.Content.Paragraphs; len(b.notes) > 0 && len(ps) > 0 {
+		ps[len(ps)-1].ScriptNotes = append(ps[len(ps)-1].ScriptNotes, scriptNotes(b.notes)...)
+	}
 	return doc
 }
 
+// scriptNotes are Fountain notes as Final Draft's: a paragraph for each
+// of their lines.
+func scriptNotes(notes []string) []FdxScriptNote {
+	var out []FdxScriptNote
+	for _, n := range notes {
+		var sn FdxScriptNote
+		for _, l := range strings.Split(n, "\n") {
+			sn.Paragraphs = append(sn.Paragraphs, FdxParagraph{Texts: []FdxText{{Content: strings.TrimSpace(l)}}})
+		}
+		out = append(out, sn)
+	}
+	return out
+}
+
 // docBuilder adds screenplay lines to an FDX document, keeping track of
-// blank lines, pending page breaks and open dual dialogue.
+// blank lines, pending page breaks, notes for the next paragraph and open
+// dual dialogue.
 type docBuilder struct {
 	doc     *FdxFile
 	dual    *FdxDualDialogue
 	newPage bool
 	blanks  int
+	notes   []string
 }
 
-func (b *docBuilder) add(line lex.Line) {
+func (b *docBuilder) add(line lex.Line, notes []string) {
 	if line.Type == lex.TypeEmpty {
 		b.blanks++
 		return
@@ -122,9 +153,17 @@ func (b *docBuilder) add(line lex.Line) {
 	if !ok {
 		return
 	}
-	p := FdxParagraph{Type: pType, Texts: processInlineMarkup(line.Contents)}
+	p := FdxParagraph{Type: pType}
+	text := line.Contents
+	if line.Type == lex.TypeScene {
+		text, p.Number = lex.SceneNumber(text)
+	}
+	p.Texts = processInlineMarkup(text)
 	if line.Type == lex.TypeCenter {
 		p.Alignment = alignCenter
+	}
+	if notes = append(b.notes, notes...); len(notes) > 0 {
+		p.ScriptNotes, b.notes = scriptNotes(notes), nil
 	}
 	if b.dual != nil {
 		b.dual.Paragraphs = append(b.dual.Paragraphs, p)
@@ -135,6 +174,33 @@ func (b *docBuilder) add(line lex.Line) {
 		b.newPage = false
 	}
 	b.doc.Content.Paragraphs = append(b.doc.Content.Paragraphs, p)
+}
+
+// elementSettings are the paragraph types Lexington writes, as Final
+// Draft 13 has them in a new script (its type, indents and spacing in
+// inches and points): headings, characters, transitions and shots in
+// capitals; lyrics in italics, indented as dialogue. Without them Final
+// Draft would use the settings of whatever script it has as its default.
+var elementSettings = []FdxElementSettings{
+	setting(FDXGeneral, "", "Left", "0.00", "1.50", "7.50", "0"),
+	setting(FDXSceneHeading, "AllCaps", "Left", "0.00", "1.50", "7.50", "24"),
+	setting(FDXAction, "", "Left", "0.00", "1.50", "7.50", "12"),
+	setting(FDXCharacter, "AllCaps", "Left", "0.00", "3.50", "7.25", "12"),
+	setting(FDXParenthetical, "", "Left", "-0.10", "3.00", "5.50", "0"),
+	setting(FDXDialogue, "", "Left", "0.00", "2.50", "6.00", "0"),
+	setting(FDXTransition, "AllCaps", "Right", "0.00", "5.50", "7.10", "12"),
+	setting("Shot", "AllCaps", "Left", "0.00", "1.50", "7.50", "12"),
+	setting(FDXLyrics, "Italic", "Left", "0.00", "2.50", "6.00", "0"),
+}
+
+func setting(t, style, align, first, left, right, before string) FdxElementSettings {
+	return FdxElementSettings{
+		Type: t,
+		FontSpec: FdxFontSpec{AdornmentStyle: "0", Background: "#FFFFFFFFFFFF", Color: "#000000000000",
+			Font: "Courier Final Draft", RevisionID: "0", Size: "12", Style: style},
+		ParagraphSpec: FdxParagraphSpec{Alignment: align, FirstIndent: first, Leading: "Regular", LeftIndent: left,
+			RightIndent: right, SpaceBefore: before, Spacing: "1", StartsNewPage: "No"},
+	}
 }
 
 // flushBlanks writes the blank lines before a block: one blank line
