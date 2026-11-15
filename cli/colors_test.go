@@ -44,8 +44,10 @@ func TestColorsInEveryFormat(t *testing.T) {
 	red := map[string]func([]byte) bool{
 		"html": func(b []byte) bool { return bytes.Contains(b, []byte(`color: #ef0049`)) },
 		"pdf":  func(b []byte) bool { return strings.Contains(pdfContent(t, b), "0.937 0.000 0.286 rg") },
-		"docx": func(b []byte) bool { return strings.Contains(zipFile(t, b, "word/document.xml"), `w:color w:val="EF0049"`) },
-		"odt":  func(b []byte) bool { return strings.Contains(zipFile(t, b, "content.xml"), `fo:color="#ef0049"`) },
+		"docx": func(b []byte) bool {
+			return strings.Contains(zipFile(t, b, "word/document.xml"), `w:color w:val="EF0049"`)
+		},
+		"odt": func(b []byte) bool { return strings.Contains(zipFile(t, b, "content.xml"), `fo:color="#ef0049"`) },
 	}
 	for to, has := range red {
 		if !has(export(to, true)) {
