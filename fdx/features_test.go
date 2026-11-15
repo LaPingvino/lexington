@@ -196,6 +196,7 @@ func TestWriteFDXFeatures(t *testing.T) {
 		`Style="AllCaps"`,
 		`<Text Style="Bold+Underline">THE END</Text>`,
 		`<ScriptNote Color="#000000000000" Name="" Type="">`,
+		`<SceneProperties Color="#6363A7A7EFEF" Title="">`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("lacks %s:\n%s", want, out)
@@ -214,11 +215,28 @@ func TestWriteFDXFeatures(t *testing.T) {
 			got = append(got, string(l.Type)+"="+l.Contents)
 		}
 	}
-	// a heading as it was; the other notes at the end of their
-	// paragraph, the line of notes on the next one
-	check(t, got, "scene=INT. HOUSE - DAY #12A# [[COLOR BLUE]]", "action=Rain falls. [[or snow]]",
+	// a heading as it was, its color in Final Draft's way ([[blue]], as
+	// Beat reads it); the other notes at the end of their paragraph, the
+	// line of notes on the next one
+	check(t, got, "scene=INT. HOUSE - DAY #12A# [[blue]]", "action=Rain falls. [[or snow]]",
 		"center=_**THE END**_ [[A note\n  \nover lines]]")
 	if c := lex.NoteColor(got[0]); c != "blue" {
 		t.Errorf("color %q", c)
+	}
+}
+
+// Scene colors: Final Draft's palette by Beat's names, Beat's own colors,
+// any other as #rrggbb, black as none; written back the same way.
+func TestSceneColors(t *testing.T) {
+	scene := func(color string) string {
+		return `<Paragraph Type="Scene Heading"><SceneProperties Color="` + color + `" Title=""/><Text>INT. ROOM - DAY</Text></Paragraph>`
+	}
+	check(t, body(t, caps, scene("#6363A7A7EFEF")+scene("#EFEF00004949")+scene("#FFFF00000000")+scene("#000000000000")),
+		"scene=INT. ROOM - DAY [[blue]]", "scene=INT. ROOM - DAY [[red]]", "scene=INT. ROOM - DAY [[#ff0000]]",
+		"scene=INT. ROOM - DAY")
+	for color, want := range map[string]string{"red": "#EBEB62627B7B", "magenta": "#ECEC00008C8C", "#3366ff": "#33336666FFFF", "nothing": ""} {
+		if got := fdColor(color); got != want {
+			t.Errorf("fdColor(%q) = %q, want %q", color, got, want)
+		}
 	}
 }

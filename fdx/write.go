@@ -112,14 +112,35 @@ func buildDocument(screenplay lex.Screenplay) FdxFile {
 			continue
 		}
 		notes := lex.Notes(line.Contents)
+		color := ""
+		if line.Type == lex.TypeScene {
+			// its color in its SceneProperties, not as a note as well
+			if color = fdColor(lex.NoteColor(line.Contents)); color != "" {
+				notes = withoutColor(notes)
+			}
+		}
 		line.Contents = lex.StripNotes(line.Contents)
 		b.add(line, notes)
+		if ps := doc.Content.Paragraphs; color != "" && len(ps) > 0 && ps[len(ps)-1].Type == FDXSceneHeading {
+			ps[len(ps)-1].SceneProperties = &FdxSceneProperties{Color: color}
+		}
 	}
 	b.closeDual()
 	if ps := doc.Content.Paragraphs; len(b.notes) > 0 && len(ps) > 0 {
 		ps[len(ps)-1].ScriptNotes = append(ps[len(ps)-1].ScriptNotes, scriptNotes(b.notes)...)
 	}
 	return doc
+}
+
+// withoutColor are notes without the one that gives the color (the last
+// color note).
+func withoutColor(notes []string) []string {
+	for i := len(notes) - 1; i >= 0; i-- {
+		if lex.NoteColor("[["+notes[i]+"]]") != "" {
+			return append(notes[:i:i], notes[i+1:]...)
+		}
+	}
+	return notes
 }
 
 // scriptNotes are Fountain notes as Final Draft's: a paragraph for each

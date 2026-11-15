@@ -112,6 +112,9 @@ type FdxScriptNote struct {
 // scene's synopsis (not in our fixtures; as described for Final Draft
 // exports by others).
 type FdxSceneProperties struct {
+	// Color is the scene's color (colors.go), "#000000000000" for none.
+	Color   string         `xml:"Color,attr,omitempty"`
+	Title   string         `xml:"Title,attr"`
 	Summary *FdxScriptNote `xml:"Summary,omitempty"`
 }
 
@@ -247,6 +250,12 @@ func ParseWithError(file io.Reader) (lex.Screenplay, error) {
 			// line before each scene heading, action, character and
 			// transition.
 			out = append(out, lex.Line{Type: lex.TypeEmpty})
+		}
+		if line.Type == lex.TypeScene && p.SceneProperties != nil {
+			// its color as Beat reads it: a note at the end
+			if c := colorName(p.SceneProperties.Color); c != "" && lex.NoteColor(line.Contents) != c {
+				line.Contents += " [[" + c + "]]"
+			}
 		}
 		out = append(out, line)
 		if line.Type == lex.TypeScene && p.SceneProperties != nil && p.SceneProperties.Summary != nil {
