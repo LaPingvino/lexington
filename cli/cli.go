@@ -149,6 +149,42 @@ type Options struct {
 	To           string // output format (Formats)
 	TemplatePath string // a template for HTML, FDX or LaTeX
 	Lint         bool   // run the Fountain linter
+	// Colors prints scene headings and sections in their notes' colors
+	// (rules.Set.WithColors).
+	Colors bool
+	// Tags keep only the scenes and sections with one of them as a note
+	// (lex.FilterTags).
+	Tags []string
+	// Character and Sides keep a character's sides (lex.Sides): Sides is
+	// full, cue or isolated, needed with a Character; CueWords, for cue,
+	// the last words of the speech before (0: all of it).
+	Character string
+	Sides     string
+	CueWords  int
+}
+
+// tagList is a flag that can be given more than once.
+type tagList []string
+
+func (t *tagList) String() string     { return strings.Join(*t, ", ") }
+func (t *tagList) Set(v string) error { *t = append(*t, v); return nil }
+
+// filter applies o's filters to a screenplay: the tags, then the sides.
+func filter(o Options, s lex.Screenplay) (lex.Screenplay, error) {
+	if (o.Character == "") != (o.Sides == "") {
+		return nil, errors.New("give a character's sides as -character NAME with -sides full, cue or isolated")
+	}
+	if len(o.Tags) > 0 {
+		s = lex.FilterTags(s, o.Tags...)
+	}
+	if o.Character != "" {
+		mode, err := lex.ParseSidesMode(o.Sides)
+		if err != nil {
+			return nil, err
+		}
+		s = lex.Sides(s, o.Character, mode, o.CueWords)
+	}
+	return s, nil
 }
 
 // Main runs the command line with args (without the program's name) and
@@ -191,6 +227,14 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 		"Output file type. Choose from "+formatKeys(false)+", or external formats requiring other programs: "+
 			formatKeys(true)+".")
 	fs.BoolVar(&o.Lint, "lint", false, "Run the Fountain linter on the input file")
+	fs.BoolVar(&o.Colors, "colors", false,
+		"Print scene headings and sections in the colors of their notes ([[red]], [[COLOR BLUE]], [[#3366ff]]).")
+	fs.Var((*tagList)(&o.Tags), "tag",
+		"Keep only the scenes and sections with this note ([[London]]) or color, with all under them; give it more than once for any of several.")
+	fs.StringVar(&o.Character, "character", "", "Keep this character's sides; needs -sides.")
+	fs.StringVar(&o.Sides, "sides", "",
+		"With -character: full (the scenes they speak in), cue (their speeches after their cues) or isolated (their speeches only).")
+	fs.IntVar(&o.CueWords, "cuewords", 0, "With -sides cue: the cue's last words only, this many (0: the whole speech before).")
 	fs.StringVar(&o.TemplatePath, "template", "",
 		"Path to a custom template file (e.g., for HTML, FDX, or LaTeX output).")
 	fs.BoolVar(&help, "help", false, "Show this help message")
@@ -271,6 +315,18 @@ func Write(ctx context.Context, screenplay lex.Screenplay, o Options) error {
 func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	screenplay, err := filter(o, screenplay)
+	if err != nil {
+		return err
+	}
+	if o.Colors { // the element settings with colors on, for every writer
+		elements := map[string]rules.Set{}
+		for k, set := range conf.Elements {
+			elements[k] = set
+		}
+		elements[o.Elements] = conf.Elements[o.Elements].WithColors()
+		conf.Elements = elements
 	}
 	f, ok := FormatFor(o.To)
 	if !ok {
