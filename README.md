@@ -175,6 +175,33 @@ lexington -page a4 -i script.fountain -o script.docx
 - Chapter structure preservation
 - Compatible with most e-readers
 
+## Colors, Tags and Sides
+
+Fountain notes are never printed, but they can color and select:
+
+```bash
+# scene headings and sections in their notes' colors ([[red]],
+# [[COLOR BLUE]], [[#3366ff]], as Beat writes them); off by default
+lexington -colors -i script.fountain -o script.pdf
+
+# only the scenes and sections with a note [[London]] or [[New York]]
+# (whole note, any case; a color is a tag too), with all under them
+lexington -tag London -tag "New York" -i script.fountain -o london.pdf
+
+# an actor's sides; the mode is needed:
+#   full      every scene the character speaks in, whole
+#   cue       their speeches, each after the speech before it
+#             (-cuewords 5: only its last five words)
+#   isolated  their speeches only
+lexington -character EDWARD -sides cue -cuewords 5 -i bigfish.fdx -o edward.pdf
+```
+
+The title page stays, scene numbers are the script's own, and the
+sections above a scene that is kept stay as headings. In a settings
+file, a set's `notecolors` rule switches colors on. Programs use
+`lex.FilterTags`, `lex.Sides` and `rules.Set.WithColors`. In FDX, a
+scene's color is Final Draft's scene color either way.
+
 ## Dual Dialogue
 
 Lexington properly handles dual dialogue (simultaneous character speech) using the `^` syntax:

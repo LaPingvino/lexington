@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### New Features
+- **Colors** (`-colors`, a set's `notecolors` rule; off by default):
+  scene headings and sections in the color their notes give them, as
+  Beat reads and shows them, in PDF, HTML, DOCX and ODT. FDX reads and
+  writes Final Draft's scene color (SceneProperties Color).
+- **Tags** (`-tag`, `lex.FilterTags`): only the scenes and sections
+  with a note such as `[[London]]` (or a color), with all under them.
+- **Sides** (`-character NAME -sides full|cue|isolated`, `-cuewords`,
+  `lex.Sides`): a character's scenes, their speeches after their cues,
+  or their speeches only.
 - **Layout** (`layout` package): a screenplay laid out as printed lines,
   for front-ends that draw it themselves (Accolade's preview, a
   terminal): each line with its column and width in characters (Courier,
