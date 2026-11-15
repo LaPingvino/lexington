@@ -59,8 +59,17 @@ func TestAllCapsAndNumbers(t *testing.T) {
 }
 
 // Markers that are text are escaped where Fountain would read them as
-// emphasis, and only there.
+// emphasis, and only there; markers open and close where the style
+// changes; emphasis Fountain cannot write (part of a word underlined) is
+// left out, not printed as markers.
 func TestEscapedMarkers(t *testing.T) {
+	check(t, body(t, caps, `
+<Paragraph Type="Action"><Text Style="Underline">H</Text><Text>ello.</Text></Paragraph>
+<Paragraph Type="Action"><Text Style="Underline">a </Text><Text Style="Bold+Underline">b</Text><Text Style="Underline"> c</Text></Paragraph>
+<Paragraph Type="Action"><Text Style="Italic">She </Text><Text Style="Italic">sings</Text><Text Style="Italic"> softly.</Text></Paragraph>
+<Paragraph Type="Action"><Text Style="Underline">one</Text><Text>  </Text><Text Style="Underline">two</Text></Paragraph>
+<Paragraph Type="Action"><Text Style="Bold">foo</Text><Text Style="Italic">bar</Text></Paragraph>`),
+		"action=Hello.", "action=_a **b** c_", "action=*She sings softly.*", "action=_one  two_", "action=**foo***bar*")
 	check(t, body(t, caps, `
 <Paragraph Type="Action"><Text>Steel enters the code on the keypad: </Text><Text Style="Bold">*9765*</Text></Paragraph>
 <Paragraph Type="Action"><Text>snake_case and 2 * 3 * 4</Text></Paragraph>
@@ -70,7 +79,8 @@ func TestEscapedMarkers(t *testing.T) {
 		`action=He dialed \*69 and then 23\*, and then hung up.`)
 }
 
-// Script notes in a paragraph (as Final Draft 8 to 12 write them) and
+// Script notes in a paragraph (as Final Draft files of Versions 2 and 4
+// have them; before the text, the note goes after it) and
 // hidden text are Fountain notes; a blank line of a note is two spaces,
 // an empty note is no note.
 func TestScriptNotesAndHiddenText(t *testing.T) {
@@ -84,7 +94,7 @@ func TestScriptNotesAndHiddenText(t *testing.T) {
 		return b.String()
 	}
 	check(t, body(t, caps, `
-<Paragraph Type="Dialogue">`+note("Check the science here.")+`<Text>I wanted to be a botanist.</Text></Paragraph>
+<Paragraph Type="Dialogue">`+note("Louder?")+`<Text>The bus is late again.</Text></Paragraph>
 <Paragraph Type="Action"><Text>Rain </Text>`+note("Or snow?", "", "Snow.")+`<Text>falls.</Text></Paragraph>
 <Paragraph Type="Action">`+note("")+`<Text>Done.</Text></Paragraph>
 <Paragraph Type="Action"><Text>Visible </Text><Text Style="Italic+HiddenText">hidden</Text><Text> text.</Text></Paragraph>
@@ -93,11 +103,11 @@ func TestScriptNotesAndHiddenText(t *testing.T) {
   <Paragraph Type="Character"><Text>BOB</Text></Paragraph><Paragraph Type="Dialogue"><Text>Run!</Text></Paragraph>
   <Paragraph Type="Character"><Text>ALICE</Text></Paragraph><Paragraph Type="Dialogue"><Text>Where?</Text></Paragraph>
 </DualDialogue><Text></Text></Paragraph>`),
-		"dialog=[[Check the science here.]]I wanted to be a botanist.",
+		"dialog=The bus is late again. [[Louder?]]",
 		"action=Rain[[Or snow?\n  \nSnow.]] falls.",
 		"action=Done.",
 		"action=Visible [[hidden]] text.",
-		"speaker=[[Who is this?]]",
+		"note=[[Who is this?]]",
 		"note=[[A dual dialogue note.]]",
 		"dualspeaker_open=", "speaker=BOB", "dialog=Run!", "dualspeaker_next=", "speaker=ALICE", "dialog=Where?",
 		"dualspeaker_close=")
@@ -124,7 +134,7 @@ func TestDualDialogueWrappers(t *testing.T) {
 // Final Draft 13's types: hidden ones (its outline, summaries, notes) as
 // Fountain's hidden elements; act breaks centred, a new act on a new
 // page, with their type's bold and underlining; a scene's summary (Final
-// Draft 11, 12) as its synopsis.
+// Draft's SceneProperties) as its synopsis.
 func TestFD13Types(t *testing.T) {
 	settings := caps + `
 <ElementSettings Type="Outline 1"><FontSpec Style="Bold+HiddenText"/><ParagraphSpec Alignment="Left"/></ElementSettings>
@@ -185,7 +195,7 @@ func TestWriteFDXFeatures(t *testing.T) {
 		`<ElementSettings Type="Character">`,
 		`Style="AllCaps"`,
 		`<Text Style="Bold+Underline">THE END</Text>`,
-		`<ScriptNote>`,
+		`<ScriptNote Color="#000000000000" Name="" Type="">`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("lacks %s:\n%s", want, out)
@@ -204,10 +214,10 @@ func TestWriteFDXFeatures(t *testing.T) {
 			got = append(got, string(l.Type)+"="+l.Contents)
 		}
 	}
-	// the notes come back at the start of their paragraph, the line of
-	// notes on the next one
-	check(t, got, "scene=[[COLOR BLUE]]INT. HOUSE - DAY #12A#", "action=[[or snow]]Rain falls.",
-		"center=[[A note\n  \nover lines]]_**THE END**_")
+	// a heading as it was; the other notes at the end of their
+	// paragraph, the line of notes on the next one
+	check(t, got, "scene=INT. HOUSE - DAY #12A# [[COLOR BLUE]]", "action=Rain falls. [[or snow]]",
+		"center=_**THE END**_ [[A note\n  \nover lines]]")
 	if c := lex.NoteColor(got[0]); c != "blue" {
 		t.Errorf("color %q", c)
 	}

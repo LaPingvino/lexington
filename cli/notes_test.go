@@ -168,7 +168,7 @@ func TestNotesAreNeverPrinted(t *testing.T) {
 				out = written(t, c.script, format)
 			}
 			if format == "fdx" { // where notes are Final Draft's script notes, not printed
-				out = regexp.MustCompile(`(?s)<ScriptNote>.*?</ScriptNote>`).ReplaceAllString(out, "")
+				out = regexp.MustCompile(`(?s)<ScriptNote[ >].*?</ScriptNote>`).ReplaceAllString(out, "")
 			}
 			bads := []string{"[[", "]]", "note", "COLOR", "Cut this", "stew"}
 			if format != "markdown" { // which prints synopses, as quotes

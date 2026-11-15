@@ -87,10 +87,11 @@ const alignCenter = "Center"
 //
 // The Version is 5, as a Final Draft file of ours has it (screenplay-tools'
 // TestFDX-FD.fdx); which Final Draft writes which Version is not known
-// for sure, except that Final Draft 13 writes 6, whose ids on every
+// for sure (finaler-draft's README has Final Draft 13 write 6, whose ids on every
 // paragraph and notes kept apart by character ranges Lexington does not
-// write. Script notes in the paragraph are as Final Draft files of
-// Versions 2 and 4 have them.
+// write). Script notes in the paragraph are as Final Draft files of
+// Versions 2 and 4 have them, without their dates. No file written so has
+// been opened in Final Draft itself.
 func buildDocument(screenplay lex.Screenplay) FdxFile {
 	doc := FdxFile{DocumentType: "Script", Template: "No", Version: "5", ElementSettings: elementSettings}
 
@@ -126,7 +127,7 @@ func buildDocument(screenplay lex.Screenplay) FdxFile {
 func scriptNotes(notes []string) []FdxScriptNote {
 	var out []FdxScriptNote
 	for _, n := range notes {
-		var sn FdxScriptNote
+		sn := FdxScriptNote{Color: "#000000000000"}
 		for _, l := range strings.Split(n, "\n") {
 			sn.Paragraphs = append(sn.Paragraphs, FdxParagraph{Texts: []FdxText{{Content: strings.TrimSpace(l)}}})
 		}
@@ -184,29 +185,33 @@ func (b *docBuilder) add(line lex.Line, notes []string) {
 }
 
 // elementSettings are the paragraph types Lexington writes, as Final
-// Draft 13 has them in a new script (its type, indents and spacing in
-// inches and points): headings, characters, transitions and shots in
-// capitals; lyrics in italics, indented as dialogue. Without them Final
-// Draft would use the settings of whatever script it has as its default.
+// Draft 13 has them in a new script (fdx-mcp-server's NewFile.fdx: type,
+// indents and spacing in inches and points) with the behaviour of a
+// Version 5 file (screenplay-tools' TestFDX-FD.fdx): headings,
+// characters, transitions and shots in capitals; lyrics, which Final
+// Draft's screenplays lack, in italics, indented and paginated as
+// dialogue. Without them Final Draft would use the settings of whatever
+// script it has as its default.
 var elementSettings = []FdxElementSettings{
-	setting(FDXGeneral, "", "Left", "0.00", "1.50", "7.50", "0"),
-	setting(FDXSceneHeading, "AllCaps", "Left", "0.00", "1.50", "7.50", "24"),
-	setting(FDXAction, "", "Left", "0.00", "1.50", "7.50", "12"),
-	setting(FDXCharacter, "AllCaps", "Left", "0.00", "3.50", "7.25", "12"),
-	setting(FDXParenthetical, "", "Left", "-0.10", "3.00", "5.50", "0"),
-	setting(FDXDialogue, "", "Left", "0.00", "2.50", "6.00", "0"),
-	setting(FDXTransition, "AllCaps", "Right", "0.00", "5.50", "7.10", "12"),
-	setting("Shot", "AllCaps", "Left", "0.00", "1.50", "7.50", "12"),
-	setting(FDXLyrics, "Italic", "Left", "0.00", "2.50", "6.00", "0"),
+	setting(FDXGeneral, "", "Left", "0.00", "1.50", "7.50", "0", FDXGeneral, FDXGeneral, "0"),
+	setting(FDXSceneHeading, "AllCaps", "Left", "0.00", "1.50", "7.50", "24", FDXSceneHeading, FDXAction, "1"),
+	setting(FDXAction, "", "Left", "0.00", "1.50", "7.50", "12", FDXAction, FDXAction, "2"),
+	setting(FDXCharacter, "AllCaps", "Left", "0.00", "3.50", "7.25", "12", FDXCharacter, FDXDialogue, "3"),
+	setting(FDXParenthetical, "", "Left", "-0.10", "3.00", "5.50", "0", FDXParenthetical, FDXDialogue, "4"),
+	setting(FDXDialogue, "", "Left", "0.00", "2.50", "6.00", "0", FDXDialogue, FDXAction, "5"),
+	setting(FDXTransition, "AllCaps", "Right", "0.00", "5.50", "7.10", "12", FDXTransition, FDXSceneHeading, "6"),
+	setting("Shot", "AllCaps", "Left", "0.00", "1.50", "7.50", "12", FDXSceneHeading, FDXAction, "7"),
+	setting(FDXLyrics, "Italic", "Left", "0.00", "2.50", "6.00", "0", FDXDialogue, FDXLyrics, ""),
 }
 
-func setting(t, style, align, first, left, right, before string) FdxElementSettings {
+func setting(t, style, align, first, left, right, before, paginate, next, key string) FdxElementSettings {
 	return FdxElementSettings{
 		Type: t,
 		FontSpec: FdxFontSpec{AdornmentStyle: "0", Background: "#FFFFFFFFFFFF", Color: "#000000000000",
 			Font: "Courier Final Draft", RevisionID: "0", Size: "12", Style: style},
 		ParagraphSpec: FdxParagraphSpec{Alignment: align, FirstIndent: first, Leading: "Regular", LeftIndent: left,
 			RightIndent: right, SpaceBefore: before, Spacing: "1", StartsNewPage: "No"},
+		Behavior: &FdxBehavior{PaginateAs: paginate, ReturnKey: next, Shortcut: key, WinShortcut: key},
 	}
 }
 

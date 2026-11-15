@@ -42,6 +42,16 @@ type FdxElementSettings struct {
 	Type          string           `xml:"Type,attr"`
 	FontSpec      FdxFontSpec      `xml:"FontSpec"`
 	ParagraphSpec FdxParagraphSpec `xml:"ParagraphSpec"`
+	Behavior      *FdxBehavior     `xml:"Behavior,omitempty"`
+}
+
+// FdxBehavior is how Final Draft's editor treats a paragraph type: how it
+// paginates, the type after it on Return, its shortcut.
+type FdxBehavior struct {
+	PaginateAs  string `xml:"PaginateAs,attr,omitempty"`
+	ReturnKey   string `xml:"ReturnKey,attr,omitempty"`
+	Shortcut    string `xml:"Shortcut,attr,omitempty"`
+	WinShortcut string `xml:"WinShortcut,attr,omitempty"`
 }
 
 // FdxFontSpec is the type of a paragraph type: its font and its Style
@@ -92,11 +102,15 @@ type FdxParagraph struct {
 
 // FdxScriptNote is a note on a paragraph, in paragraphs of its own.
 type FdxScriptNote struct {
+	Color      string         `xml:"Color,attr"`
+	Name       string         `xml:"Name,attr"`
+	Type       string         `xml:"Type,attr"`
 	Paragraphs []FdxParagraph `xml:"Paragraph"`
 }
 
 // FdxSceneProperties are a scene heading's properties; its Summary is the
-// scene's synopsis (Final Draft 11 and 12).
+// scene's synopsis (not in our fixtures; as described for Final Draft
+// exports by others).
 type FdxSceneProperties struct {
 	Summary *FdxScriptNote `xml:"Summary,omitempty"`
 }
@@ -188,7 +202,7 @@ func Parse(file io.Reader) lex.Screenplay {
 //
 // Paragraphs are read as Final Draft shows them: in capitals where their
 // type's settings or their text's style say AllCaps, scene headings with
-// their number (#12A#). Types Final Draft hides (HiddenText: FD13's
+// their number (#12A#). Types Final Draft hides (HiddenText: Version 6's
 // outline elements, Summary, Note) are Fountain's hidden elements:
 // Outline 1, 2, ... sections (#, ##, ...), Summary and Outline Body
 // synopses (=), Note and other hidden types notes ([[...]]); so are hidden
@@ -255,7 +269,7 @@ type settings struct {
 
 // defaultTypes are the settings of Final Draft's default script for files
 // without ElementSettings (as in every file with them that we have seen):
-// headings, characters, transitions and shots in capitals, FD13's outline
+// headings, characters, transitions and shots in capitals, Version 6's outline
 // elements hidden.
 var defaultTypes = map[string]settings{
 	FDXSceneHeading: {allCaps: true}, FDXCharacter: {allCaps: true}, FDXTransition: {allCaps: true},
@@ -321,13 +335,23 @@ func (r reader) parseParagraph(p FdxParagraph) lex.Line {
 	switch {
 	case strings.TrimSpace(lex.StripNotes(contents)) == "" && !lex.HasNotes(contents):
 		line.Type = lex.TypeEmpty
+	case strings.TrimSpace(lex.StripNotes(contents)) == "":
+		line = lex.Line{Type: lex.TypeNote, Contents: strings.TrimSpace(contents)}
 	case line.Type == lex.TypeScene && strings.TrimSpace(p.Number) != "" && p.Number != "No":
-		line.Contents = strings.TrimRightFunc(line.Contents, unicode.IsSpace) + " #" + strings.TrimSpace(p.Number) + "#"
+		// the number before the notes at the end
+		at := len(contents)
+		if m := trailingNotes.FindStringIndex(contents); m != nil {
+			at = m[0]
+		}
+		line.Contents = strings.TrimRightFunc(contents[:at], unicode.IsSpace) + " #" + strings.TrimSpace(p.Number) + "#" + contents[at:]
 	case line.Type == lex.TypeAction && (p.Alignment == alignCenter || (p.Alignment == "" && set.center)):
 		line.Type = lex.TypeCenter
 	}
 	return line
 }
+
+// trailingNotes are the notes at the end of a text.
+var trailingNotes = regexp.MustCompile(`(?s)(\s*\[\[.*?\]\])+\s*$`)
 
 // hiddenLine is a paragraph of a type Final Draft hides, as the Fountain
 // element that is not printed either.
@@ -522,61 +546,109 @@ func (r reader) runs(p FdxParagraph) []run {
 }
 
 // text is a paragraph's text as Fountain: its runs' emphasis as markers,
-// spaces kept outside them, and the markers that are text escaped where
-// they would be read as emphasis; notes as [[notes]].
+// the markers that are text escaped where they would be read as
+// emphasis; emphasis Fountain cannot write (part of a word underlined)
+// is left out rather than printed as markers. Notes are [[notes]] where
+// they are among the text; the ones before all of it go after it, as
+// Fountain has them (Final Draft writes notes first).
 func (r reader) text(p FdxParagraph) string {
 	runs := r.runs(p)
-	if s := markup(runs, false); same(lex.Emphasis(lex.StripNotes(s)), runs) {
-		return s
+	var lead []run
+	for len(runs) > 0 && (runs[0].note || strings.TrimSpace(runs[0].Text) == "") && nextText(runs) != "" {
+		if runs[0].note {
+			lead = append(lead, runs[0])
+		}
+		runs = runs[1:]
 	}
-	return markup(runs, true)
+	text := ""
+	for _, escape := range []bool{false, true} {
+		if s := markup(runs, escape); same(lex.Emphasis(lex.StripNotes(s)), runs) {
+			text = s
+			break
+		}
+	}
+	if text == "" && nextText(runs) != "" { // plain
+		var plain []run
+		for _, t := range runs {
+			if !t.note {
+				t.Bold, t.Italic, t.Underline = false, false, false
+			}
+			plain = append(plain, t)
+		}
+		text = markup(plain, true)
+	}
+	for _, n := range lead {
+		text = strings.TrimRightFunc(text, unicode.IsSpace) + " " + n.Text
+	}
+	return text
+}
+
+// markers are Fountain's emphasis markers, in the order they open.
+var markers = []struct {
+	marker string
+	on     func(lex.Span) bool
+}{
+	{"_", func(s lex.Span) bool { return s.Underline }},
+	{"**", func(s lex.Span) bool { return s.Bold }},
+	{"*", func(s lex.Span) bool { return s.Italic }},
 }
 
 // markup writes runs with Fountain's emphasis markers, escaping the ones
-// in their text if escape.
+// in their text if escape. A marker opens and closes where the style
+// changes, next to the text: the spaces around a change are outside it.
 func markup(runs []run, escape bool) string {
 	var b strings.Builder
+	var open []int // markers open, in order
+	space := ""    // spaces not yet written
+	change := func(s lex.Span) {
+		keep := 0 // the markers open that stay open: up to the first that does not
+		for keep < len(open) && markers[open[keep]].on(s) {
+			keep++
+		}
+		for i := len(open) - 1; i >= keep; i-- {
+			b.WriteString(markers[open[i]].marker)
+		}
+		open = open[:keep]
+		b.WriteString(space)
+		space = ""
+		for m := range markers {
+			if markers[m].on(s) && !slices.Contains(open, m) {
+				b.WriteString(markers[m].marker)
+				open = append(open, m)
+			}
+		}
+	}
 	for i, t := range runs {
 		if t.note {
 			// with no space after it, before the spaces in front of
 			// it, so that the text without it keeps them ("Rain[[note]]
 			// falls.")
 			if next := nextText(runs[i+1:]); next == "" || unicode.IsSpace([]rune(next)[0]) {
+				b.WriteString(space + t.Text)
+				space = ""
+			} else {
 				b.WriteString(t.Text)
-				continue
 			}
-			text := b.String()
-			before := strings.TrimRightFunc(text, unicode.IsSpace)
-			b.Reset()
-			b.WriteString(before + t.Text + text[len(before):])
 			continue
 		}
 		text := t.Text
 		if escape {
 			text = lex.EscapeEmphasis(text)
 		}
-		open, close := "", ""
 		content := strings.TrimSpace(text)
-		if content != "" {
-			if t.Underline {
-				open, close = "_", "_"
-			}
-			if t.Bold {
-				open, close = open+"**", "**"+close
-			}
-			if t.Italic {
-				open, close = open+"*", "*"+close
-			}
-		}
-		if open == "" {
-			b.WriteString(text)
+		if content == "" {
+			space += text
 			continue
 		}
-		// keep surrounding spaces outside the markers
 		lead := text[:strings.Index(text, content)]
 		trail := text[len(lead)+len(content):]
-		b.WriteString(lead + open + content + close + trail)
+		space += lead
+		change(t.Span)
+		b.WriteString(content)
+		space = trail
 	}
+	change(lex.Span{})
+	b.WriteString(space)
 	return b.String()
 }
 
@@ -591,41 +663,35 @@ func nextText(runs []run) string {
 }
 
 // same reports whether spans read from Fountain are the runs' text and
-// styles (notes aside).
+// styles (notes aside; spaces have no style that shows).
 func same(spans []lex.Span, runs []run) bool {
 	var want []lex.Span
 	for _, t := range runs {
-		if t.note || t.Text == "" {
-			continue
-		}
-		// spaces at a styled run's ends are written outside its markers
-		content := strings.TrimSpace(t.Text)
-		lead := t.Text[:strings.Index(t.Text, content)]
-		trail := t.Text[len(lead)+len(content):]
-		styled := t.Span
-		styled.Text = content
-		for _, s := range []lex.Span{{Text: lead}, styled, {Text: trail}} {
-			if s.Text == "" {
-				continue
-			}
-			if n := len(want); n > 0 && want[n-1].SameStyle(s) {
-				want[n-1].Text += s.Text
-			} else {
-				want = append(want, s)
-			}
+		if !t.note {
+			want = append(want, t.Span)
 		}
 	}
-	var got []lex.Span
+	return slices.Equal(styledRunes(spans), styledRunes(want))
+}
+
+// styledRune is a character and its style, none for a space.
+type styledRune struct {
+	r                       rune
+	bold, italic, underline bool
+}
+
+func styledRunes(spans []lex.Span) []styledRune {
+	var out []styledRune
 	for _, s := range spans {
-		if s.Text == "" {
-			continue
+		for _, r := range s.Text {
+			if unicode.IsSpace(r) {
+				out = append(out, styledRune{r: r})
+			} else {
+				out = append(out, styledRune{r, s.Bold, s.Italic, s.Underline})
+			}
 		}
-		got = append(got, s)
 	}
-	if len(want) == 0 {
-		want = nil
-	}
-	return slices.Equal(got, want) || (len(got) == 1 && got[0] == lex.Span{} && want == nil)
+	return out
 }
 
 // startsBlock reports whether an element begins a new block, as opposed to
