@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### New Features
+- **Color blocks** (`-colorscope heading|block`, `-colortint`; schemes
+  such as `marker+block`, `background+block`, `line+tint`): a marker or
+  background over the whole scene, or section, with the color, page by
+  page, and a light tint under a line's block, lighter than a background
+  but as readable (`lex.ColorScheme`, `lex.ColorTint`).
 - **Color styles** (`-colorstyle line|marker|background|text`, the
   `notecolors` rule's `Style`): a bar beside the scene down every page
   (the default), a marker behind the heading, a band across it, or the

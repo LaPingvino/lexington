@@ -155,6 +155,12 @@ type Options struct {
 	// ColorStyle is how colors show (lex.ColorStyle: line, marker,
 	// background, text); giving one switches colors on.
 	ColorStyle string
+	// ColorScope is what a marker or background covers: heading (the
+	// default) or block (the scene, or the section whole, with the color).
+	ColorScope string
+	// ColorTint puts a light tint under a line's block. A scope or a tint
+	// switches colors on too.
+	ColorTint bool
 	// Tags keep only the scenes and sections with one of them as a note
 	// (lex.FilterTags).
 	Tags []string
@@ -164,6 +170,29 @@ type Options struct {
 	Character string
 	Sides     string
 	CueWords  int
+}
+
+// colorScheme is the color scheme o asks for, on the settings' own.
+func colorScheme(o Options, sch lex.ColorScheme) (lex.ColorScheme, error) {
+	var err error
+	if o.ColorStyle != "" {
+		if sch, err = lex.ParseColorScheme(o.ColorStyle); err != nil {
+			return sch, err
+		}
+	}
+	switch strings.ToLower(o.ColorScope) {
+	case "":
+	case "heading":
+		sch.Block = false
+	case "block":
+		sch.Block = true
+	default:
+		return sch, fmt.Errorf("no color scope %q: choose heading or block", o.ColorScope)
+	}
+	if o.ColorTint {
+		sch.Tint = true
+	}
+	return lex.ParseColorScheme(sch.String()) // a combination that is one
 }
 
 // tagList is a flag that can be given more than once.
@@ -233,7 +262,10 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 	fs.BoolVar(&o.Colors, "colors", false,
 		"Print scene headings and sections in the colors of their notes ([[red]], [[COLOR BLUE]], [[#3366ff]]).")
 	fs.StringVar(&o.ColorStyle, "colorstyle", "",
-		"How -colors shows a color: line (a bar beside the scene, the default), marker, background or text; switches colors on.")
+		"How -colors shows a color: line (a bar beside the scene, the default), marker, background or text (or with -colorscope, -colortint: marker+block, line+tint, ...); switches colors on.")
+	fs.StringVar(&o.ColorScope, "colorscope", "",
+		"What a marker or background covers: heading (the default) or block (the scene, or a section whole, with the color).")
+	fs.BoolVar(&o.ColorTint, "colortint", false, "With the line style: a light tint under the block too.")
 	fs.Var((*tagList)(&o.Tags), "tag",
 		"Keep only the scenes and sections with this note ([[London]]) or color, with all under them; give it more than once for any of several.")
 	fs.StringVar(&o.Character, "character", "", "Keep this character's sides; needs -sides.")
@@ -325,19 +357,18 @@ func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.S
 	if err != nil {
 		return err
 	}
-	if o.Colors || o.ColorStyle != "" { // the element settings with colors on, for every writer
+	if o.Colors || o.ColorStyle != "" || o.ColorScope != "" || o.ColorTint {
+		// the element settings with colors on, for every writer
 		set := conf.Elements[o.Elements]
-		style := set.ColorStyle()
-		if o.ColorStyle != "" {
-			if style, err = lex.ParseColorStyle(o.ColorStyle); err != nil {
-				return err
-			}
+		sch, err := colorScheme(o, set.ColorScheme())
+		if err != nil {
+			return err
 		}
 		elements := map[string]rules.Set{}
 		for k, set := range conf.Elements {
 			elements[k] = set
 		}
-		elements[o.Elements] = set.WithColorStyle(style)
+		elements[o.Elements] = set.WithColorScheme(sch)
 		conf.Elements = elements
 	}
 	f, ok := FormatFor(o.To)

@@ -187,9 +187,15 @@ Fountain notes are never printed, but they can color and select:
 #   marker      a highlighter behind the heading
 #   background  a band behind the heading, across the text
 #   text        the heading in the color
+# -colorscope block: a marker or background over the whole block, not
+# just the heading; -colortint: a light tint under a line's block.
+# A block is a scene, or a section whole when the color is on it (a
+# scene's own color inside it wins for its span), page by page.
 # Tints and colors keep black text readable (WCAG contrast).
 lexington -colors -i script.fountain -o script.pdf
 lexington -colorstyle marker -i script.fountain -o script.docx
+lexington -colorstyle background -colorscope block -i script.fountain -o script.pdf
+lexington -colortint -i script.fountain -o script.html   # line+tint
 
 # only the scenes and sections with a note [[London]] or [[New York]]
 # (whole note, any case; a color is a tag too), with all under them
@@ -206,7 +212,7 @@ lexington -character EDWARD -sides cue -cuewords 5 -i bigfish.fdx -o edward.pdf
 The title page stays, scene numbers are the script's own, and the
 sections above a scene that is kept stay as headings. In a settings
 file, a set's `notecolors` rule switches colors on, its `Style` the
-color style. Programs use
+color scheme: `line`, `marker+block`, `background+block`, `line+tint`, ... Programs use
 `lex.FilterTags`, `lex.Sides` and `rules.Set.WithColors`. In FDX, a
 scene's color is Final Draft's scene color either way.
 
