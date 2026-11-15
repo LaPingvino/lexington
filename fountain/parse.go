@@ -144,9 +144,15 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 		out:       make(lex.Screenplay, 0),
 	}
 
-	for i, row := range toParse {
-		originalRow := row
-		row = strings.TrimRight(originalRow, "\n\r")
+	for i := 0; i < len(toParse); i++ {
+		originalRow := toParse[i]
+		row := strings.TrimRight(originalRow, "\n\r")
+		if !state.inBoneyard && !strings.HasPrefix(strings.TrimSpace(row), "/*") {
+			// a note over several lines: one row
+			if j, joined := joinNote(toParse, i); j > i {
+				i, row, originalRow = j, joined, joined
+			}
+		}
 		trimmedSpaceRow := strings.TrimSpace(row)
 
 		var currentLine lex.Line
@@ -194,6 +200,93 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 	return state.out
 }
 
+// openNote reports whether s has a note ([[) in it that it does not
+// close (]]).
+func openNote(s string) bool {
+	for {
+		open := strings.Index(s, "[[")
+		if open < 0 {
+			return false
+		}
+		end := strings.Index(s[open+2:], "]]")
+		if end < 0 {
+			return true
+		}
+		s = s[open+2+end+2:]
+	}
+}
+
+// joinNote joins rows[i] with the rows after it up to the one that closes
+// the note the row opens, with line breaks: Fountain's notes may span
+// lines. A note goes on over a line of two spaces, not over a blank line:
+// when one comes first, or the script ends, the "[[" is no note, and
+// joinNote returns i.
+func joinNote(rows []string, i int) (int, string) {
+	joined := strings.TrimRight(rows[i], "\n\r")
+	if !openNote(joined) {
+		return i, joined
+	}
+	for k := i + 1; k < len(rows); k++ {
+		r := strings.TrimRight(rows[k], "\n\r")
+		if strings.TrimSpace(r) == "" && !strings.HasPrefix(r, "  ") {
+			break
+		}
+		joined += "\n" + r
+		if !openNote(joined) {
+			return k, joined
+		}
+	}
+	return i, strings.TrimRight(rows[i], "\n\r")
+}
+
+// The notes of a row are masked while it is read, so that they do not
+// change what it is ("BOB [[note]]" is a speaker, "(beat) [[note]]" a
+// parenthetical) and stay as they are written (a scene heading is put in
+// capitals, not its notes): each note is a character of Unicode's
+// private use area, from maskBase on, in the row.
+const maskBase = '\uE000'
+
+// maskNotes masks the notes in row and returns them, in order.
+func maskNotes(row string) (string, []string) {
+	ns := lex.Notes(row)
+	if len(ns) == 0 || strings.ContainsFunc(row, isMask) || len(ns) > 6400 {
+		return row, nil
+	}
+	var b strings.Builder
+	var out []string
+	rest := row
+	for i, n := range ns {
+		note := "[[" + n + "]]"
+		at := strings.Index(rest, note)
+		b.WriteString(rest[:at])
+		b.WriteRune(maskBase + rune(i))
+		rest = rest[at+len(note):]
+		out = append(out, note)
+	}
+	b.WriteString(rest)
+	return b.String(), out
+}
+
+func isMask(r rune) bool { return r >= maskBase && r < maskBase+6400 }
+
+// unmask puts the notes back in a masked text.
+func unmask(s string, notes []string) string {
+	if len(notes) == 0 {
+		return s
+	}
+	var b strings.Builder
+	for _, r := range s {
+		if isMask(r) && int(r-maskBase) < len(notes) {
+			b.WriteString(notes[r-maskBase])
+		} else {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func isMaskOrSpace(r rune) bool { return isMask(r) || unicode.IsSpace(r) }
+
 func readAllLines(file io.Reader) []string {
 	var toParse []string
 	f := bufio.NewReader(file)
@@ -215,7 +308,8 @@ func readAllLines(file io.Reader) []string {
 }
 
 func (state *ParseState) handleTitlePage(row, trimmedSpaceRow, next string, currentLine *lex.Line) bool {
-	isKeyValLine := isTitleKeyValue(row, next)
+	// a note is no field's value, nor its colon ("Action [[todo: x]]")
+	isKeyValLine := isTitleKeyValue(lex.StripNotes(row), lex.StripNotes(next))
 	isContinuation := isIndented(row) && trimmedSpaceRow != "" && state.titletag != ""
 
 	if isContinuation {
@@ -302,7 +396,9 @@ func isTitleKeyValue(row, next string) bool {
 }
 
 func (state *ParseState) parseTitlePageKeyValue(row string, currentLine *lex.Line) {
-	split := strings.SplitN(row, ":", 2)
+	masked, notes := maskNotes(row)
+	split := strings.SplitN(masked, ":", 2)
+	split[0], split[1] = unmask(split[0], notes), unmask(split[1], notes)
 	currentMetaTag := split[0]
 
 	switch strings.ToLower(currentMetaTag) {
@@ -325,6 +421,26 @@ func (state *ParseState) parseTitlePageKeyValue(row string, currentLine *lex.Lin
 }
 
 func (state *ParseState) parseScreenplayLine(originalRow, row, trimmedSpaceRow string) (lex.Line, bool) {
+	masked, notes := maskNotes(row)
+	if len(notes) == 0 {
+		return state.parseLine(originalRow, row, trimmedSpaceRow)
+	}
+	// notes at the start and the end of the row are set apart, so that
+	// they do not hide its markers (">THE END< [[note]]", "BOB ^ [[note]]")
+	body := strings.TrimLeftFunc(masked, isMaskOrSpace)
+	lead := masked[:len(masked)-len(body)]
+	body = strings.TrimRightFunc(body, isMaskOrSpace)
+	if body == "" { // only notes
+		return lex.Line{Type: lex.TypeNote, Contents: trimmedSpaceRow}, false
+	}
+	trail := strings.TrimPrefix(masked, lead)[len(body):]
+	line, dual := state.parseLine(body, body, body)
+	line.Contents = strings.TrimSpace(unmask(strings.TrimLeftFunc(lead, unicode.IsSpace)+line.Contents+
+		strings.TrimRightFunc(trail, unicode.IsSpace), notes))
+	return line, dual
+}
+
+func (state *ParseState) parseLine(originalRow, row, trimmedSpaceRow string) (lex.Line, bool) {
 	var currentLine lex.Line
 	var isCurrentLineDualSpeakerCandidate bool
 
@@ -452,6 +568,8 @@ func (state *ParseState) previousDialogueBlock() (int, bool) {
 		case lex.TypeDialog, lex.TypeParen, lex.TypeLyrics:
 			lines++
 			continue
+		case lex.TypeNote:
+			continue
 		case lex.TypeSpeaker:
 			return j, lines > 0
 		}
@@ -488,12 +606,20 @@ func (state *ParseState) shouldAppendLine(currentLine lex.Line, trimmedSpaceRow 
 }
 
 func (state *ParseState) updateDialogueContext(currentLine lex.Line) {
+	if currentLine.Type == lex.TypeNote {
+		return // a note between a name and its speech is no break
+	}
 	if currentLine.IsDialogueElement() {
 		state.inDialogueContext = true
 	} else if currentLine.Type == lex.TypeEmpty {
 		// Revert speaker to action if followed only by empty line
-		if len(state.out) >= 2 && state.out[len(state.out)-2].Type == lex.TypeSpeaker && !state.inDualDialogue {
-			state.out[len(state.out)-2].Type = lex.TypeAction
+		// (and notes)
+		prev := len(state.out) - 2
+		for prev >= 0 && state.out[prev].Type == lex.TypeNote {
+			prev--
+		}
+		if prev >= 0 && state.out[prev].Type == lex.TypeSpeaker && !state.inDualDialogue {
+			state.out[prev].Type = lex.TypeAction
 			state.inDialogueContext = false
 		} else {
 			state.inDialogueContext = false

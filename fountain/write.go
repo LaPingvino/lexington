@@ -87,13 +87,17 @@ func (state *WriteState) writeLine(line lex.Line) error {
 			return nil
 		}
 		return state.writeEmpty()
+	case lex.TypeSynopsis:
+		_, err := fmt.Fprintf(state.writer, "= %s\n", strings.TrimSpace(line.Contents))
+		return err
 	case lex.TypeCenter:
 		_, err := fmt.Fprintf(state.writer, ">%s<\n", strings.TrimSpace(line.Contents))
 		return err
 	case lex.TypeTrans:
 		// only "... TO:" is a transition by itself; others need the ">"
 		t := strings.TrimSpace(line.Contents)
-		if !strings.HasSuffix(strings.ToUpper(t), "TO:") && !strings.HasPrefix(t, ">") {
+		if bare := strings.TrimSpace(lex.StripNotes(t)); !strings.HasSuffix(strings.ToUpper(bare), "TO:") &&
+			!strings.HasPrefix(bare, ">") {
 			t = "> " + t
 		}
 		_, err := fmt.Fprintln(state.writer, t)
@@ -136,7 +140,8 @@ func (state *WriteState) writeEmpty() error {
 }
 
 func (state *WriteState) writeSpeaker(line lex.Line) error {
-	if name, _, _ := strings.Cut(line.Contents, "("); !AllCaps(name) {
+	// the notes are no part of the name ("BOB [[note]]" is in capitals)
+	if name, _, _ := strings.Cut(lex.StripNotes(line.Contents), "("); !AllCaps(name) {
 		if _, err := fmt.Fprint(state.writer, "@"); err != nil {
 			return err
 		}
@@ -151,7 +156,7 @@ func (state *WriteState) writeSpeaker(line lex.Line) error {
 }
 
 func (state *WriteState) writeScene(line lex.Line) error {
-	if !state.isSceneSupported(line.Contents) {
+	if !state.isSceneSupported(lex.StripNotes(line.Contents)) {
 		if _, err := fmt.Fprint(state.writer, "."); err != nil {
 			return err
 		}
@@ -175,7 +180,7 @@ func (state *WriteState) writeLyrics(line lex.Line) error {
 }
 
 func (state *WriteState) writeAction(line lex.Line) error {
-	if AllCaps(line.Contents) {
+	if AllCaps(lex.StripNotes(line.Contents)) {
 		if _, err := fmt.Fprint(state.writer, "!"); err != nil {
 			return err
 		}
