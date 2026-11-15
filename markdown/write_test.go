@@ -298,9 +298,14 @@ func TestProcessInlineMarkupFunction(t *testing.T) {
 		{"Complex mixed",
 			"***Bold italic*** with **bold** and *italic* and _underlined_",
 			"***Bold italic*** with **bold** and *italic* and <u>underlined</u>"},
-		{"Empty markup", "**", "**"},
-		{"Single asterisk", "*", "*"},
-		{"Single underscore", "_", "_"},
+		// markers that are text are escaped, as Markdown needs them
+		{"Empty markup", "**", `\*\*`},
+		{"Single asterisk", "*", `\*`},
+		{"Single underscore", "_", `\_`},
+		{"Nested", "_**THE END**_", "**<u>THE END</u>**"},
+		{"Escaped", `**\*9765\***`, `**\*9765\***`},
+		{"Spaces outside markers", "**bold *and italic* bold**", "**bold** ***and italic*** **bold**"},
+		{"Spaces count", "He dialed *69 and then *23", `He dialed \*69 and then \*23`},
 		{"No markup chars", "Plain text without markup", "Plain text without markup"},
 	}
 

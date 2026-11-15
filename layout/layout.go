@@ -9,7 +9,6 @@ package layout
 
 import (
 	"math"
-	"regexp"
 	"strings"
 	"unicode"
 
@@ -36,12 +35,7 @@ const (
 )
 
 // Span is styled text in a line.
-type Span struct {
-	Text      string
-	Bold      bool
-	Italic    bool
-	Underline bool
-}
+type Span = lex.Span
 
 // Line is a printed line.
 type Line struct {
@@ -246,39 +240,15 @@ func Lay(s lex.Screenplay, set rules.Set) []Line {
 	return out
 }
 
-var emphasisMark = regexp.MustCompile(`\*\*\*([^*\n]+)\*\*\*|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|_([^_\n]+)_`)
-
-// emphasis splits Fountain's ***bold italic***, **bold**, *italic* and
-// _underline_ into spans on top of the base style.
+// emphasis reads Fountain's emphasis (lex.Emphasis) into spans on top
+// of the base style.
 func emphasis(text string, base Span) []Span {
-	var spans []Span
-	last := 0
-	for _, m := range emphasisMark.FindAllStringSubmatchIndex(text, -1) {
-		if m[0] > last {
-			s := base
-			s.Text = text[last:m[0]]
-			spans = append(spans, s)
-		}
-		s := base
-		switch {
-		case m[2] >= 0:
-			s.Text, s.Bold, s.Italic = text[m[2]:m[3]], true, true
-		case m[4] >= 0:
-			s.Text, s.Bold = text[m[4]:m[5]], true
-		case m[6] >= 0:
-			s.Text, s.Italic = text[m[6]:m[7]], true
-		default:
-			s.Text, s.Underline = text[m[8]:m[9]], true
-		}
-		spans = append(spans, s)
-		last = m[1]
+	spans := lex.Emphasis(text)
+	for i, s := range spans {
+		s.Bold, s.Italic, s.Underline = s.Bold || base.Bold, s.Italic || base.Italic, s.Underline || base.Underline
+		spans[i] = s
 	}
-	if last < len(text) || len(spans) == 0 {
-		s := base
-		s.Text = text[last:]
-		spans = append(spans, s)
-	}
-	return spans
+	return merge(spans)
 }
 
 // wrap breaks styled text into lines of at most width characters, at

@@ -3,7 +3,6 @@ package latex
 import (
 	"fmt"
 	"io"
-	"regexp"
 	"strings"
 	"text/template"
 
@@ -20,42 +19,24 @@ type LaTeXWriter struct {
 }
 
 // Inline markup patterns for LaTeX output
-var (
-	bolditalic = regexp.MustCompile(`\*{3}([^\*\n]+)\*{3}`)
-	bold       = regexp.MustCompile(`\*{2}([^\*\n]+)\*{2}`)
-	italic     = regexp.MustCompile(`\*{1}([^\*\n]+)\*{1}`)
-	underline  = regexp.MustCompile(`_{1}([^\*\n]+)_{1}`)
-)
-
-// processInlineMarkup converts fountain-style inline markup to LaTeX using placeholders
-func processInlineMarkup(text string) string {
-	// Only process if the text contains markup characters
-	if !strings.ContainsAny(text, "*_") {
-		return text
+// inlineMarkup turns Fountain's emphasis (lex.Emphasis) into LaTeX:
+// the text escaped, in \textbf, \textit and \underline.
+func inlineMarkup(text string) string {
+	var b strings.Builder
+	for _, s := range lex.Emphasis(text) {
+		t := escapeLaTeX(s.Text)
+		if s.Underline {
+			t = `\underline{` + t + `}`
+		}
+		if s.Italic {
+			t = `\textit{` + t + `}`
+		}
+		if s.Bold {
+			t = `\textbf{` + t + `}`
+		}
+		b.WriteString(t)
 	}
-
-	// Use unique placeholders that won't conflict with LaTeX escaping
-	// Apply replacements in order: bold+italic first, then bold, then italic, then underline
-	// This prevents conflicts between overlapping patterns
-	text = bolditalic.ReplaceAllString(text, "XLATEXBOLDITALICSTARTX${1}XLATEXBOLDITALICENDX")
-	text = bold.ReplaceAllString(text, "XLATEXBOLDSTARTX${1}XLATEXBOLDENDX")
-	text = italic.ReplaceAllString(text, "XLATEXITALICSTARTX${1}XLATEXITALICENDX")
-	text = underline.ReplaceAllString(text, "XLATEXUNDERLINESTARTX${1}XLATEXUNDERLINEENDX")
-
-	return text
-}
-
-// replacePlaceholders converts placeholders back to LaTeX commands after escaping
-func replacePlaceholders(text string) string {
-	text = strings.ReplaceAll(text, "XLATEXBOLDITALICSTARTX", "\\textbf{\\textit{")
-	text = strings.ReplaceAll(text, "XLATEXBOLDITALICENDX", "}}")
-	text = strings.ReplaceAll(text, "XLATEXBOLDSTARTX", "\\textbf{")
-	text = strings.ReplaceAll(text, "XLATEXBOLDENDX", "}")
-	text = strings.ReplaceAll(text, "XLATEXITALICSTARTX", "\\textit{")
-	text = strings.ReplaceAll(text, "XLATEXITALICENDX", "}")
-	text = strings.ReplaceAll(text, "XLATEXUNDERLINESTARTX", "\\underline{")
-	text = strings.ReplaceAll(text, "XLATEXUNDERLINEENDX", "}")
-	return text
+	return b.String()
 }
 
 // LaTeXTemplateData combines configuration and screenplay data for the template
@@ -359,15 +340,9 @@ func (l *LaTeXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		}
 	}
 
-	// Process inline markup first with placeholders, then escape LaTeX, then replace placeholders
-	// This ensures that user content is escaped but markup commands are not
+	// The text escaped, its emphasis as LaTeX commands
 	for i := range data.Screenplay {
-		// First process inline markup (converts to placeholders)
-		data.Screenplay[i].Contents = processInlineMarkup(data.Screenplay[i].Contents)
-		// Then escape LaTeX characters in user content
-		data.Screenplay[i].Contents = escapeLaTeX(data.Screenplay[i].Contents)
-		// Finally replace placeholders with actual LaTeX commands
-		data.Screenplay[i].Contents = replacePlaceholders(data.Screenplay[i].Contents)
+		data.Screenplay[i].Contents = inlineMarkup(data.Screenplay[i].Contents)
 	}
 
 	return tmpl.Execute(w, data)

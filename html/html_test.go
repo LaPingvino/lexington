@@ -243,7 +243,11 @@ func TestProcessInlineMarkupFunction(t *testing.T) {
 		{"Empty markup", "**", "**"},
 		{"Single asterisk", "*", "*"},
 		{"Single underscore", "_", "_"},
-		{"Nested asterisks", "****bold****", "<i><b><i>bold</i></b></i>"},
+		{"Nested asterisks", "****bold****", "<b>bold</b>"}, // bold twice is bold
+		{"Nested", "_**THE END**_", "<b><u>THE END</u></b>"},
+		{"Escaped", `**\*9765\***`, "<b>*9765*</b>"},
+		{"Spaces count", "He dialed *69 and then *23", "He dialed *69 and then *23"},
+		{"Escaped HTML", "*a < b & c*", "<i>a &lt; b &amp; c</i>"},
 	}
 
 	for _, test := range tests {

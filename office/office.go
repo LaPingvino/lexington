@@ -112,7 +112,7 @@ func prepare(s lex.Screenplay, set rules.Set, page Page) *doc {
 	}
 	for _, l := range s {
 		if l.Type == "Title" && d.title == "" {
-			d.title = strings.TrimSpace(lex.StripNotes(string(l.Contents)))
+			d.title = strings.TrimSpace(lex.Unstyled(lex.StripNotes(string(l.Contents))))
 		}
 		if l.Type == lex.TypeTitlePage {
 			d.titlePage = true

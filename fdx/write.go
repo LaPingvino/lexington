@@ -5,19 +5,10 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"regexp"
 	"strings"
 	"text/template"
 
 	"github.com/LaPingvino/lexington/lex"
-)
-
-// Inline markup patterns for FDX output
-var (
-	bolditalic = regexp.MustCompile(`\*{3}([^\*\n]+)\*{3}`)
-	bold       = regexp.MustCompile(`\*{2}([^\*\n]+)\*{2}`)
-	italic     = regexp.MustCompile(`\*{1}([^\*\n]+)\*{1}`)
-	underline  = regexp.MustCompile(`_{1}([^\*\n]+)_{1}`)
 )
 
 // FDXWriter implements the writer.Writer interface for FDX output.
@@ -25,98 +16,25 @@ type FDXWriter struct {
 	TemplatePath string // Path to a custom FDX template file
 }
 
-// markupMatch represents a found markup pattern
-type markupMatch struct {
-	start      int
-	end        int
-	markupType string
-}
-
-// findEarliestMarkup finds the earliest markup pattern in the text
-func findEarliestMarkup(text string) *markupMatch {
-	var earliest *markupMatch
-
-	// checked in order, so on a tie the longer marker wins
-	patterns := []struct {
-		markupType string
-		pattern    *regexp.Regexp
-	}{
-		{"bolditalic", bolditalic},
-		{"bold", bold},
-		{"italic", italic},
-		{"underline", underline},
-	}
-
-	for _, p := range patterns {
-		if match := p.pattern.FindStringIndex(text); match != nil {
-			if earliest == nil || match[0] < earliest.start {
-				earliest = &markupMatch{
-					start:      match[0],
-					end:        match[1],
-					markupType: p.markupType,
-				}
-			}
-		}
-	}
-
-	return earliest
-}
-
-// fdxStyles maps Fountain emphasis to Final Draft's Style attribute.
-var fdxStyles = map[string]string{
-	"bolditalic": "Bold+Italic",
-	"bold":       "Bold",
-	"italic":     "Italic",
-	"underline":  "Underline",
-}
-
-// extractContent extracts the content from markup based on type
-func extractContent(text, markupType string) string {
-	switch markupType {
-	case "bolditalic":
-		return bolditalic.FindStringSubmatch(text)[1]
-	case "bold":
-		return bold.FindStringSubmatch(text)[1]
-	case "italic":
-		return italic.FindStringSubmatch(text)[1]
-	case "underline":
-		return underline.FindStringSubmatch(text)[1]
-	default:
-		return ""
-	}
-}
-
-// processInlineMarkup converts fountain-style inline markup to FDX Text
-// elements. The text is not XML-escaped; the XML encoder does that.
+// processInlineMarkup turns Fountain's emphasis (lex.Emphasis) into
+// FDX Text runs with their Style. The text is not XML-escaped; the XML
+// encoder does that.
 func processInlineMarkup(text string) []FdxText {
-	if !strings.ContainsAny(text, "*_") {
-		return []FdxText{{Content: text}}
-	}
-
-	var result []FdxText
-	remaining := text
-
-	for len(remaining) > 0 {
-		match := findEarliestMarkup(remaining)
-		if match == nil {
-			result = append(result, FdxText{Content: remaining})
-			break
+	var out []FdxText
+	for _, s := range lex.Emphasis(text) {
+		var style []string
+		if s.Bold {
+			style = append(style, "Bold")
 		}
-
-		if match.start > 0 {
-			result = append(result, FdxText{Content: remaining[:match.start]})
+		if s.Italic {
+			style = append(style, "Italic")
 		}
-
-		matchedText := remaining[match.start:match.end]
-		result = append(result, FdxText{
-			Content: extractContent(matchedText, match.markupType),
-			Style:   fdxStyles[match.markupType],
-		})
-
-		remaining = remaining[match.end:]
+		if s.Underline {
+			style = append(style, "Underline")
+		}
+		out = append(out, FdxText{Content: s.Text, Style: strings.Join(style, "+")})
 	}
-
-	return result
+	return out
 }
 
 // paragraphType maps a lex element type to a Final Draft paragraph type.

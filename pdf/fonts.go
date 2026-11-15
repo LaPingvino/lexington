@@ -8,6 +8,7 @@ import (
 	"github.com/phpdave11/gofpdf"
 
 	"github.com/LaPingvino/lexington/font"
+	"github.com/LaPingvino/lexington/lex"
 )
 
 // fonts resolves the rules' Font settings to the PDF's fonts:
@@ -51,6 +52,19 @@ func (f *fonts) font(setting, text string) (string, string) {
 		}
 	}
 	return font.GetFontName(setting), text
+}
+
+// spans are a text's emphasis (lex.Emphasis), each span's text as the
+// font for the setting needs it, and that font.
+func (f *fonts) spans(setting, text string) (string, []lex.Span) {
+	spans := lex.Emphasis(text)
+	name, _ := f.font(setting, lex.Unstyled(text))
+	if f != nil && (name == "Helvetica" || name == "Times") {
+		for i := range spans {
+			spans[i].Text = f.translate(spans[i].Text)
+		}
+	}
+	return name, spans
 }
 
 // file registers a font file and its style siblings; "" if unreadable.

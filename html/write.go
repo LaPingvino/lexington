@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"regexp"
 	"strings"
 
 	"github.com/LaPingvino/lexington/lex"
@@ -18,32 +17,24 @@ type HTMLWriter struct {
 	Page     string    // the paper to print on: letter (""), a4, a5
 }
 
-// Inline markup patterns for HTML output
-var (
-	bolditalic = regexp.MustCompile(`\*{3}([^\*\n]+)\*{3}`)
-	bold       = regexp.MustCompile(`\*{2}([^\*\n]+)\*{2}`)
-	italic     = regexp.MustCompile(`\*{1}([^\*\n]+)\*{1}`)
-	underline  = regexp.MustCompile(`_{1}([^\*\n]+)_{1}`)
-)
-
-// processInlineMarkup converts fountain-style inline markup to HTML
+// processInlineMarkup turns Fountain's emphasis (lex.Emphasis) into
+// HTML: <b>, <i> and <u> around the escaped text.
 func processInlineMarkup(text string) template.HTML {
-	// Script text is not HTML: escape it before adding markup tags
-	text = template.HTMLEscapeString(text)
-
-	// Only process if the text contains markup characters
-	if !strings.ContainsAny(text, "*_") {
-		return template.HTML(text)
+	var b strings.Builder
+	for _, s := range lex.Emphasis(text) {
+		open, close := "", ""
+		for _, t := range []struct {
+			on  bool
+			tag string
+		}{{s.Bold, "b"}, {s.Italic, "i"}, {s.Underline, "u"}} {
+			if t.on {
+				open += "<" + t.tag + ">"
+				close = "</" + t.tag + ">" + close
+			}
+		}
+		b.WriteString(open + template.HTMLEscapeString(s.Text) + close)
 	}
-
-	// Apply replacements in order: bold+italic first, then bold, then italic, then underline
-	// This prevents conflicts between overlapping patterns
-	text = bolditalic.ReplaceAllString(text, "<b><i>$1</i></b>")
-	text = bold.ReplaceAllString(text, "<b>$1</b>")
-	text = italic.ReplaceAllString(text, "<i>$1</i>")
-	text = underline.ReplaceAllString(text, "<u>$1</u>")
-
-	return template.HTML(text)
+	return template.HTML(b.String())
 }
 
 // htmlTemplateString is the template for HTML output with configurable CSS

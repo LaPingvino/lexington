@@ -5,7 +5,6 @@ package pdf
 
 import (
 	"io"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -38,7 +37,6 @@ type Tree struct {
 	PDF          *gofpdf.Fpdf
 	Rules        rules.Set
 	F            lex.Screenplay
-	HTML         gofpdf.HTMLBasicType
 	DualDialogue bool       // Track if we're in dual dialogue mode
 	DualColumn   int        // Track which column we're in (0 = left, 1 = right)
 	DualBuffer   []lex.Line // Buffer for dual dialogue elements
@@ -155,7 +153,7 @@ func (t *Tree) handleSpecialCases(row lex.Line, block *string, lastsection *int)
 		t.PDF.SetY(4 * t.vsc())
 		return false
 	case "title", "Title":
-		t.PDF.SetTitle(row.Contents, true)
+		t.PDF.SetTitle(lex.Unstyled(row.Contents), true)
 		return false
 	case "metasection":
 		// Fields after the title block (Contact, Draft date, ...) go to
@@ -213,13 +211,6 @@ func (t *Tree) shouldSkipElement(row lex.Line, block string) bool {
 	}
 	return t.Rules.Get(row.Type).Hide && block == ""
 }
-
-var (
-	bolditalic = regexp.MustCompile("\\*{3}([^\\*\n]+)\\*{3}")
-	bold       = regexp.MustCompile("\\*{2}([^\\*\n]+)\\*{2}")
-	italic     = regexp.MustCompile("\\*{1}([^\\*\n]+)\\*{1}")
-	underline  = regexp.MustCompile("_{1}([^\\*\n]+)_{1}")
-)
 
 func (t *Tree) flushDualDialogue() {
 	if len(t.DualBuffer) == 0 {
@@ -325,74 +316,84 @@ func (t *Tree) flushDualDialogue() {
 }
 
 func (t Tree) linePrint(format rules.Format, text string) {
-	pdf, html := t.PDF, t.HTML
-	fontName, text := t.Fonts.font(format.Font, text)
-
+	pdf := t.PDF
+	fontName, spans := t.Fonts.spans(format.Font, strings.TrimRight(text, "\r\n"))
 	pdf.SetFont(fontName, format.Style, format.Size)
 	pdf.SetX(0)
 	pdf.SetLeftMargin(format.Left)
 	pdf.SetRightMargin(format.Right)
-
-	text = strings.TrimRight(text, "\r\n")
-
-	if strings.ContainsAny(text, "*_") {
-		text = bolditalic.ReplaceAllString(text, "<b><i>${1}</i></b>")
-		text = bold.ReplaceAllString(text, "<b>${1}</b>")
-		text = italic.ReplaceAllString(text, "<i>${1}</i>")
-		text = underline.ReplaceAllString(text, "<u>${1}</u>")
-
-		if format.Align == "C" {
-			text = "<center>" + text + "</center>"
-		}
-		html.Write(0.165, text)
-		pdf.SetY(pdf.GetY() + 0.165)
+	if len(spans) == 1 && !styled(spans[0]) {
+		pdf.MultiCell(0, lineHeight, spans[0].Text, "", format.Align, false)
 		return
 	}
+	t.writeSpans(format, fontName, spans)
+	pdf.SetY(pdf.GetY() + lineHeight)
+}
 
-	pdf.MultiCell(0, 0.165, text, "", format.Align, false)
+// lineHeight is a line's height: 12 pt type, six lines to the inch.
+const lineHeight = 0.165
+
+func styled(s lex.Span) bool { return s.Bold || s.Italic || s.Underline }
+
+// fontStyle is gofpdf's style for a span in a format's style.
+func fontStyle(base string, s lex.Span) string {
+	style := strings.ToUpper(base)
+	for _, f := range []struct {
+		on bool
+		c  string
+	}{{s.Bold, "B"}, {s.Italic, "I"}, {s.Underline, "U"}} {
+		if f.on && !strings.Contains(style, f.c) {
+			style += f.c
+		}
+	}
+	return style
+}
+
+// writeSpans writes styled text from the current position, wrapping at
+// the margins; centred or right-aligned when it fits on one line.
+func (t Tree) writeSpans(format rules.Format, fontName string, spans []lex.Span) {
+	pdf := t.PDF
+	if a := strings.ToUpper(format.Align); a == "C" || a == "R" {
+		width := 0.0
+		for _, s := range spans {
+			pdf.SetFont(fontName, fontStyle(format.Style, s), format.Size)
+			width += pdf.GetStringWidth(s.Text)
+		}
+		left, _, right, _ := pdf.GetMargins()
+		pageWidth, _ := pdf.GetPageSize()
+		if room := pageWidth - left - right; width <= room {
+			x := left + room - width
+			if a == "C" {
+				x = left + (room-width)/2
+			}
+			pdf.SetX(x)
+		}
+	}
+	for _, s := range spans {
+		pdf.SetFont(fontName, fontStyle(format.Style, s), format.Size)
+		pdf.Write(lineHeight, s.Text)
+	}
+	pdf.SetFont(fontName, format.Style, format.Size)
 }
 
 // renderDualDialogueLine renders a single line of dual dialogue and returns the height consumed
 func (t Tree) renderDualDialogueLine(format rules.Format, text string, columnWidth float64) float64 {
-	fontName, text := t.Fonts.font(format.Font, text)
-
+	fontName, spans := t.Fonts.spans(format.Font, strings.TrimRight(text, "\r\n"))
 	t.PDF.SetFont(fontName, format.Style, format.Size)
-	text = strings.TrimRight(text, "\r\n")
-
-	lineHeight := 0.165
-
-	if strings.ContainsAny(text, "*_") {
-		text = bolditalic.ReplaceAllString(text, "<b><i>${1}</i></b>")
-		text = bold.ReplaceAllString(text, "<b>${1}</b>")
-		text = italic.ReplaceAllString(text, "<i>${1}</i>")
-		text = underline.ReplaceAllString(text, "<u>${1}</u>")
-
-		if format.Align == "C" {
-			text = "<center>" + text + "</center>"
-		}
-
-		// HTML-styled text wraps at the margins: keep it in its column
-		x, y0 := t.PDF.GetX(), t.PDF.GetY()
-		left, top, right, _ := t.PDF.GetMargins()
-		pageWidth, _ := t.PDF.GetPageSize()
-		t.PDF.SetMargins(x, top, pageWidth-x-columnWidth)
-		t.HTML.Write(lineHeight, text)
-		t.PDF.Ln(lineHeight)
-		t.PDF.SetMargins(left, top, right)
-		return t.PDF.GetY() - y0
-	}
-
-	// For regular text, use MultiCell with constrained width
 	currentY := t.PDF.GetY()
-
-	// Use MultiCell with specific width for the column
-	t.PDF.MultiCell(columnWidth, lineHeight, text, "", format.Align, false)
-
-	// Calculate actual height used
-	newY := t.PDF.GetY()
-	heightUsed := newY - currentY
-
-	return heightUsed
+	if len(spans) == 1 && !styled(spans[0]) {
+		t.PDF.MultiCell(columnWidth, lineHeight, spans[0].Text, "", format.Align, false)
+		return t.PDF.GetY() - currentY
+	}
+	// styled text wraps at the margins: keep it in its column
+	x := t.PDF.GetX()
+	left, top, right, _ := t.PDF.GetMargins()
+	pageWidth, _ := t.PDF.GetPageSize()
+	t.PDF.SetMargins(x, top, pageWidth-x-columnWidth)
+	t.writeSpans(format, fontName, spans)
+	t.PDF.Ln(lineHeight)
+	t.PDF.SetMargins(left, top, right)
+	return t.PDF.GetY() - currentY
 }
 
 // Write converts the internal lex.Screenplay format to a PDF file.
@@ -434,7 +435,6 @@ func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		PDF:          pdf,
 		Rules:        elements,
 		F:            lex.Printable(screenplay, elements.PrintsNotes()), // notes are not printed
-		HTML:         pdf.HTMLBasicNew(),
 		DualDialogue: false,
 		DualColumn:   0,
 		DualBuffer:   []lex.Line{},

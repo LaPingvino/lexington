@@ -3,7 +3,6 @@ package markdown
 import (
 	"fmt"
 	"io"
-	"regexp"
 	"strings"
 
 	"github.com/LaPingvino/lexington/lex"
@@ -22,29 +21,38 @@ const (
 	dialogueBlockEnd   = "\n"
 )
 
-// Inline markup patterns for Markdown output
-var (
-	bolditalic = regexp.MustCompile(`\*{3}([^\*\n]+)\*{3}`)
-	bold       = regexp.MustCompile(`\*{2}([^\*\n]+)\*{2}`)
-	italic     = regexp.MustCompile(`\*{1}([^\*\n]+)\*{1}`)
-	underline  = regexp.MustCompile(`_{1}([^\*\n]+)_{1}`)
-)
-
-// processInlineMarkup converts fountain-style inline markup to Markdown
+// processInlineMarkup turns Fountain's emphasis (lex.Emphasis) into
+// Markdown's: ***bold italic***, **bold**, *italic*, and <u> for
+// underlining, which Markdown lacks; asterisks and underscores in the
+// text are escaped, spaces at a span's ends kept outside its markers.
 func processInlineMarkup(text string) string {
-	// Only process if the text contains markup characters
-	if !strings.ContainsAny(text, "*_") {
+	if !strings.ContainsAny(text, `*_\`) {
 		return text
 	}
-
-	// Apply replacements in order: bold+italic first, then bold, then italic, then underline
-	// This prevents conflicts between overlapping patterns
-	text = bolditalic.ReplaceAllString(text, "***${1}***")
-	text = bold.ReplaceAllString(text, "**${1}**")
-	text = italic.ReplaceAllString(text, "*${1}*")
-	text = underline.ReplaceAllString(text, "<u>${1}</u>") // Markdown doesn't have native underline
-
-	return text
+	var b strings.Builder
+	for _, s := range lex.Emphasis(text) {
+		inner := strings.TrimSpace(s.Text)
+		if inner == "" || !(s.Bold || s.Italic || s.Underline) {
+			b.WriteString(lex.EscapeEmphasis(s.Text))
+			continue
+		}
+		lead := s.Text[:strings.Index(s.Text, inner)]
+		trail := s.Text[len(lead)+len(inner):]
+		t := lex.EscapeEmphasis(inner)
+		if s.Underline {
+			t = "<u>" + t + "</u>"
+		}
+		switch {
+		case s.Bold && s.Italic:
+			t = "***" + t + "***"
+		case s.Bold:
+			t = "**" + t + "**"
+		case s.Italic:
+			t = "*" + t + "*"
+		}
+		b.WriteString(lead + t + trail)
+	}
+	return b.String()
 }
 
 // MarkdownWriter implements the writer.Writer interface for Markdown output.
