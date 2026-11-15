@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-15
+
 ### New Features
 - **Color blocks apart, and patterns** (`-colorpatterns`, `+patterns`):
   a gap (the blank line) between two color blocks, also of the same
