@@ -616,6 +616,19 @@ func withBlocks(s lex.Screenplay, text string, set rules.Set) lex.Screenplay {
 			colorOf[l.Block] = l.Color
 		}
 	}
+	// a block's wrapper is around its printed lines alone: not blank or
+	// unprinted lines at its edge or a page's (dual dialogue's table
+	// whole, never cut by a wrapper)
+	lex.TrimBlocks(blocks, func(i int) bool {
+		switch s[i].Type {
+		case lex.TypeDualOpen, lex.TypeDualNext, lex.TypeDualClose:
+			return true
+		case lex.TypeScene, lex.TypeAction, "general", lex.TypeSpeaker, lex.TypeDialog, lex.TypeLyrics,
+			lex.TypeParen, lex.TypeTrans, lex.TypeCenter:
+			return strings.TrimSpace(lex.Unstyled(s[i].Contents)) != ""
+		}
+		return false
+	}, func(i int) bool { return s[i].Type == lex.TypeNewPage })
 	var out lex.Screenplay
 	open := -1 // the block open, -1 for none
 	for i, l := range s {

@@ -214,3 +214,34 @@ func ColorBlocks(s Screenplay) []int {
 	}
 	return out
 }
+
+// TrimBlocks takes the color blocks of n lines (ColorBlocks, or a
+// writer's own lines') off every line that is not between two lines of
+// the same block that print text, with no page break between them: so
+// that blank or unprinted lines at a block's edge, or at the edge of a
+// page, never show its color. prints reports whether line i prints
+// text, breaks whether a new page starts at it.
+func TrimBlocks(blocks []int, prints, breaks func(i int) bool) {
+	keep := make([]bool, len(blocks))
+	last := -1 // the last line that prints, on this page
+	for i := range blocks {
+		if breaks(i) {
+			last = -1
+		}
+		if !prints(i) {
+			continue
+		}
+		keep[i] = blocks[i] != 0
+		if keep[i] && last >= 0 && blocks[last] == blocks[i] {
+			for k := last + 1; k < i; k++ {
+				keep[k] = blocks[k] == blocks[i]
+			}
+		}
+		last = i
+	}
+	for i := range blocks {
+		if !keep[i] {
+			blocks[i] = 0
+		}
+	}
+}

@@ -44,6 +44,63 @@ type Tree struct {
 	Scale        float64    // of horizontal positions: the page's width to Letter's (0: 1)
 	VScale       float64    // of vertical ones
 	bar          *colorBar  // the color bar being drawn (line style)
+	printing     *printing  // where the text being printed lands
+}
+
+// span is where printed text is on a page: from its top to its foot.
+type span struct {
+	page        int
+	top, bottom float64
+}
+
+// printing follows a piece of text being printed over the pages it
+// breaks over: the spans it fills, page by page (none on a page it only
+// moves on from).
+type printing struct {
+	on    bool
+	page  int
+	top   float64
+	spans []span
+}
+
+// start begins following text printed from where the PDF is now.
+func (p *printing) start(pdf *gofpdf.Fpdf) {
+	p.on, p.page, p.top, p.spans = true, pdf.PageNo(), pdf.GetY(), nil
+}
+
+// cut ends the span on this page: the PDF is about to break to the next,
+// where the text goes on from the top margin.
+func (p *printing) cut(pdf *gofpdf.Fpdf) {
+	if !p.on {
+		return
+	}
+	p.add(pdf)
+	_, top, _, _ := pdf.GetMargins()
+	p.page, p.top = pdf.PageNo()+1, top
+}
+
+func (p *printing) add(pdf *gofpdf.Fpdf) {
+	if y := pdf.GetY(); pdf.PageNo() == p.page && y > p.top {
+		p.spans = append(p.spans, span{p.page, p.top, y})
+	}
+}
+
+// stop ends following, with the spans the text filled.
+func (p *printing) stop(pdf *gofpdf.Fpdf) []span {
+	p.add(pdf)
+	p.on = false
+	return p.spans
+}
+
+// printed are the spans that what print prints fills.
+func (t Tree) printed(print func()) []span {
+	if t.printing == nil {
+		print()
+		return nil
+	}
+	t.printing.start(t.PDF)
+	print()
+	return t.printing.stop(t.PDF)
 }
 
 func (t Tree) sc() float64 {
@@ -60,7 +117,9 @@ func (t Tree) vsc() float64 {
 	return t.VScale
 }
 
-func (t Tree) pr(a string, text string) {
+// pr prints a line, and draws its marker or band (headingColor) on the
+// spans it fills, which it returns (none for a blank line).
+func (t Tree) pr(a string, text string) []span {
 	if a == lex.TypeNote {
 		a = rules.KeyPrintNotes.String()
 	}
@@ -75,10 +134,15 @@ func (t Tree) pr(a string, text string) {
 		}
 	}
 	text = f.Prefix + text + f.Postfix
-	if t.bar != nil && strings.TrimSpace(text) != "" {
-		t.headingColor(f, text, t.bar.block, a == "scene" || a == "section")
+	if strings.TrimSpace(text) == "" {
+		t.linePrint(f, text)
+		return nil
 	}
-	t.linePrint(f, text)
+	spans := t.printed(func() { t.linePrint(f, text) })
+	if t.bar != nil {
+		t.headingColor(f, text, t.bar.block, a == "scene" || a == "section", spans)
+	}
+	return spans
 }
 
 // sceneNumber prints a scene's number in both margins, on the line the
@@ -109,6 +173,16 @@ func (t *Tree) Render() {
 	if t.bar == nil {
 		t.bar = &colorBar{}
 	}
+	if t.printing == nil {
+		t.printing = &printing{}
+	}
+	t.PDF.SetAcceptPageBreakFunc(func() bool {
+		auto, _ := t.PDF.GetAutoPageBreak()
+		if auto {
+			t.printing.cut(t.PDF)
+		}
+		return auto
+	})
 	style, sch := lex.ColorStyle(""), lex.ColorScheme{}
 	if t.Rules.ShowsColors() {
 		sch = t.Rules.ColorScheme()
@@ -130,11 +204,14 @@ func (t *Tree) Render() {
 		if row.Type == lex.TypeScene || row.Type == lex.TypeSection {
 			t.bar.block = row.Color
 		}
-		page, y := t.PDF.PageNo(), t.PDF.GetY()
+		if row.Type == lex.TypeDualClose && !t.DualDialogue {
+			continue
+		}
+		if row.Type == lex.TypeDualClose {
+			t.extendBar(t.printed(func() { t.handleSpecialCases(row, &block, &lastsection) }))
+			continue
+		}
 		if t.handleSpecialCases(row, &block, &lastsection) {
-			if row.Type == lex.TypeDualClose {
-				t.extendBar(page, y)
-			}
 			continue
 		}
 
@@ -163,24 +240,23 @@ func (t *Tree) Render() {
 			t.PDF.SetTextColor(0, 0, 0)
 			continue
 		}
-		t.pr(row.Type, row.Contents)
+		spans := t.pr(row.Type, row.Contents)
 		if block == "" {
-			t.extendBar(page, y)
+			t.extendBar(spans)
 		}
 	}
 
 	// Flush any remaining dual dialogue at the end
 	if t.DualDialogue {
-		page, y := t.PDF.PageNo(), t.PDF.GetY()
-		t.flushDualDialogue()
-		t.extendBar(page, y)
+		t.extendBar(t.printed(t.flushDualDialogue))
 	}
 	t.closeBar()
 }
 
 // colorBar is the bar of a scene's color in the left margin (the line
-// style): drawn a page at a time, from top to bottom of what it is beside
-// there.
+// style), or its band: drawn a page at a time, from the top of the
+// block's first text on the page to the foot of its last (never beside
+// blank lines alone, before or after it).
 type colorBar struct {
 	id          int    // the block the line is in (lex.ColorBlocks)
 	color       string // of the block drawn beside (bar) or under (band); "" for none
@@ -198,31 +274,26 @@ const (
 	barGap   = 1.0
 )
 
-// extendBar draws the bar of the scene's color beside what was just
-// printed, from page and y on.
-func (t *Tree) extendBar(page int, y float64) {
+// extendBar draws the bar of the scene's color beside the text just
+// printed, on the spans it filled (blank lines extend nothing: within a
+// block the bar runs on over them from text to text).
+func (t *Tree) extendBar(spans []span) {
 	b := t.bar
 	if b == nil {
 		return
 	}
-	if b.id != b.drawnID || b.color != b.drawn || (b.drawn != "" && page != b.page) {
-		t.closeBar()
+	for _, s := range spans {
+		if b.drawn != "" && (b.id != b.drawnID || b.color != b.drawn || s.page != b.page) {
+			t.closeBar()
+		}
+		if b.color == "" || b.id == 0 {
+			continue
+		}
+		if b.drawn == "" {
+			b.drawn, b.drawnID, b.page, b.top = b.color, b.id, s.page, s.top
+		}
+		b.bottom = s.bottom
 	}
-	if b.color == "" || b.id == 0 {
-		return
-	}
-	if b.drawn == "" {
-		b.drawn, b.drawnID, b.page, b.top = b.color, b.id, page, y
-	}
-	if now := t.PDF.PageNo(); now != b.page { // it went on to the next page
-		_, margin := t.PDF.GetAutoPageBreak()
-		_, height := t.PDF.GetPageSize()
-		b.bottom = height - margin
-		t.closeBar()
-		_, top, _, _ := t.PDF.GetMargins()
-		b.drawn, b.drawnID, b.page, b.top = b.color, b.id, now, top
-	}
-	b.bottom = t.PDF.GetY()
 }
 
 // closeBar draws the bar so far, on its page.
@@ -293,9 +364,10 @@ func (t *Tree) patternBar(p lex.Pattern, x, top, bottom float64) {
 
 // headingColor draws a marker behind a line's text (a heading's, or any
 // line's of a block with a marker over blocks), or a heading's background,
-// before the text is printed over it.
-func (t Tree) headingColor(f rules.Format, text, color string, heading bool) {
-	if !t.Rules.ShowsColors() {
+// on the spans the text was printed on: after it, multiplied, so that the
+// text stays as it is on it, and on the pages it went on to.
+func (t Tree) headingColor(f rules.Format, text, color string, heading bool, spans []span) {
+	if !t.Rules.ShowsColors() || len(spans) == 0 {
 		return
 	}
 	sch := t.Rules.ColorScheme()
@@ -315,22 +387,30 @@ func (t Tree) headingColor(f rules.Format, text, color string, heading bool) {
 	pageWidth, _ := pdf.GetPageSize()
 	room := pageWidth - f.Left - f.Right
 	lines := pdf.SplitText(lex.Unstyled(text), room)
-	y := pdf.GetY()
+	now := pdf.PageNo()
+	defer pdf.SetPage(now)
+	pdf.SetAlpha(1, "Multiply")
+	defer pdf.SetAlpha(1, "Normal")
 	pdf.SetFillColor(int(c[0]), int(c[1]), int(c[2]))
-	if style == lex.ColorBackground {
-		pdf.Rect(f.Left-0.05, y, room+0.1, float64(len(lines))*lineHeight, "F")
-		return
-	}
-	for i, l := range lines {
-		w := pdf.GetStringWidth(l)
-		x := f.Left
-		switch strings.ToUpper(f.Align) {
-		case "C":
-			x += (room - w) / 2
-		case "R":
-			x += room - w
+	for _, s := range spans {
+		pdf.SetPage(s.page)
+		if style == lex.ColorBackground {
+			pdf.Rect(f.Left-0.05, s.top, room+0.1, s.bottom-s.top, "F")
+			continue
 		}
-		pdf.Rect(x-0.03, y+float64(i)*lineHeight, w+0.06, lineHeight, "F")
+		for y := s.top; y+lineHeight/2 < s.bottom && len(lines) > 0; y += lineHeight {
+			l := lines[0]
+			lines = lines[1:]
+			w := pdf.GetStringWidth(l)
+			x := f.Left
+			switch strings.ToUpper(f.Align) {
+			case "C":
+				x += (room - w) / 2
+			case "R":
+				x += room - w
+			}
+			pdf.Rect(x-0.03, y, w+0.06, lineHeight, "F")
+		}
 	}
 }
 

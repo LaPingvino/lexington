@@ -199,6 +199,11 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 	}
 	s = lex.Printable(s, set.PrintsNotes())
 	var out []Paragraph
+	var ids []int // the color block of each paragraph (lex.ColorBlocks)
+	add := func(p Paragraph, id int) {
+		out = append(out, p)
+		ids = append(ids, id)
+	}
 	block, column := "", 0
 	sch := set.ColorScheme()
 	blocks, colorOf := lex.ColorBlocks(s), map[int]string{} // the block each row is in, and its color
@@ -219,14 +224,14 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 		switch t {
 		case lex.TypeNewPage:
 			block = ""
-			out = append(out, Paragraph{PageBreak: true})
+			add(Paragraph{PageBreak: true}, 0)
 			continue
 		case lex.TypeTitlePage:
 			block = "title"
 			continue
 		case "metasection":
 			block = "meta"
-			out = append(out, Paragraph{Block: block})
+			add(Paragraph{Block: block}, 0)
 			continue
 		case lex.TypeDualOpen:
 			column = 1
@@ -238,7 +243,7 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 			column = 0
 			continue
 		case lex.TypeEmpty:
-			out = append(out, Paragraph{Block: block, Column: column, Colors: bar})
+			add(Paragraph{Block: block, Column: column, Colors: bar}, blocks[i])
 			continue
 		}
 		key := string(t)
@@ -282,8 +287,20 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 		if t == lex.TypeScene || t == lex.TypeSection {
 			cs = colors(sch, row.Color, true)
 		}
-		out = append(out, Paragraph{Type: t, Block: block, Key: key, Left: left, Right: right, Align: align,
-			Spans: emphasis(text, base), Column: column, SceneNumber: number, Colors: cs})
+		id := blocks[i]
+		if block != "" {
+			id = 0
+		}
+		add(Paragraph{Type: t, Block: block, Key: key, Left: left, Right: right, Align: align,
+			Spans: emphasis(text, base), Column: column, SceneNumber: number, Colors: cs}, id)
+	}
+	// a blank line at a block's edge, or a page's, shows no color
+	lex.TrimBlocks(ids, func(i int) bool { return out[i].Type != "" && strings.TrimSpace(out[i].Text()) != "" },
+		func(i int) bool { return out[i].PageBreak })
+	for i := range out {
+		if out[i].Type == "" && ids[i] == 0 {
+			out[i].Colors = Colors{}
+		}
 	}
 	return out
 }
