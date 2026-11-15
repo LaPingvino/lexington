@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### New Features
+- **Color styles** (`-colorstyle line|marker|background|text`, the
+  `notecolors` rule's `Style`): a bar beside the scene down every page
+  (the default), a marker behind the heading, a band across it, or the
+  text. Colors on sections color their scenes. Tints and text colors
+  keep WCAG contrast (`lex.ColorFor`): 7:1 for black text on a tint,
+  4.5:1 for colored text, 3:1 for the bar.
 - **Colors** (`-colors`, a set's `notecolors` rule; off by default):
   scene headings and sections in the color their notes give them, as
   Beat reads and shows them, in PDF, HTML, DOCX and ODT. FDX reads and

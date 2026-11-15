@@ -102,7 +102,8 @@ func TestFilterFlags(t *testing.T) {
 	if out := run("fountain", "-character", "bob", "-sides", "cue", "-cuewords", "1"); !strings.Contains(out, "ANNA\nHi.\n\nBOB\nBye.") {
 		t.Errorf("cue:\n%s", out)
 	}
-	if out := run("html", "-colors", "-tag", "London"); !strings.Contains(out, `style="color: #ef0049"`) || strings.Contains(out, "ROAD") {
+	red, _ := lex.ColorFor(lex.ColorText, "red")
+	if out := run("html", "-colorstyle", "text", "-tag", "London"); !strings.Contains(out, `style="color: `+lex.HexOf(red)+`"`) || strings.Contains(out, "ROAD") {
 		t.Errorf("colors and tag in html")
 	}
 	if out := run("html"); strings.Contains(out, `style="color:`) {

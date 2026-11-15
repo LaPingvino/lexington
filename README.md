@@ -181,8 +181,15 @@ Fountain notes are never printed, but they can color and select:
 
 ```bash
 # scene headings and sections in their notes' colors ([[red]],
-# [[COLOR BLUE]], [[#3366ff]], as Beat writes them); off by default
+# [[COLOR BLUE]], [[#3366ff]], as Beat writes them); off by default.
+# A scene without a color takes its section's. -colorstyle chooses how:
+#   line        a bar beside the scene, down every page (the default)
+#   marker      a highlighter behind the heading
+#   background  a band behind the heading, across the text
+#   text        the heading in the color
+# Tints and colors keep black text readable (WCAG contrast).
 lexington -colors -i script.fountain -o script.pdf
+lexington -colorstyle marker -i script.fountain -o script.docx
 
 # only the scenes and sections with a note [[London]] or [[New York]]
 # (whole note, any case; a color is a tag too), with all under them
@@ -198,7 +205,8 @@ lexington -character EDWARD -sides cue -cuewords 5 -i bigfish.fdx -o edward.pdf
 
 The title page stays, scene numbers are the script's own, and the
 sections above a scene that is kept stay as headings. In a settings
-file, a set's `notecolors` rule switches colors on. Programs use
+file, a set's `notecolors` rule switches colors on, its `Style` the
+color style. Programs use
 `lex.FilterTags`, `lex.Sides` and `rules.Set.WithColors`. In FDX, a
 scene's color is Final Draft's scene color either way.
 

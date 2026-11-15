@@ -152,6 +152,9 @@ type Options struct {
 	// Colors prints scene headings and sections in their notes' colors
 	// (rules.Set.WithColors).
 	Colors bool
+	// ColorStyle is how colors show (lex.ColorStyle: line, marker,
+	// background, text); giving one switches colors on.
+	ColorStyle string
 	// Tags keep only the scenes and sections with one of them as a note
 	// (lex.FilterTags).
 	Tags []string
@@ -229,6 +232,8 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 	fs.BoolVar(&o.Lint, "lint", false, "Run the Fountain linter on the input file")
 	fs.BoolVar(&o.Colors, "colors", false,
 		"Print scene headings and sections in the colors of their notes ([[red]], [[COLOR BLUE]], [[#3366ff]]).")
+	fs.StringVar(&o.ColorStyle, "colorstyle", "",
+		"How -colors shows a color: line (a bar beside the scene, the default), marker, background or text; switches colors on.")
 	fs.Var((*tagList)(&o.Tags), "tag",
 		"Keep only the scenes and sections with this note ([[London]]) or color, with all under them; give it more than once for any of several.")
 	fs.StringVar(&o.Character, "character", "", "Keep this character's sides; needs -sides.")
@@ -320,12 +325,19 @@ func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.S
 	if err != nil {
 		return err
 	}
-	if o.Colors { // the element settings with colors on, for every writer
+	if o.Colors || o.ColorStyle != "" { // the element settings with colors on, for every writer
+		set := conf.Elements[o.Elements]
+		style := set.ColorStyle()
+		if o.ColorStyle != "" {
+			if style, err = lex.ParseColorStyle(o.ColorStyle); err != nil {
+				return err
+			}
+		}
 		elements := map[string]rules.Set{}
 		for k, set := range conf.Elements {
 			elements[k] = set
 		}
-		elements[o.Elements] = conf.Elements[o.Elements].WithColors()
+		elements[o.Elements] = set.WithColorStyle(style)
 		conf.Elements = elements
 	}
 	f, ok := FormatFor(o.To)
