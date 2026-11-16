@@ -11,14 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Text color over the whole block** (`-colorstyle text -colorscope block`,
   `text+block`): a scene's or section's lines in its color, not only its
   heading, in HTML, PDF, DOCX and ODT.
-
-### Fixes
-- A dot in a folder's name no longer reads as a scene language: the
-  formats and languages come from the file's own name
-  (`script.en.fountain`), not its path. Scene headings in such folders
-  were read as action.
-
-### New Features (earlier)
 - **Page breaks as screenplay software makes them** (`-pagination`,
   `rules.Pagination`, `cli.Options.Pagination`; on by default): scene
   headings, sections, character names and parentheticals are never the
@@ -34,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pdfin.Pages`: the text lines of each page of a PDF, where printed.
 
 ### Fixed
+- A dot in a folder's name no longer reads as a scene language: the
+  formats and languages come from the file's own name
+  (`script.en.fountain`), not its path. Scene headings in such folders
+  were read as action.
 - A scene heading, character name or parenthetical could be the last line
   of a PDF page; in docx and odt the heading kept only with the blank
   paragraph after it.
