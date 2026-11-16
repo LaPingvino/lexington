@@ -37,6 +37,11 @@ func TestColors(t *testing.T) {
 			t.Errorf("%s: %q, want %q", st, got, want)
 		}
 	}
+	// text+block: the scene's lines in its color too, not only the heading
+	tb := hex(lex.ColorText, "blue")
+	if got := strings.Join(colors(rules.Default.WithColorScheme(lex.ColorScheme{Style: lex.ColorText, Block: true}), func(c Colors) string { return c.Color }), ","); got != tb+","+tb+",,"+hex(lex.ColorText, "#3366ff") {
+		t.Errorf("text+block: %q", got)
+	}
 	bar := hex(lex.ColorLine, "blue")
 	if got := strings.Join(colors(rules.Default.WithColors(), func(c Colors) string { return c.Bar }), ","); got != bar+","+bar+",,"+hex(lex.ColorLine, "#3366ff") {
 		t.Errorf("line: %q", got)

@@ -106,7 +106,7 @@ func colors(sch lex.ColorScheme, color string, heading bool) Colors {
 			out.Background = hex(lex.ColorBackground)
 		}
 	case lex.ColorText:
-		if heading {
+		if heading || sch.Block {
 			out.Color = hex(lex.ColorText)
 		}
 	}

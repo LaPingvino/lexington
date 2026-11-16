@@ -624,10 +624,17 @@ func withBlocks(s lex.Screenplay, text string, set rules.Set) lex.Screenplay {
 			layer("linear-gradient("+band+", "+band+")", fmt.Sprintf("%.2fin 0", left),
 				fmt.Sprintf("calc(100%% - %.2fin - %.2fin) 100%%", left, right))
 		}
-		if len(images) == 0 {
-			return ""
+		text := ""
+		if sch.Style == lex.ColorText && sch.Block && hexFor(lex.ColorText, color) != "" {
+			text = "color: " + hexFor(lex.ColorText, color) // text+block: the lines take it
 		}
-		return "background-image: " + strings.Join(images, ", ") + "; background-position: " + strings.Join(places, ", ") +
+		if len(images) == 0 {
+			return text
+		}
+		if text != "" {
+			text += "; "
+		}
+		return text + "background-image: " + strings.Join(images, ", ") + "; background-position: " + strings.Join(places, ", ") +
 			"; background-size: " + strings.Join(sizes, ", ") + "; background-repeat: no-repeat"
 	}
 	blocks, colorOf := lex.ColorBlocks(s), map[int]string{}

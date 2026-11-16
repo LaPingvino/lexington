@@ -155,7 +155,7 @@ type Options struct {
 	// ColorStyle is how colors show (lex.ColorStyle: line, marker,
 	// background, text); giving one switches colors on.
 	ColorStyle string
-	// ColorScope is what a marker or background covers: heading (the
+	// ColorScope is what a marker, background or text color covers: heading (the
 	// default) or block (the scene, or the section whole, with the color).
 	ColorScope string
 	// ColorTint puts a light tint under a line's block. A scope or a tint
@@ -278,7 +278,7 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 	fs.StringVar(&o.ColorStyle, "colorstyle", "",
 		"How -colors shows a color: line (a bar beside the scene, the default), marker, background or text (or with -colorscope, -colortint: marker+block, line+tint, ...); switches colors on.")
 	fs.StringVar(&o.ColorScope, "colorscope", "",
-		"What a marker or background covers: heading (the default) or block (the scene, or a section whole, with the color).")
+		"What a marker, background or text color covers: heading (the default) or block (the scene, or a section whole, with the color).")
 	fs.BoolVar(&o.ColorTint, "colortint", false, "With the line style: a light tint under the block too.")
 	fs.BoolVar(&o.ColorPatterns, "colorpatterns", false,
 		"With the line style: each color's bar in a pattern of its own (dashes, dots, double, ...), not told apart by hue alone.")
@@ -450,8 +450,10 @@ func PDFWarning(s lex.Screenplay) string {
 		". Export HTML and print it from a browser (Save as PDF) instead."
 }
 
+// detectFormats reads the formats (and scene languages) from the file
+// names alone: script.en.fountain — a dot in a folder's name is no part of it.
 func detectFormats(o *Options) {
-	if ins := strings.Split(o.Input, "."); len(ins) > 1 {
+	if ins := strings.Split(filepath.Base(o.Input), "."); len(ins) > 1 {
 		if o.From == "" {
 			o.From = ins[len(ins)-1]
 		}
@@ -459,7 +461,7 @@ func detectFormats(o *Options) {
 			o.SceneIn = ins[len(ins)-2]
 		}
 	}
-	if outs := strings.Split(o.Output, "."); len(outs) > 1 {
+	if outs := strings.Split(filepath.Base(o.Output), "."); len(outs) > 1 {
 		if o.To == "" {
 			o.To = outs[len(outs)-1]
 		}

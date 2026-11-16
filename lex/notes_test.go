@@ -215,12 +215,12 @@ func TestColorTintAndSchemes(t *testing.T) {
 		}
 	}
 	for in, want := range map[string]string{"": "line", "line": "line", "Marker+Block": "marker+block",
-		"background+block": "background+block", "line+tint": "line+tint", "text": "text"} {
+		"background+block": "background+block", "line+tint": "line+tint", "text": "text", "text+block": "text+block"} {
 		if sch, err := ParseColorScheme(in); err != nil || sch.String() != want {
 			t.Errorf("ParseColorScheme(%q) = %v, %v", in, sch, err)
 		}
 	}
-	for _, bad := range []string{"text+block", "line+block", "marker+tint", "neon", "marker+all"} {
+	for _, bad := range []string{"text+tint", "line+block", "marker+tint", "neon", "marker+all"} {
 		if _, err := ParseColorScheme(bad); err == nil {
 			t.Errorf("%q: no error", bad)
 		}

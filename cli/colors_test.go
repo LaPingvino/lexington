@@ -250,7 +250,12 @@ func TestColorBlocks(t *testing.T) {
 			t.Errorf("docx %q: the next scene, without a color, has it", c.flags)
 		}
 	}
-	for _, bad := range [][]string{{"-colorstyle", "text", "-colorscope", "block"}, {"-colorstyle", "marker", "-colortint"}, {"-colorscope", "all"}} {
+	// text over the block: the scene's lines in its color (the block's
+	// wrapper), besides the heading's own
+	if c, _ := lex.ColorFor(lex.ColorText, "red"); strings.Count(string(export("html", "-colorstyle", "text", "-colorscope", "block")), "color: "+lex.HexOf(c)) < 2 {
+		t.Error("html text+block: the block's lines not in its color")
+	}
+	for _, bad := range [][]string{{"-colorstyle", "text", "-colortint"}, {"-colorstyle", "marker", "-colortint"}, {"-colorscope", "all"}} {
 		args := append([]string{"-i", in, "-to", "html", "-o", filepath.Join(dir, "x.html"), "-config", filepath.Join(dir, "none.toml")}, bad...)
 		if got := Main(context.Background(), args); got != 1 {
 			t.Errorf("%q: exit %d", bad, got)

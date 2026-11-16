@@ -266,7 +266,17 @@ func (t *Tree) Render() {
 			t.PDF.SetTextColor(0, 0, 0)
 			continue
 		}
+		// text+block: every line of a block of a color in it (the
+		// heading's own, above)
+		c, blockText := lex.ColorFor(lex.ColorText, t.bar.block)
+		blockText = blockText && style == lex.ColorText && sch.Block && t.bar.block != ""
+		if blockText {
+			t.PDF.SetTextColor(int(c[0]), int(c[1]), int(c[2]))
+		}
 		spans := t.pr(row.Type, row.Contents)
+		if blockText {
+			t.PDF.SetTextColor(0, 0, 0)
+		}
 		t.restoreFoot()
 		if block == "" {
 			t.extendBar(spans)

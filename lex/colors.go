@@ -53,7 +53,8 @@ const (
 	ColorMarker ColorStyle = "marker"
 	// ColorBackground is a band behind the heading, across the text's width.
 	ColorBackground ColorStyle = "background"
-	// ColorText is the heading's text in the color.
+	// ColorText is the heading's text in the color (with +block, every
+	// line's of its block).
 	ColorText ColorStyle = "text"
 )
 
@@ -67,14 +68,14 @@ const ColorTint ColorStyle = "tint"
 // besides the bar.
 type ColorScheme struct {
 	Style ColorStyle
-	Block bool // marker, background: the whole block, not the heading
+	Block bool // marker, background, text: the whole block, not the heading
 	Tint  bool // line: a tint under the block
 	// Patterns: line, the bar in its color's pattern (BarPattern)
 	Patterns bool
 }
 
 // ParseColorScheme reads a scheme as String writes it: a style, then
-// "+block" (marker, background) or "+tint" and "+patterns" (line):
+// "+block" (marker, background, text) or "+tint" and "+patterns" (line):
 // "background+block", "line+tint+patterns"; "" is line.
 func ParseColorScheme(text string) (ColorScheme, error) {
 	parts := strings.Split(strings.ToLower(strings.TrimSpace(text)), "+")
@@ -85,14 +86,14 @@ func ParseColorScheme(text string) (ColorScheme, error) {
 	sch := ColorScheme{Style: style}
 	for _, p := range parts[1:] {
 		switch {
-		case p == "block" && (style == ColorMarker || style == ColorBackground):
+		case p == "block" && (style == ColorMarker || style == ColorBackground || style == ColorText):
 			sch.Block = true
 		case p == "tint" && style == ColorLine:
 			sch.Tint = true
 		case p == "patterns" && style == ColorLine:
 			sch.Patterns = true
 		default:
-			return ColorScheme{}, fmt.Errorf("no color scheme %q: a marker or background can have +block, a line +tint and +patterns", text)
+			return ColorScheme{}, fmt.Errorf("no color scheme %q: a marker, background or text can have +block, a line +tint and +patterns", text)
 		}
 	}
 	return sch, nil
