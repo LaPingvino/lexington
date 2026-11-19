@@ -184,12 +184,14 @@ func hocrLines(page int, hocr string, dpi float64) []line {
 		bottom := 0.0
 		for _, w := range ws {
 			bottom = max(bottom, w.y1)
+			h := (w.y1 - w.y0) * 72 // the words' height stands for the size
 			if n := len(runs); n > 0 && w.x0-runs[n-1].End < 3*cw {
 				runs[n-1].Text += " " + w.text
 				runs[n-1].End = w.x1
+				runs[n-1].Size = max(runs[n-1].Size, h)
 				continue
 			}
-			runs = append(runs, run{X: w.x0, End: w.x1, Text: w.text})
+			runs = append(runs, run{X: w.x0, End: w.x1, Text: w.text, Size: h})
 		}
 		out = append(out, line{Page: page, Y: bottom, Runs: runs})
 	}

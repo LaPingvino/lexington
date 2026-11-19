@@ -31,6 +31,8 @@ type run struct {
 	X, End float64 // where it starts and (about) ends
 	Text   string
 	Bold   bool
+	Italic bool
+	Size   float64 // the font size in points (OCR: the words' height), 0 if not known
 }
 
 // line is a printed line: its runs from left to right.
@@ -128,7 +130,17 @@ func Read(r io.ReaderAt, size int64) (lex.Screenplay, error) {
 
 // ReadWith reads the screenplay in a PDF, OCRing scanned pages if opts
 // has an OCR.
-func ReadWith(r io.ReaderAt, size int64, opts Options) (s lex.Screenplay, err error) {
+func ReadWith(r io.ReaderAt, size int64, opts Options) (lex.Screenplay, error) {
+	pages, width, err := readPages(r, size, opts)
+	if err != nil {
+		return nil, err
+	}
+	return classify(pages, width, scenePattern(opts.Scenes)), nil
+}
+
+// readPages are the lines of every page that could be read (OCRed if
+// opts has an OCR), and the pages' width in inches.
+func readPages(r io.ReaderAt, size int64, opts Options) (pages [][]line, width float64, err error) {
 	defer func() {
 		if p := recover(); p != nil { // the PDF library panics on some files
 			err = fmt.Errorf("reading the PDF: %v", p)
@@ -136,18 +148,17 @@ func ReadWith(r io.ReaderAt, size int64, opts Options) (s lex.Screenplay, err er
 	}()
 	doc, err := pdf.NewReader(r, size)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	var pages [][]line
 	var firstErr error
-	width := 8.5
+	width = 8.5
 	ctx := opts.Context
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	for i := 1; i <= doc.NumPage(); i++ {
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		p := doc.Page(i)
 		if p.V.IsNull() {
@@ -162,7 +173,7 @@ func ReadWith(r io.ReaderAt, size int64, opts Options) (s lex.Screenplay, err er
 			opts.Progress(i, doc.NumPage())
 		}
 		if ctx.Err() != nil {
-			return nil, ctx.Err()
+			return nil, 0, ctx.Err()
 		}
 		if err != nil {
 			// a page that cannot be read is left out, not the script
@@ -178,18 +189,18 @@ func ReadWith(r io.ReaderAt, size int64, opts Options) (s lex.Screenplay, err er
 	}
 	if len(pages) == 0 {
 		if firstErr != nil {
-			return nil, firstErr
+			return nil, 0, firstErr
 		}
-		return nil, fmt.Errorf("no pages")
+		return nil, 0, fmt.Errorf("no pages")
 	}
 	all := 0
 	for _, p := range pages {
 		all += len(p)
 	}
 	if all == 0 {
-		return nil, fmt.Errorf("the PDF has no text: a scanned script needs OCR")
+		return nil, 0, fmt.Errorf("the PDF has no text: a scanned document needs OCR")
 	}
-	return classify(pages, width, scenePattern(opts.Scenes)), nil
+	return pages, width, nil
 }
 
 // readPage is a page's lines: its text, or what OCR reads in its scan.
@@ -230,14 +241,18 @@ func lines(page int, p pdf.Page) []line {
 	type glyph struct {
 		x, y, size, w float64 // w: the glyph's width, 0 if the PDF does not say
 		s             string
-		bold          bool
+		bold, italic  bool
+		font          string
 	}
 	var gs []glyph
 	for _, t := range p.Content().Text {
 		if t.S == "" || t.S == "\n" || t.S == "\r" || t.S == "\uFFFD" { // no Unicode for it: lost
 			continue
 		}
-		gs = append(gs, glyph{t.X / 72, height - t.Y/72, t.FontSize, t.W / 72, t.S, strings.Contains(strings.ToLower(t.Font), "bold") || strings.HasSuffix(t.Font, "B")})
+		font := strings.ToLower(t.Font)
+		gs = append(gs, glyph{t.X / 72, height - t.Y/72, t.FontSize, t.W / 72, t.S,
+			strings.Contains(font, "bold") || strings.HasSuffix(t.Font, "B"),
+			strings.Contains(font, "italic") || strings.Contains(font, "oblique"), t.Font})
 	}
 	// rows: glyphs on (nearly) the same baseline, in the order printed
 	sort.SliceStable(gs, func(i, j int) bool { return gs[i].y < gs[j].y-0.02 })
@@ -265,7 +280,7 @@ func lines(page int, p pdf.Page) []line {
 				if len(runs) > 0 && strings.TrimSpace(runs[len(runs)-1].Text) == "" {
 					runs = runs[:len(runs)-1]
 				}
-				runs = append(runs, run{X: g.x, Bold: g.bold})
+				runs = append(runs, run{X: g.x, Bold: g.bold, Italic: g.italic, Size: g.size})
 				est = g.x
 			}
 			r := &runs[len(runs)-1]
@@ -276,6 +291,9 @@ func lines(page int, p pdf.Page) []line {
 			}
 			r.Text += g.s
 			adv := g.w
+			if adv <= 0 { // one of the standard fonts, which need not say
+				adv = standardWidth(g.font, g.s, g.size)
+			}
 			if adv <= 0 {
 				adv = cw * float64(len([]rune(g.s)))
 			}

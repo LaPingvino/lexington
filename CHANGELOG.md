@@ -24,8 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hidden `pagination` rule) prints as before; `keep`, `widows` and `more`
   can be chosen apart.
 - `pdfin.Pages`: the text lines of each page of a PDF, where printed.
+- **PDF as prose** (`pdfin.ReadProse`, `pdfin.ReadProseFile`): a story,
+  article or book read as running text, not as a screenplay, OCR included.
+  Lines wrapped by the page become paragraphs again (a hyphen-broken word
+  joined), headings are told by their size or a bold line of their own,
+  bulleted and numbered lists kept, page numbers and running headers and
+  footers left out. `Prose.Markdown` writes it as Markdown.
 
 ### Fixed
+- Text in the PDF's standard fonts (Times, Helvetica), which need not
+  give their glyphs' widths, was measured at Courier's: lines seemed to
+  end too far right. Their widths come from gofpdf's metrics now.
 - A dot in a folder's name no longer reads as a scene language: the
   formats and languages come from the file's own name
   (`script.en.fountain`), not its path. Scene headings in such folders
