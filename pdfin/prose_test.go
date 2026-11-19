@@ -171,4 +171,34 @@ func TestProseWithoutSizes(t *testing.T) {
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
+	// a chapter's number in large type at the top of a page is kept
+	big := func(page int, y float64, text string) line {
+		return line{Page: page, Y: y, Runs: []run{{X: 1, End: 1.5, Text: text, Size: 24}}}
+	}
+	sized := func(l line) line { l.Runs[0].Size = 12; return l }
+	pages = [][]line{
+		{big(1, 1, "IV"), sized(full(1, 1.6, "One two")), sized(short(1, 1.8, "three.")), sized(short(1, 10.5, "12"))},
+	}
+	got = proseOf(pages).Markdown()
+	want = "# IV\n\nOne two three.\n"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// OCR's lines get their size from Tesseract's x_size, the line's height,
+// so a heading stands out from the text.
+func TestHOCRSizes(t *testing.T) {
+	hocr := `<span class='ocr_line' title="bbox 100 100 900 160; baseline 0 -10; x_size 60; x_descenders 12; x_ascenders 15">` +
+		`<span class='ocrx_word' title='bbox 100 100 400 160; x_wconf 95'>Chapter</span></span>` +
+		`<span class='ocr_line' title="bbox 100 300 900 330; baseline 0 -5; x_size 30">` +
+		`<span class='ocrx_word' title='bbox 100 300 300 330; x_wconf 95'>Some</span>` +
+		`<span class='ocrx_word' title='bbox 310 300 400 330; x_wconf 95'>text.</span></span>`
+	ls := hocrLines(1, hocr, 300)
+	if len(ls) != 2 || lineSize(ls[0]) != 14.4 || lineSize(ls[1]) != 7.2 {
+		for _, l := range ls {
+			t.Logf("%q %.1f", l.text(), lineSize(l))
+		}
+		t.Fatal("sizes not read")
+	}
 }

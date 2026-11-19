@@ -129,7 +129,8 @@ func (t *Tesseract) HOCR(ctx context.Context, img image.Image) (string, error) {
 func encodePNG(w io.Writer, img image.Image) error { return png.Encode(w, img) }
 
 var (
-	hocrLine = regexp.MustCompile(`class=['"]ocr_(?:line|caption|header|textfloat)['"][^>]*title=['"]bbox (\d+) (\d+) (\d+) (\d+)`)
+	hocrLine = regexp.MustCompile(`class=['"]ocr_(?:line|caption|header|textfloat)['"][^>]*title=['"]bbox (\d+) (\d+) (\d+) (\d+)([^'"]*)`)
+	hocrSize = regexp.MustCompile(`x_size ([0-9.]+)`)
 	hocrWord = regexp.MustCompile(`(?s)class=['"]ocrx_word['"][^>]*title=['"]bbox (\d+) (\d+) (\d+) (\d+)[^'"]*['"][^>]*>(.*?)</span>`)
 	hocrTags = regexp.MustCompile(`<[^>]*>`)
 )
@@ -145,7 +146,17 @@ type box struct {
 func hocrLines(page int, hocr string, dpi float64) []line {
 	// the words, each in the line whose box comes before it
 	lineAt := hocrLine.FindAllStringSubmatchIndex(hocr, -1)
+	// each line's font size, in points: Tesseract's x_size, the line's
+	// height (the words' own boxes vary with their letters, too much)
+	sizes := make([]float64, len(lineAt)+1)
+	for i, m := range lineAt {
+		if sm := hocrSize.FindStringSubmatch(hocr[m[10]:m[11]]); sm != nil {
+			v, _ := strconv.ParseFloat(sm[1], 64)
+			sizes[i] = v / dpi * 72
+		}
+	}
 	var lines [][]box
+	var lineSizes []float64
 	for _, m := range hocrWord.FindAllStringSubmatchIndex(hocr, -1) {
 		n := 0
 		for n < len(lineAt) && lineAt[n][0] < m[0] {
@@ -153,6 +164,7 @@ func hocrLines(page int, hocr string, dpi float64) []line {
 		}
 		for len(lines) < n {
 			lines = append(lines, nil)
+			lineSizes = append(lineSizes, sizes[len(lines)-1])
 		}
 		text := strings.TrimSpace(html.UnescapeString(hocrTags.ReplaceAllString(hocr[m[10]:m[11]], "")))
 		if text == "" {
@@ -162,12 +174,13 @@ func hocrLines(page int, hocr string, dpi float64) []line {
 		b := box{num(2), num(4), num(6), num(8), text}
 		if n == 0 {
 			lines = append(lines, nil)
+			lineSizes = append(lineSizes, 0)
 			n = 1
 		}
 		lines[n-1] = append(lines[n-1], b)
 	}
 	var out []line
-	for _, ws := range lines {
+	for li, ws := range lines {
 		if len(ws) == 0 {
 			continue
 		}
@@ -184,14 +197,12 @@ func hocrLines(page int, hocr string, dpi float64) []line {
 		bottom := 0.0
 		for _, w := range ws {
 			bottom = max(bottom, w.y1)
-			h := (w.y1 - w.y0) * 72 // the words' height stands for the size
 			if n := len(runs); n > 0 && w.x0-runs[n-1].End < 3*cw {
 				runs[n-1].Text += " " + w.text
 				runs[n-1].End = w.x1
-				runs[n-1].Size = max(runs[n-1].Size, h)
 				continue
 			}
-			runs = append(runs, run{X: w.x0, End: w.x1, Text: w.text, Size: h})
+			runs = append(runs, run{X: w.x0, End: w.x1, Text: w.text, Size: lineSizes[li]})
 		}
 		out = append(out, line{Page: page, Y: bottom, Runs: runs})
 	}

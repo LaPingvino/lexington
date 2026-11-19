@@ -75,9 +75,9 @@ func proseOf(pages [][]line) Prose {
 	width := right - margin
 	level := func(l line) int {
 		s := lineSize(l)
-		if text > 0 && s > 0 {
+		if text > 0 && s >= text*1.15 {
 			for i, h := range levels {
-				if math.Abs(s-h) < 0.6 {
+				if s >= h*0.9 {
 					return i + 1
 				}
 			}
@@ -121,6 +121,9 @@ func proseOf(pages [][]line) Prose {
 			case endsParagraph(*prev, right, width):
 				newBlock = true
 			}
+		}
+		if t == "" {
+			continue
 		}
 		if newBlock {
 			out = append(out, Block{Heading: lv, List: mark, Text: t})
@@ -177,11 +180,18 @@ func proseBody(pages [][]line) []line {
 		n := counts[proseRunningKey(l)]
 		return len(pages) >= 2 && n >= 2 && n*3 >= len(pages)
 	}
+	var all []line
+	for _, p := range pages {
+		all = append(all, p...)
+	}
+	text := bodySize(all)
+	// a number in large or bold type is a chapter's (3, IV), not the page's
+	heading := func(l line) bool { return allBold(l) || (text > 0 && lineSize(l) >= text*1.15) }
 	var out []line
 	for _, p := range pages {
 		for i, l := range p {
 			t := strings.TrimSpace(l.text())
-			if edge(p, i) && (prosePageNumber.MatchString(t) || running(l)) {
+			if edge(p, i) && ((prosePageNumber.MatchString(t) && !heading(l)) || running(l)) {
 				continue
 			}
 			out = append(out, l)
@@ -253,22 +263,26 @@ func bodySize(ls []line) float64 {
 }
 
 // headingSizes are the sizes larger than the text's, the largest first:
-// the headings' levels (three at most; smaller ones are the third).
+// the headings' levels. Sizes within a tenth of each other are one level
+// (OCR reads a size a little differently on every line).
 func headingSizes(ls []line, text float64) []float64 {
 	if text == 0 {
 		return nil
 	}
-	seen := map[float64]bool{}
 	var sizes []float64
 	for _, l := range ls {
-		s := math.Round(lineSize(l)*2) / 2
-		if s >= text*1.15 && !seen[s] && utf8.RuneCountInString(l.text()) < 200 {
-			seen[s] = true
+		if s := lineSize(l); s >= text*1.15 && utf8.RuneCountInString(l.text()) < 200 {
 			sizes = append(sizes, s)
 		}
 	}
 	sort.Sort(sort.Reverse(sort.Float64Slice(sizes)))
-	return sizes
+	var levels []float64
+	for _, s := range sizes {
+		if n := len(levels); n == 0 || s < levels[n-1]*0.9 {
+			levels = append(levels, s)
+		}
+	}
+	return levels
 }
 
 // Markdown is the prose as Markdown: headings with #, list items with
