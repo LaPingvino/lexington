@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-19
+
 ### New Features
 - **Text color over the whole block** (`-colorstyle text -colorscope block`,
   `text+block`): a scene's or section's lines in its color, not only its
