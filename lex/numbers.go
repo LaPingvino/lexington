@@ -67,10 +67,6 @@ type NumberOptions struct {
 	// number before them: 1, 2, 3, or 8 after a scene numbered 7.
 	Locked bool
 	Style  NumberStyle
-	// Omitted tells, for NumberLabels, which of the numbers are OMITTED
-	// headings' (nil: none), where a v1.13.0 run (12-14) is read as its
-	// numbers (OmittedRange). NumberScenes reads it off the headings.
-	Omitted []bool
 }
 
 // NumberScenes gives each scene heading without a number (Fountain's
@@ -80,13 +76,10 @@ func NumberScenes(s Screenplay, o NumberOptions) Screenplay {
 	copy(out, s)
 	var at []int
 	var nums []string
-	o.Omitted = nil
 	for i, l := range out {
 		if l.Type == TypeScene {
 			_, n := SceneNumber(l.Contents)
-			_, omitted := OmittedNumber(l.Contents)
 			at, nums = append(at, i), append(nums, n)
-			o.Omitted = append(o.Omitted, omitted)
 		}
 	}
 	for k, n := range NumberLabels(nums, o) {
@@ -105,7 +98,7 @@ func NumberLabels(nums []string, o NumberOptions) []string {
 	out := append([]string(nil), nums...)
 	read := make([]sceneNo, len(nums))
 	for i, n := range nums {
-		read[i] = readNo(n, i < len(o.Omitted) && o.Omitted[i])
+		read[i] = readNo(n)
 	}
 	if !o.Locked {
 		n := 0
@@ -168,7 +161,7 @@ func nextNumber(prev, next *label, taken *takenSet, style NumberStyle) string {
 	if n := between(prev, next, taken, style); n != "" {
 		return n
 	}
-	// nothing free between them (a range takes it all): after prev, else
+	// nothing free between them: after prev, else
 	// past every number taken
 	if prev != nil {
 		if n := after(*prev, nil, taken); n != "" {
@@ -221,7 +214,7 @@ func SceneNumberBetween(prev, next string, taken map[string]bool, style NumberSt
 			t.add(k)
 		}
 	}
-	return nextNumber(readNo(prev, false).prev(), readNo(next, false).next(), t, style)
+	return nextNumber(readNo(prev).prev(), readNo(next).next(), t, style)
 }
 
 // rank orders the letters: the small a, Wikipedia's filler for "before

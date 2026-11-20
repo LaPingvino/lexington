@@ -54,15 +54,36 @@ func TestLockedNumbersFDX(t *testing.T) {
 	}
 }
 
-// v1.13.0's merged OMITTED heading is read as its scenes (here no blocks
-// under it: its first and last), and FDX writes one heading a number.
-func TestOldOmittedRangeFDX(t *testing.T) {
-	src := "INT. ONE - DAY #11#\n\nHi.\n\n.OMITTED #12-14#\n\nEXT. TWO - DAY #15#\n\nBye.\n"
+// ".OMITTED #12-14#" is one scene labelled "12-14", a fixed label like
+// any dashed one: read, numbered and printed as written, never split
+// and never a neighbour (the new scene after it counts on from 11).
+func TestOmittedDashedLabel(t *testing.T) {
+	src := "INT. ONE - DAY #11#\n\nHi.\n\n.OMITTED #12-14#\n\nEXT. TWO - DAY\n\nBye.\n"
+	s := lex.NumberScenes(fountain.Parse([]string{"INT", "EXT"}, strings.NewReader(src)), lex.NumberOptions{Locked: true})
+	var heads []string
+	for _, l := range s {
+		if l.Type == lex.TypeScene {
+			heads = append(heads, l.Contents)
+		}
+	}
+	if got := strings.Join(heads, "|"); got != "INT. ONE - DAY #11#|OMITTED #12-14#|EXT. TWO - DAY #12#" {
+		t.Errorf("read and numbered: %q", got)
+	}
+	if got := len(lex.MergeOmittedRuns(s)); got != len(s) {
+		t.Errorf("merged a single OMITTED heading: %d rows of %d", got, len(s))
+	}
 	var b bytes.Buffer
-	if err := (&FDXWriter{}).Write(&b, fountain.Parse([]string{"INT", "EXT"}, strings.NewReader(src))); err != nil {
+	if err := (&FDXWriter{}).Write(&b, s); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(b.String(), `Number="12-14"`) || !strings.Contains(b.String(), `Number="12"`) || !strings.Contains(b.String(), `Number="14"`) {
-		t.Errorf("not one heading a number:\n%s", b.String())
+	if out := b.String(); !strings.Contains(out, `Number="12-14"`) || strings.Contains(out, `Number="13"`) {
+		t.Errorf("FDX:\n%s", out)
+	}
+	var f bytes.Buffer
+	if err := (&fountain.FountainWriter{}).Write(&f, s); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(f.String(), ".OMITTED #12-14#") {
+		t.Errorf("Fountain:\n%s", f.String())
 	}
 }

@@ -88,58 +88,19 @@ func compareLabels(a, b label) int {
 	return strings.Compare(afterKey(a.tail), afterKey(b.tail))
 }
 
-// OmittedRange reads the merged OMITTED heading Lexington v1.13.0 wrote
-// for a run of omitted scenes, ".OMITTED #12-14#": its first and last
-// number; false if heading is no OMITTED heading, or its number is not
-// two scheme numbers joined by a dash, the first before the last. A
-// scene's number is never a range now: the text keeps one OMITTED
-// heading a scene (fountain.SplitOmitted writes the old form so), and a
-// run prints as one only when asked (MergeOmittedRuns). "I-1-A" on an
-// OMITTED heading is a label, and so is "12-14" on any other.
-func OmittedRange(heading string) (first, last string, ok bool) {
-	n, omitted := OmittedNumber(heading)
-	if !omitted {
-		return "", "", false
-	}
-	if a, b, ok := legacyRun(n); ok {
-		return a.String(), b.String(), true
-	}
-	return "", "", false
-}
-
-func legacyRun(n string) (label, label, bool) {
-	lo, hi, found := strings.Cut(n, "-")
-	if !found {
-		return label{}, label{}, false
-	}
-	a, okA := parseLabel(lo)
-	b, okB := parseLabel(hi)
-	if !okA || !okB || compareLabels(a, b) >= 0 {
-		return label{}, label{}, false
-	}
-	return a, b, true
-}
-
 // sceneNo is a scene's number as the engine reads it: in the scheme
-// (lo, hi the label), an old OMITTED run (its first and last), or a
-// fixed label (raw only); raw "" is no number.
+// (l the label), or a fixed label (raw only; "12-14" is one, OMITTED or
+// not); raw "" is no number.
 type sceneNo struct {
 	raw    string
-	lo, hi label
+	l      label
 	scheme bool
-	run    bool
 }
 
-// readNo reads a scene's number; omitted: its heading is an OMITTED
-// one, where a v1.13.0 run (12-14) is read as the run.
-func readNo(raw string, omitted bool) sceneNo {
+// readNo reads a scene's number.
+func readNo(raw string) sceneNo {
 	if l, ok := parseLabel(raw); ok {
-		return sceneNo{raw: raw, lo: l, hi: l, scheme: true}
-	}
-	if omitted {
-		if a, b, ok := legacyRun(raw); ok {
-			return sceneNo{raw: raw, lo: a, hi: b, scheme: true, run: true}
-		}
+		return sceneNo{raw: raw, l: l, scheme: true}
 	}
 	return sceneNo{raw: raw}
 }
@@ -147,63 +108,34 @@ func readNo(raw string, omitted bool) sceneNo {
 // fixed tells whether the number is a label the engine leaves alone.
 func (n sceneNo) fixed() bool { return n.raw != "" && !n.scheme }
 
-// prev and next are the number as a neighbour before a new scene (an old
-// run's last) and after it (its first); nil for none or a fixed label.
-func (n sceneNo) prev() *label {
-	if !n.scheme {
-		return nil
-	}
-	l := n.hi
-	return &l
-}
+// prev and next are the number as a neighbour before a new scene and
+// after it; nil for none or a fixed label.
+func (n sceneNo) prev() *label { return n.next() }
 
 func (n sceneNo) next() *label {
 	if !n.scheme {
 		return nil
 	}
-	l := n.lo
+	l := n.l
 	return &l
 }
 
-// takenSet are the labels that may not be given: as written, and an old
-// OMITTED run's every scheme number.
+// takenSet are the labels that may not be given, as written.
 type takenSet struct {
-	m      map[string]bool
-	ranges [][2]label
+	m map[string]bool
 }
 
 func newTaken() *takenSet { return &takenSet{m: map[string]bool{}} }
 
-func (t *takenSet) add(s string) { t.addNo(readNo(s, false)) }
+func (t *takenSet) add(s string) { t.addNo(readNo(s)) }
 
 func (t *takenSet) addNo(n sceneNo) {
-	if n.raw == "" {
-		return
-	}
-	t.m[n.raw] = true
-	if n.run {
-		t.ranges = append(t.ranges, [2]label{n.lo, n.hi})
+	if n.raw != "" {
+		t.m[n.raw] = true
 	}
 }
 
-func (t *takenSet) has(s string) bool {
-	if t.m[s] {
-		return true
-	}
-	if len(t.ranges) == 0 {
-		return false
-	}
-	l, ok := parseLabel(s)
-	if !ok {
-		return false
-	}
-	for _, r := range t.ranges {
-		if compareLabels(r[0], l) <= 0 && compareLabels(l, r[1]) <= 0 {
-			return true
-		}
-	}
-	return false
-}
+func (t *takenSet) has(s string) bool { return t.m[s] }
 
 // beyond is the first whole number above every scheme number taken and
 // prev.
@@ -216,9 +148,6 @@ func (t *takenSet) beyond(prev *label) string {
 		if l, ok := parseLabel(s); ok && l.num > top {
 			top = l.num
 		}
-	}
-	for _, r := range t.ranges {
-		top = max(top, r[1].num)
 	}
 	return strconv.Itoa(top + 1)
 }

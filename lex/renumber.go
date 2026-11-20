@@ -73,7 +73,7 @@ func Renumber(scenes []RenumberScene, o RenumberOptions) []Renumbered {
 	free := make([]bool, len(scenes))
 	read := make([]sceneNo, len(scenes))
 	for i, sc := range scenes {
-		read[i] = readNo(sc.Number, sc.Omitted)
+		read[i] = readNo(sc.Number)
 		out[i].Number = sc.Number
 		free[i] = (o.Free == nil || (i < len(o.Free) && o.Free[i])) && !read[i].fixed()
 		if sc.Omitted && free[i] {
@@ -159,7 +159,7 @@ func Renumber(scenes []RenumberScene, o RenumberOptions) []Renumbered {
 	now := func(j int) sceneNo {
 		i := seq[j]
 		if free[i] {
-			return readNo(out[i].Number, false)
+			return readNo(out[i].Number)
 		}
 		return read[i]
 	}

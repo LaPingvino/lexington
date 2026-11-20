@@ -87,8 +87,8 @@ func TestRenumber(t *testing.T) {
 		{"clean, letters kept", script, RenumberOptions{KeepLetters: true}, "1 1A 2 - 3 3A 4"},
 		{"OMITTED kept", script, RenumberOptions{Omitted: OmittedKeep}, "1 2 3 O4 5 6 7"},
 		{"OMITTED kept, letters kept", script, RenumberOptions{Omitted: OmittedKeep, KeepLetters: true}, "1 1A 2 O4 5 5A 6"},
-		{"a v1.13.0 OMITTED run kept takes its numbers", "1 O2-4 7", RenumberOptions{Omitted: OmittedKeep}, "1 O2-4 5"},
-		{"a v1.13.0 OMITTED run dropped", "1 O2-4 7", RenumberOptions{}, "1 - 2"},
+		{"an OMITTED 2-4 is a fixed label, kept", "1 O2-4 7", RenumberOptions{Omitted: OmittedKeep}, "1 O2-4 2"},
+		{"an OMITTED 2-4 is a fixed label, never dropped", "1 O2-4 7", RenumberOptions{}, "1 O2-4 2"},
 		{"OMITTED dropped closes the gap", "1 O2 O3 4", RenumberOptions{}, "1 - - 2"},
 		// keep: the kept numbers stay, the rest numbered around them
 		{"keep 5", "1 2 2A 3 4 5 9", RenumberOptions{Free: keep("1 2 2A 3 4 5 9", "5")}, "1 2 3 4 4A 5 6"},
@@ -153,7 +153,7 @@ func TestRenumberProperties(t *testing.T) {
 		got := Renumber(scenes, o)
 		pinnedTwice := map[string]int{}
 		for i, sc := range scenes {
-			if (!free[i] || sc.Omitted || readNo(sc.Number, sc.Omitted).fixed()) && sc.Number != "" {
+			if (!free[i] || sc.Omitted || readNo(sc.Number).fixed()) && sc.Number != "" {
 				pinnedTwice[sc.Number]++
 			}
 		}
@@ -164,7 +164,7 @@ func TestRenumberProperties(t *testing.T) {
 			reserved.add(r)
 		}
 		for i, r := range got {
-			fixed := readNo(scenes[i].Number, scenes[i].Omitted).fixed()
+			fixed := readNo(scenes[i].Number).fixed()
 			if r.Drop {
 				if !scenes[i].Omitted || fixed {
 					t.Fatalf("a scene not OMITTED, or a fixed label, dropped: %s", desc)
@@ -209,7 +209,7 @@ func TestRenumberProperties(t *testing.T) {
 				if !ok {
 					continue
 				}
-				pinned := !free[i] || scenes[i].Omitted || readNo(scenes[i].Number, scenes[i].Omitted).fixed()
+				pinned := !free[i] || scenes[i].Omitted || readNo(scenes[i].Number).fixed()
 				if !pinned {
 					var next *label
 					for j := i + 1; j < len(got) && next == nil; j++ {

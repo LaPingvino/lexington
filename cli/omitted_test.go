@@ -25,13 +25,7 @@ func TestMergeOmittedRuns(t *testing.T) {
 		text += o
 	}
 	text += "EXT. B - DAY #15#\n\nBye.\n"
-	// v1.13.0's merged form, read as its scenes
-	a, _ := fountain.OmitScene("INT. GONE - DAY #12#\n\nOld.\n\n")
-	b, _ := fountain.OmitScene("INT. GONE - DAY #13#\n\nOld.\n\n")
-	c, _ := fountain.OmitScene("INT. GONE - DAY #14#\n\nOld.\n\n")
-	old := "INT. A - DAY #11#\n\nHi.\n\n.OMITTED #12-14#\n\n" + strings.TrimPrefix(a, ".OMITTED #12#\n\n") +
-		strings.TrimPrefix(b, ".OMITTED #13#\n\n") + strings.TrimPrefix(c, ".OMITTED #14#\n\n") + "EXT. B - DAY #15#\n\nBye.\n"
-	for name, src := range map[string]string{"now": text, "v1.13.0": old} {
+	for name, src := range map[string]string{"now": text} {
 		in := filepath.Join(dir, "s.fountain")
 		if err := os.WriteFile(in, []byte(src), 0o644); err != nil {
 			t.Fatal(err)

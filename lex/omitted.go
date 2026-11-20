@@ -8,10 +8,7 @@ import "strings"
 // them as one line, "12-14 OMITTED 12-14": MergeOmittedRuns makes the
 // rows so, for printing only (PDF, HTML, DOCX, ODT and the rest;
 // cli.Options.MergeOmitted); FDX keeps one heading a number.
-//
-// Lexington v1.13.0 wrote the run itself into the text as
-// ".OMITTED #12-14#"; SplitOmittedRanges (Fountain's reader runs it) reads
-// that back as its scenes.
+// ".OMITTED #12-14#" in the text is one scene, labelled "12-14".
 
 // OmittedRunLabel is how a run of OMITTED scenes prints its numbers,
 // its first and last label joined: a dash, or an en
@@ -111,82 +108,4 @@ func mergeOmittedRuns(s Screenplay) (Screenplay, []int) {
 		i = end
 	}
 	return out, sizes
-}
-
-// omittedBlockOpen is how an omitted scene's boneyard block starts:
-// "/* Omitted 12" (fountain.OmitScene).
-const omittedBlockOpen = "/* Omitted "
-
-// SplitOmittedRanges reads v1.13.0's merged OMITTED headings
-// (OmittedRange: ".OMITTED #12-14#") as their scenes: one OMITTED
-// heading for each "/* Omitted 13" block under it, placed before its
-// block, and the run's first and last number kept even where their
-// block is gone. A number between them without a block is lost: nothing
-// says what it was. Other rows are as they were.
-func SplitOmittedRanges(s Screenplay) Screenplay {
-	var out Screenplay
-	for i := 0; i < len(s); i++ {
-		l := s[i]
-		first, last, ok := "", "", false
-		if l.Type == TypeScene {
-			first, last, ok = OmittedRange(l.Contents)
-		}
-		if !ok {
-			if out != nil {
-				out = append(out, l)
-			}
-			continue
-		}
-		if out == nil {
-			out = append(make(Screenplay, 0, len(s)+4), s[:i]...)
-		}
-		heading := func(n string, at Line) Line {
-			h := l
-			h.Contents = WithSceneNumber(l.Contents, n)
-			if at.Source != 0 {
-				h.Source = at.Source
-			}
-			return h
-		}
-		end := i + 1
-		for end < len(s) && betweenOmitted(s[end]) {
-			end++
-		}
-		var nums []string
-		var at []int
-		for j := i + 1; j < end; j++ {
-			if s[j].Type != TypeBoneyard {
-				continue
-			}
-			if n, isBlock := strings.CutPrefix(strings.TrimSpace(s[j].Contents), omittedBlockOpen); isBlock {
-				if n = strings.TrimSpace(n); n != "" && n != "scene" {
-					nums, at = append(nums, n), append(at, j)
-				}
-			}
-		}
-		k := 0
-		if len(nums) == 0 || nums[0] != first {
-			out = append(out, heading(first, l))
-		} else {
-			out = append(out, heading(first, l))
-			k = 1 // the first block's heading is the one written
-		}
-		for j := i + 1; j < end; j++ {
-			if k < len(at) && at[k] == j {
-				if nums[k] != first || k > 0 {
-					out = append(out, heading(nums[k], s[j]))
-				}
-				k++
-			}
-			out = append(out, s[j])
-		}
-		if len(nums) == 0 || nums[len(nums)-1] != last {
-			out = append(out, heading(last, l))
-		}
-		i = end - 1
-	}
-	if out == nil {
-		return s
-	}
-	return out
 }

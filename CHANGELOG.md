@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-11-20
+
+### Removed
+- **v1.13.0's merged OMITTED form is no longer read.** `lex.OmittedRange`,
+  `lex.SplitOmittedRanges`, `fountain.SplitOmitted`, the Fountain
+  reader's splitting of `.OMITTED #12-14#` into its scenes, and
+  `NumberOptions.Omitted` (NumberScenes/NumberLabels/Renumber reading
+  "12-14" on an OMITTED heading as a run of numbers) are gone. Such a
+  heading is now one scene labelled "12-14", a fixed label like any other
+  dashed one: read, numbered and printed as written, never split, never
+  renumbered or dropped, never a neighbour. Nobody used the form in
+  production, and undoing it could break legitimate dashed labels.
+  Printing a run of OMITTED scenes as one (`-mergeomitted`,
+  `lex.MergeOmittedRuns`) stays: a print option, not a text form.
+
 ## [1.14.0] - 2026-11-20
 
 ### Changed
