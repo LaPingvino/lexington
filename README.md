@@ -129,6 +129,25 @@ Standard = "en"
 eo = ["EN.", "ENE", "EKST", "EK", "EN/EKST", "EKST/EN", "EKST./EN", "EN./EKST"]
 ```
 
+### A language's direction
+
+Every line runs the way its own characters say: a direction mark at its
+start (RLM U+200F, LRM U+200E), or else its first strong letter
+(Hebrew and Arabic right to left, Latin left to right), so a file mixing
+directions stays mixed. Only a line with neither — `…`, `2.`, a bare
+number — takes its language's direction, from `[Directions]`: `"rtl"` or
+`"ltr"`. The default configuration has `ar` and `he` right to left, and a
+language one's configuration does not name keeps the default's (so `he =
+"ltr"` turns Hebrew around); a custom language sets its own. The HTML
+writer uses it (`-scenein` names the script's language).
+
+```toml
+[Directions]
+ar = "rtl"
+he = "rtl"
+fa = "rtl"   # a language of one's own
+```
+
 ### Presets: stage plays, radio, comics and more
 
 Besides the screenplay (`default`), Lexington has presets for other

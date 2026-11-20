@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-11-20
+
+### Added
+- **A language's direction, as the last resort only**
+  (`rules.TOMLConf.Directions`, `[Directions]` in the configuration:
+  `"rtl"` or `"ltr"`; the default configuration has `ar` and `he` right
+  to left, the rest left to right). `RTL(lang)` and `Direction(lang)` read
+  it; a language a configuration does not name has the default's. A line takes it
+  only when it has no direction of its own — no direction mark, no strong
+  letter (`lex.OwnDirection`, `lex.LineRTL`): `…`, `2.`, a bare number.
+  Every other line follows its own characters.
+- **The HTML writer** (`HTMLWriter.RTL`, set by the command line from the
+  script's language, `-scenein`) gives such a line `dir="rtl"` in a
+  right-to-left language; the others keep `dir="auto"`.
+- A language's direction travels with it: `Part` carries it (`"ltr"`
+  too, the language in full), `With`, `Items`, `Of` and `Renamed` know it.
+
 ## [1.17.0] - 2026-11-20
 
 ### Added

@@ -341,3 +341,39 @@ func TestHTMLBlockEdges(t *testing.T) {
 		t.Errorf("the hidden section adds a blank line: %s", h[strings.Index(h, "Three."):])
 	}
 }
+
+// A line with no direction of its own takes the language's; every other
+// line follows its own letters.
+func TestHTMLDirectionFallback(t *testing.T) {
+	s := lex.Screenplay{
+		{Type: lex.TypeScene, Contents: "פנים. בית - יום"},
+		{Type: lex.TypeAction, Contents: "דני נכנס."},
+		{Type: lex.TypeAction, Contents: "…"},
+		{Type: lex.TypeAction, Contents: "Latin stays."},
+	}
+	for _, c := range []struct {
+		rtl  bool
+		want []string
+		not  []string
+	}{
+		{true, []string{`<div class="action" dir="rtl">…</div>`, `<div class="action" dir="auto">Latin stays.</div>`,
+			`<div class="action" dir="auto">דני נכנס.</div>`, `<div class="scene-heading" dir="auto">פנים`}, nil},
+		{false, []string{`<div class="action" dir="auto">…</div>`}, []string{`dir="rtl"`}},
+	} {
+		var b bytes.Buffer
+		if err := (&HTMLWriter{Elements: rules.Default, RTL: c.rtl}).Write(&b, s); err != nil {
+			t.Fatal(err)
+		}
+		out := b.String()
+		for _, w := range c.want {
+			if !strings.Contains(out, w) {
+				t.Errorf("rtl %v: no %s in\n%s", c.rtl, w, out)
+			}
+		}
+		for _, w := range c.not {
+			if strings.Contains(out, w) {
+				t.Errorf("rtl %v: %s", c.rtl, w)
+			}
+		}
+	}
+}

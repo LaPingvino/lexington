@@ -15,6 +15,10 @@ import (
 type HTMLWriter struct {
 	Elements rules.Set // Configuration for elements (margins, fonts, etc.)
 	Page     string    // the paper to print on: letter (""), a4, a5
+	// RTL is the script's language's direction (rules.TOMLConf.RTL): a
+	// line with no direction of its own ("…", "2.") reads right to left.
+	// Every other line follows its own letters (dir="auto").
+	RTL bool
 }
 
 // processInlineMarkup turns Fountain's emphasis (lex.Emphasis) into
@@ -228,21 +232,21 @@ body {
 <div class="title-meta">{{- $inMeta = true -}}{{-
     else if eq .Type "scene" -}}
 {{- $h := sceneHeading .Contents -}}
-<div class="scene-heading" dir="auto"{{headingColor $.Config.ColorScheme .Color}}>{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup $h.Text -}}{{markerClose $.Config.ColorScheme .Color}}{{- if $h.Number -}}<span class="scene-number left">{{ $h.Number }}</span><span class="scene-number right">{{ $h.Number }}</span>{{- end -}}</div>{{-
+<div class="scene-heading" dir="{{dir $h.Text}}"{{headingColor $.Config.ColorScheme .Color}}>{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup $h.Text -}}{{markerClose $.Config.ColorScheme .Color}}{{- if $h.Number -}}<span class="scene-number left">{{ $h.Number }}</span><span class="scene-number right">{{ $h.Number }}</span>{{- end -}}</div>{{-
     else if eq .Type "action" "general" -}}
-<div class="action" dir="auto">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
+<div class="action" dir="{{dir .Contents}}">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
     else if eq .Type "speaker" -}}
-<div class="speaker" dir="auto">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
+<div class="speaker" dir="{{dir .Contents}}">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
     else if eq .Type "dialog" -}}
-<div class="dialogue" dir="auto">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
+<div class="dialogue" dir="{{dir .Contents}}">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
     else if eq .Type "lyrics" -}}
-<div class="lyrics" dir="auto">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
+<div class="lyrics" dir="{{dir .Contents}}">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
     else if eq .Type "paren" -}}
-<div class="parenthetical" dir="auto">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
+<div class="parenthetical" dir="{{dir .Contents}}">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
     else if eq .Type "trans" -}}
-<div class="transition" dir="auto">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
+<div class="transition" dir="{{dir .Contents}}">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
     else if eq .Type "center" -}}
-<div class="center" dir="auto">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
+<div class="center" dir="{{dir .Contents}}">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
     else if eq .Type "newpage" -}}
 {{- if $inMeta -}}</div>{{- $inMeta = false -}}{{- end -}}
 {{- if $inTitle -}}</div>{{- $inTitle = false -}}{{- end -}}
@@ -463,6 +467,7 @@ func (h *HTMLWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		"css":                 func(s string) template.CSS { return template.CSS(s) },
 		"markerOpen":          markerOpen,
 		"markerClose":         markerClose,
+		"dir":                 h.dir,
 	}).Parse(htmlTemplateString)
 	if err != nil {
 		return fmt.Errorf("failed to parse HTML template: %w", err)
@@ -473,6 +478,17 @@ func (h *HTMLWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	}
 
 	return nil
+}
+
+// dir is a line's dir attribute: "auto", its own letters deciding,
+// except for a line with none (no direction mark, no strong letter) in a
+// right-to-left language, which is "rtl" (a browser reads "auto" there as
+// left to right).
+func (h *HTMLWriter) dir(text string) string {
+	if _, own := lex.OwnDirection(text); !own && h.RTL {
+		return "rtl"
+	}
+	return "auto"
 }
 
 // printPage is the CSS @page size for a paper name.

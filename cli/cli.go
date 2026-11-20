@@ -822,7 +822,7 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 		return &fdx.FDXWriter{TemplatePath: o.TemplatePath, Revisions: o.Revisions, Lock: o.Lock,
 			Tags: o.Breakdown, LineTags: o.LineTags}, nil
 	case internal.FormatHTML:
-		return &html.HTMLWriter{Elements: elements, Page: pageFor(o)}, nil
+		return &html.HTMLWriter{Elements: elements, Page: pageFor(o), RTL: conf.RTL(o.SceneIn)}, nil
 	case internal.FormatLaTeX:
 		return &latex.LaTeXWriter{Template: o.TemplatePath, Elements: elements}, nil
 	case "docx":
@@ -887,7 +887,7 @@ func htmlPDF(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 		return errors.New("'htmlpdf' output requires wkhtmltopdf, but it could not be found in your system's PATH")
 	}
 	var buf bytes.Buffer
-	if err = (&html.HTMLWriter{Elements: conf.Elements[o.Elements]}).Write(&buf, screenplay); err != nil {
+	if err = (&html.HTMLWriter{Elements: conf.Elements[o.Elements], RTL: conf.RTL(o.SceneIn)}).Write(&buf, screenplay); err != nil {
 		return fmt.Errorf("converting to HTML for wkhtmltopdf: %w", err)
 	}
 	name, remove, err := tempFile("lexington_*.html", buf.Bytes())
@@ -1005,7 +1005,7 @@ func calibre(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 	}
 	defer os.RemoveAll(dir)
 	var buf bytes.Buffer
-	if err = (&html.HTMLWriter{Elements: conf.Elements[o.Elements]}).Write(&buf, screenplay); err != nil {
+	if err = (&html.HTMLWriter{Elements: conf.Elements[o.Elements], RTL: conf.RTL(o.SceneIn)}).Write(&buf, screenplay); err != nil {
 		return fmt.Errorf("converting to HTML for ebook-convert: %w", err)
 	}
 	in := filepath.Join(dir, "script.html")

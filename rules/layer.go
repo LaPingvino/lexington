@@ -35,15 +35,17 @@ func (c TOMLConf) Encode() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// With is c with layer over it: each language's scene words and matchup,
+// With is c with layer over it: each language's scene words, matchup and
+// direction,
 // each element set, and the Standard that layer has take the place of
 // c's; c itself is not changed.
 func (c TOMLConf) With(layer TOMLConf) TOMLConf {
 	out := TOMLConf{
-		Elements: maps.Clone(c.Elements),
-		Scenes:   maps.Clone(c.Scenes),
-		Matchups: maps.Clone(c.Matchups),
-		Standard: c.Standard,
+		Elements:   maps.Clone(c.Elements),
+		Scenes:     maps.Clone(c.Scenes),
+		Matchups:   maps.Clone(c.Matchups),
+		Standard:   c.Standard,
+		Directions: maps.Clone(c.Directions),
 	}
 	put := func(dst *map[string][]string, src map[string][]string) {
 		if len(src) > 0 && *dst == nil {
@@ -64,12 +66,16 @@ func (c TOMLConf) With(layer TOMLConf) TOMLConf {
 	if layer.Standard != "" {
 		out.Standard = layer.Standard
 	}
+	if len(layer.Directions) > 0 && out.Directions == nil {
+		out.Directions = map[string]string{}
+	}
+	maps.Copy(out.Directions, layer.Directions)
 	return out
 }
 
 // Part is what of c a script in the languages langs, laid out with the
-// element sets sets, uses: those languages' scene words and matchups,
-// those sets (the ones c has), and the Standard (the standard language's
+// element sets sets, uses: those languages' scene words, matchups and
+// directions (each as c reads it, "ltr" too), those sets (the ones c has), and the Standard (the standard language's
 // words are needed to write it as standard Fountain: give it in langs).
 func (c TOMLConf) Part(langs, sets []string) TOMLConf {
 	out := TOMLConf{Standard: c.StandardLanguage()}
@@ -86,6 +92,12 @@ func (c TOMLConf) Part(langs, sets []string) TOMLConf {
 			}
 			out.Matchups[l] = slices.Clone(m)
 		}
+		if _, ok := c.Directions[l]; ok || c.Scenes[l] != nil || c.Matchups[l] != nil {
+			if out.Directions == nil {
+				out.Directions = map[string]string{}
+			}
+			out.Directions[l] = c.Direction(l) // "ltr" too: the language in full
+		}
 	}
 	for _, s := range sets {
 		if set, ok := c.Elements[s]; ok {
@@ -99,7 +111,7 @@ func (c TOMLConf) Part(langs, sets []string) TOMLConf {
 }
 
 // Item is one named thing in a configuration: a language (its scene
-// words and matchup) or an element set, or the Standard.
+// words, matchup and direction) or an element set, or the Standard.
 type Item struct {
 	Kind string // "language", "elements" or "standard"
 	Key  string // the language or set ("" for the standard)
@@ -109,7 +121,7 @@ type Item struct {
 func (c TOMLConf) Items() []Item {
 	var out []Item
 	langs := slices.Sorted(maps.Keys(c.Scenes))
-	for l := range c.Matchups {
+	for _, l := range slices.Concat(slices.Collect(maps.Keys(c.Matchups)), slices.Collect(maps.Keys(c.Directions))) {
 		if !slices.Contains(langs, l) {
 			langs = append(langs, l)
 		}
@@ -134,7 +146,7 @@ func (c TOMLConf) Of(it Item) (TOMLConf, bool) {
 	case "language":
 		p := c.Part([]string{it.Key}, nil)
 		p.Standard = ""
-		return p, p.Scenes != nil || p.Matchups != nil
+		return p, p.Scenes != nil || p.Matchups != nil || p.Directions != nil
 	case "elements":
 		p := c.Part(nil, []string{it.Key})
 		p.Standard = ""
@@ -153,7 +165,7 @@ func Same(a, b TOMLConf) bool {
 }
 
 // Renamed is a configuration of one item (Of) under another key: a
-// language's words and matchup, or an element set, as to.
+// language's words, matchup and direction, or an element set, as to.
 func Renamed(item TOMLConf, it Item, to string) (TOMLConf, error) {
 	to = strings.TrimSpace(to)
 	if to == "" || strings.ContainsAny(to, " .\"'[]=#") {
@@ -167,6 +179,9 @@ func Renamed(item TOMLConf, it Item, to string) (TOMLConf, error) {
 		}
 		if m, ok := item.Matchups[it.Key]; ok {
 			out.Matchups = map[string][]string{to: m}
+		}
+		if d, ok := item.Directions[it.Key]; ok {
+			out.Directions = map[string]string{to: d}
 		}
 	case "elements":
 		out.Elements = map[string]Set{to: item.Elements[it.Key]}

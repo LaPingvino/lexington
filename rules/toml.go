@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -20,7 +21,14 @@ type TOMLConf struct {
 	// other Fountain apps read. A script in another language is a dialect
 	// of Fountain, written for them with fountain.Force.
 	Standard string `toml:"Standard,omitempty"`
-	metadata toml.MetaData
+	// Directions are, by language, the way its text runs: "rtl" (right
+	// to left) or "ltr"; a language not named has the default
+	// configuration's (ltr but for ar and he: RTL). It is the
+	// last resort only: a line takes it when it has no direction of its
+	// own, no direction mark and no strong letter ("…", "2."; see
+	// lex.OwnDirection). Every other line follows its own characters.
+	Directions map[string]string `toml:"Directions,omitempty"`
+	metadata   toml.MetaData
 }
 
 func ReadFile(file string) (TOMLConf, error) {
@@ -72,6 +80,10 @@ func DefaultConf() TOMLConf {
 			"tok": {"INSA", "KON", "INSA/KON", "I./K", "I/K", "KON/INSA", "K./I", "K/I"},
 		},
 		Standard: "en",
+		Directions: map[string]string{
+			"ar": "rtl",
+			"he": "rtl",
+		},
 		Matchups: map[string][]string{
 			//     inside, outside, both, both the other way, establishing
 			"en":  {"INT.", "EXT.", "INT./EXT.", "EXT./INT.", "EST."},
@@ -95,6 +107,27 @@ func (c TOMLConf) StandardLanguage() string {
 		return c.Standard
 	}
 	return DefaultConf().Standard
+}
+
+// RTL tells whether lang's text runs right to left (its Directions
+// entry is "rtl"): what a line of a script in lang with no direction of
+// its own takes. A language c does not name has the default's direction,
+// so a configuration written before Directions existed reads Arabic and
+// Hebrew right to left too ("ltr" turns one around).
+func (c TOMLConf) RTL(lang string) bool {
+	d, ok := c.Directions[lang]
+	if !ok {
+		d = DefaultConf().Directions[lang]
+	}
+	return strings.EqualFold(strings.TrimSpace(d), "rtl")
+}
+
+// Direction is the way lang's text runs as c reads it: "rtl" or "ltr".
+func (c TOMLConf) Direction(lang string) string {
+	if c.RTL(lang) {
+		return "rtl"
+	}
+	return "ltr"
 }
 
 func Dump(file string) error {
