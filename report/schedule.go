@@ -577,8 +577,13 @@ func WriteDOODPDF(w io.Writer, title string, r Report, b Breakdown, s Schedule, 
 	const numW, nameW, dayW, totW, rowH = 22.0, 130.0, 34.0, 34.0, 15.0
 	perPage := max(1, int((width-numW-nameW-5*totW)/dayW))
 	chunks := max(1, (len(s.Days)+perPage-1)/perPage)
-	for c := 0; c < chunks; c++ {
+	const headH = 26.0
+	rowsPer := max(1, int((ph-top-30-(top+24+headH))/rowH))
+	rowChunks := max(1, (len(rows)+rowsPer-1)/rowsPer)
+	for page := 0; page < chunks*rowChunks; page++ {
+		c, rc := page/rowChunks, page%rowChunks // the days across, then the cast down
 		lo, hi := c*perPage, min((c+1)*perPage, len(s.Days))
+		rlo, rhi := rc*rowsPer, min((rc+1)*rowsPer, len(rows))
 		p.AddPage()
 		y := top
 		p.SetFont(face, "B", 14)
@@ -588,6 +593,9 @@ func WriteDOODPDF(w io.Writer, title string, r Report, b Breakdown, s Schedule, 
 		head := title
 		if chunks > 1 {
 			head += fmt.Sprintf(" · days %d–%d of %d", lo+1, hi, len(s.Days))
+		}
+		if rowChunks > 1 {
+			head += fmt.Sprintf(" · cast %d–%d of %d", rlo+1, rhi, len(rows))
 		}
 		p.CellFormat(width*0.4, 16, head, "", 0, "R", false, 0, "")
 		y += 24
@@ -606,7 +614,7 @@ func WriteDOODPDF(w io.Writer, title string, r Report, b Breakdown, s Schedule, 
 			x += cw
 		}
 		p.SetFont(face, "B", 8)
-		hh := 26.0
+		hh := headH
 		cell(numW, hh, "#", "C", true)
 		cell(nameW, hh, "CAST", "L", true)
 		for i := lo; i < hi; i++ {
@@ -625,10 +633,7 @@ func WriteDOODPDF(w io.Writer, title string, r Report, b Breakdown, s Schedule, 
 			cell(totW, hh, t, "C", true)
 		}
 		y += hh
-		for _, row := range rows {
-			if y+rowH > ph-top-30 {
-				break // a cast past one page: the CSV has them all
-			}
+		for _, row := range rows[rlo:rhi] {
 			x = left
 			p.SetFont(face, "", 8.5)
 			cell(numW, rowH, strconv.Itoa(row.Number), "C", false)

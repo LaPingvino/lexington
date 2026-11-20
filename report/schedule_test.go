@@ -2,9 +2,11 @@ package report
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -248,5 +250,29 @@ func TestSchedulePDFs(t *testing.T) {
 	var buf bytes.Buffer
 	if err := WriteDOODPDF(&buf, "x", r, b, many, ""); err != nil || len(regexp.MustCompile(`/Type /Page[^s]`).FindAll(buf.Bytes(), -1)) < 2 {
 		t.Errorf("30 days: %v, one page", err)
+	}
+	// a large cast goes over pages down, every member printed
+	big := Report{}
+	for i := 1; i <= 60; i++ {
+		name := fmt.Sprintf("PERSON %02d", i)
+		big.Scenes = append(big.Scenes, Scene{Order: i, Number: strconv.Itoa(i), Eighths: 1, Characters: []string{name}})
+	}
+	var all Schedule
+	for d := 0; d < 2; d++ {
+		var day Day
+		for i := 1; i <= 30; i++ {
+			day.Scenes = append(day.Scenes, d*30+i)
+		}
+		all.Days = append(all.Days, day)
+	}
+	if rows := big.DOOD(Breakdown{}, all); len(rows) != 60 {
+		t.Fatalf("%d rows", len(rows))
+	}
+	buf.Reset()
+	if err := WriteDOODPDF(&buf, "x", big, Breakdown{}, all, ""); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(regexp.MustCompile(`/Type /Page[^s]`).FindAll(buf.Bytes(), -1)); n < 2 {
+		t.Errorf("60 cast on %d page(s)", n)
 	}
 }
