@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/LaPingvino/lexington/lex"
+
+	"github.com/phpdave11/gofpdf"
 )
 
 // Production revisions in print (lex.Revisions): a line with a Revision
@@ -62,6 +64,27 @@ func (t *Tree) revised(row lex.Line, spans []span) {
 		m.span = s
 		t.revising.marks = append(t.revising.marks, m)
 	}
+}
+
+// dualEndsBlank tells whether the dual dialogue buffered ends with a
+// blank line (printed as one, but no text to mark).
+func (t *Tree) dualEndsBlank() bool {
+	n := len(t.DualBuffer)
+	return n > 0 && strings.HasPrefix(t.DualBuffer[n-1].Type, lex.TypeEmpty)
+}
+
+// withoutLastLine are the spans less their last line, if blank says so.
+func withoutLastLine(spans []span, blank bool) []span {
+	if !blank || len(spans) == 0 {
+		return spans
+	}
+	out := append([]span(nil), spans...)
+	last := &out[len(out)-1]
+	last.bottom -= lineHeight
+	if last.bottom <= last.top {
+		out = out[:len(out)-1]
+	}
+	return out
 }
 
 // later is the later of two sets in the order of the Revisions' sets (a
@@ -119,7 +142,7 @@ func (t *Tree) drawRevisions() {
 	for _, m := range t.revising.marks {
 		s, _, _ := t.revs.Set(m.set)
 		pdf.SetPage(m.span.page)
-		pdf.SetFont(fontName, "", 12)
+		pageFont(pdf, fontName, 12)
 		at := x
 		if m.numberEnd > 0 {
 			at = max(x, m.numberEnd+0.1)
@@ -142,13 +165,21 @@ func (t *Tree) drawRevisions() {
 			pdf.SetAlpha(1, "Normal")
 		}
 		if h := t.revs.HeaderFor(s); h != "" {
-			pdf.SetFont("CourierPrime", "", 12)
+			pageFont(pdf, "CourierPrime", 12)
 			w := pdf.GetStringWidth(h)
 			// ending a little before the page number (at 1" from the right)
 			pdf.SetXY(pageWidth-1-0.25-w, 0.5)
 			pdf.Cell(w, 0, h)
 		}
 	}
+}
+
+// pageFont selects a font on the page the PDF is at again: a page gone
+// back to (SetPage) has in its text the font it last printed with, which
+// gofpdf's SetFont, the same as the document's current, would not write.
+func pageFont(pdf *gofpdf.Fpdf, family string, size float64) {
+	pdf.SetFont(family, "", size+1)
+	pdf.SetFont(family, "", size)
 }
 
 // RevisedPages are the pages of a screenplay with a change on them, as

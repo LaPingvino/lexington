@@ -13,14 +13,12 @@ import (
 // set's name); which lines changed is for the caller to say (Accolade
 // diffs the issued drafts; an FDX gives each text run its RevisionID).
 //
-// The order of the sets is the WGA West's, as Final Draft's knowledge
-// base gives it ("Per the WGA west, the standard script revision color
-// sets are: … Production White | Blue Revision | Pink Revision | Yellow
-// Revision | Green Revision | Goldenrod Revision | Buff Revision | Salmon
-// Revision … Cherry Revision, Second Blue Revision, …"
-// https://kb.finaldraft.com/hc/en-us/articles/15575314119316) and
-// Quote-Unquote's (Highland's makers) "The WGA script revision order"
-// (https://blog.quoteunquoteapps.com/script-revision-colors-how-to-track-your-screenplay-changes/):
+// The order of the sets is the WGA's, as Quote-Unquote (Highland's
+// makers) gives "The WGA script revision order"
+// (https://blog.quoteunquoteapps.com/script-revision-colors-how-to-track-your-screenplay-changes/),
+// and Final Draft's knowledge base by a search's snippet of it ("Per the
+// WGA west, the standard script revision color sets are: …"; the page
+// itself refuses robots: https://kb.finaldraft.com/hc/en-us/articles/15575314119316):
 // White, Blue, Pink, Yellow, Green, Goldenrod, Buff, Salmon, Cherry, then
 // Second Blue to Second Cherry (no second White), and on: Third Blue ….
 // Productions do differ (Wikipedia's Shooting script has tan and ivory

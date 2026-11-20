@@ -310,3 +310,34 @@ func pixelAt(t *testing.T, name string) [3]uint8 {
 	r, g, b, _ := img.At(2, 2).RGBA()
 	return [3]uint8{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8)}
 }
+
+// A marked speech in dual dialogue, and a page whose last text is styled
+// (bold, italic lyrics): the marks and the header in the plain font.
+func TestRevisionMarksDualAndStyled(t *testing.T) {
+	text := "INT. ROOM - DAY #1#\n\nANNA\nWe go now.\n\nBOB ^\nWe stay.\n\n**A bold line of action.**\n\n~*la la la, sung in italics*\n"
+	s := fountain.ParseLines(fountain.Scene, strings.NewReader(text))
+	for i := range s {
+		if s[i].Source == 7 || s[i].Source == 9 { // Bob's line; the bold action
+			s[i].Revision = "Blue"
+		}
+	}
+	file := writeRevised(t, s, testSets)
+	words := wordsOf(t, file)
+	stars := 0
+	for _, w := range words {
+		if w.text == "*" {
+			stars++
+		}
+	}
+	if stars != 3 { // the dual dialogue's two lines (a block marked whole), the action's one
+		t.Errorf("%d marks, want the dual dialogue's two and the action's", stars)
+	}
+	pages := readRevised(t, file)
+	if header(pages[0]) != "Blue Revision – 20/11/26" {
+		t.Errorf("header %q", header(pages[0]))
+	}
+	if dir := os.Getenv("REVISION_SHOT"); dir != "" {
+		data, _ := os.ReadFile(file)
+		os.WriteFile(filepath.Join(dir, "styled.pdf"), data, 0o644)
+	}
+}

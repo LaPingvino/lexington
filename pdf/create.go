@@ -249,8 +249,9 @@ func (t *Tree) Render() {
 			continue
 		}
 		if row.Type == lex.TypeDualClose {
+			blank := t.dualEndsBlank()
 			spans := t.printed(func() { t.handleSpecialCases(row, &block, &lastsection) })
-			t.revised(lex.Line{Type: lex.TypeDialog, Revision: t.revising.dual}, spans)
+			t.revised(lex.Line{Type: lex.TypeDialog, Revision: t.revising.dual}, withoutLastLine(spans, blank))
 			t.revising.dual = ""
 			t.extendBar(spans)
 			continue
@@ -316,8 +317,9 @@ func (t *Tree) Render() {
 
 	// Flush any remaining dual dialogue at the end
 	if t.DualDialogue {
+		blank := t.dualEndsBlank()
 		spans := t.printed(t.flushDualDialogue)
-		t.revised(lex.Line{Type: lex.TypeDialog, Revision: t.revising.dual}, spans)
+		t.revised(lex.Line{Type: lex.TypeDialog, Revision: t.revising.dual}, withoutLastLine(spans, blank))
 		t.extendBar(spans)
 	}
 	t.closeBar()

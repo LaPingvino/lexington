@@ -24,9 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The revision colours** in the WGA's order (`lex.RevisionName`,
   `lex.RevisionIndex`, `lex.RevisionColor`, `lex.RevisionPaper`,
   `lex.RevisionInk`): White, Blue, Pink, Yellow, Green, Goldenrod, Buff,
-  Salmon, Cherry, then Second Blue … Second Cherry, Third Blue (Final
-  Draft's knowledge base "Per the WGA west…", and Quote-Unquote's "The WGA
-  script revision order").
+  Salmon, Cherry, then Second Blue … Second Cherry, Third Blue
+  (Quote-Unquote's "The WGA script revision order"; Final Draft's knowledge
+  base "Per the WGA west…", seen as a search snippet only).
 - **FDX revisions**: `FDXWriter.Revisions` writes `<Revisions>` (Final
   Draft's attributes, its paper colours, a set named "Blue Rev. 20/11/26")
   and each revised paragraph's runs' `RevisionID`; no `<DeletedText>`.
