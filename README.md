@@ -111,6 +111,24 @@ Font = "CourierPrime"
 Size = 12.0
 ```
 
+### Scene heading languages
+
+`[Scenes]` lists, per language, the words a scene heading starts with
+(`en = ["INT", "EXT", …]`, `eo = ["EN.", "EKST", …]`); a file named
+`script.eo.fountain` is read with Esperanto's. `Standard` names the
+language whose words are standard Fountain's (`"en"`): a script in
+another language is a dialect of Fountain, and `fountain.Force(text,
+from, to)` writes it so that the standard words read the same elements
+(force marks — `.EN. DOMO`, `!INT. is English` — only where needed, the
+lines otherwise as written); `fountain.Unforce` takes those marks back.
+
+```toml
+Standard = "en"
+
+[Scenes]
+eo = ["EN.", "ENE", "EKST", "EK", "EN/EKST", "EKST/EN", "EKST./EN", "EN./EKST"]
+```
+
 ### Presets: stage plays, radio, comics and more
 
 Besides the screenplay (`default`), Lexington has presets for other

@@ -33,12 +33,17 @@ func StartsScene(row, word string) bool {
 	return word != "" && !unicode.IsLetter(last) && !unicode.IsDigit(last) && last != '.' && strings.HasPrefix(row, word)
 }
 
-// CheckScene determines if a row is a scene heading.
+// CheckScene determines if a row is a scene heading, by Scene's words.
 func CheckScene(row string) (bool, string, string) {
+	return checkSceneWith(row, Scene)
+}
+
+// checkSceneWith is CheckScene by the words scenes.
+func checkSceneWith(row string, scenes []string) (bool, string, string) {
 	upperRow := strings.ToUpper(row)
 
 	// Check if any scene prefix matches
-	_, found := internal.Find(Scene, func(prefix string) bool { return StartsScene(upperRow, prefix) })
+	_, found := internal.Find(scenes, func(prefix string) bool { return StartsScene(upperRow, prefix) })
 
 	if found {
 		return true, internal.ElementScene, upperRow
@@ -344,7 +349,7 @@ func readAllLines(file io.Reader) []string {
 
 func (state *ParseState) handleTitlePage(row, trimmedSpaceRow, next string, currentLine *lex.Line) bool {
 	// a note is no field's value, nor its colon ("Action [[todo: x]]")
-	isKeyValLine := isTitleKeyValue(lex.StripNotes(row), lex.StripNotes(next))
+	isKeyValLine := isTitleKeyValue(lex.StripNotes(row), lex.StripNotes(next), state.scenes)
 	isContinuation := isIndented(row) && trimmedSpaceRow != "" && state.titletag != ""
 
 	if isContinuation {
@@ -408,7 +413,7 @@ func isIndented(row string) bool {
 // Script text that happens to contain a colon is not: a scene heading, or
 // an uppercase cue with nothing after the colon and no indented value on
 // the next line, such as "FADE IN:" opening the script.
-func isTitleKeyValue(row, next string) bool {
+func isTitleKeyValue(row, next string, scenes []string) bool {
 	if isIndented(row) {
 		return false
 	}
@@ -421,7 +426,7 @@ func isTitleKeyValue(row, next string) bool {
 	if r, _ := utf8.DecodeRuneInString(key); !unicode.IsLetter(r) && !unicode.IsDigit(r) {
 		return false
 	}
-	if isScene, _, _ := CheckScene(row); isScene {
+	if isScene, _, _ := checkSceneWith(row, scenes); isScene {
 		return false
 	}
 	if strings.TrimSpace(value) != "" || key != strings.ToUpper(key) {
@@ -507,7 +512,7 @@ func (state *ParseState) parseLine(originalRow, row, trimmedSpaceRow string) (le
 
 func (state *ParseState) checkStructuralTypes(row string) lex.Line {
 	checkfuncs := []func(string) (bool, string, string){
-		CheckScene,
+		func(row string) (bool, string, string) { return checkSceneWith(row, state.scenes) },
 		CheckCrow,
 		CheckEqual,
 		CheckSection,

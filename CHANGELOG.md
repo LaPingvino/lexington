@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-11-20
+
+### Added
+- **`fountain.Force` and `fountain.Unforce`: a language's script as
+  standard Fountain and back.** A script read with one language's scene
+  words is a dialect of Fountain; `Force(text, from, to)` adds Fountain's
+  force marks (`.` heading, `!` action, `@` character) to each line the
+  words `to` would read as another element, deciding by parsing both ways
+  line by line, the lines otherwise as written (no writer round trip,
+  which would put headings in capitals and rewrite the title page).
+  `Unforce` takes back exactly those marks: one the other words need too,
+  or that the writer put where they need none, stays. Dialogue has no
+  force mark: such a line stays as it is. Only the first line of a run that
+  reads otherwise is marked before reading again, so a line that only
+  followed a misread one gets none.
+- **`Standard` in the configuration** (`rules.TOMLConf.Standard`,
+  `StandardLanguage()`): the language whose scene words are standard
+  Fountain's, `"en"` by default.
+
+### Fixed
+- The Fountain reader reads with the scene words it is given, also for
+  telling a title page field from a scene heading, instead of the shared
+  `fountain.Scene`, which it still sets for `CheckScene`'s callers: a
+  script is read with its own words even while another is read in
+  another language (the write to `fountain.Scene` itself is still shared).
+
 ## [1.15.0] - 2026-11-20
 
 ### Removed

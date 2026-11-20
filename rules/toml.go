@@ -16,6 +16,10 @@ type TOMLConf struct {
 	// Roles (inside, outside, ...), "" for one it has none for: what
 	// translates to what (matchups.go).
 	Matchups map[string][]string `toml:"Matchups"`
+	// Standard is the language whose Scenes are standard Fountain's: what
+	// other Fountain apps read. A script in another language is a dialect
+	// of Fountain, written for them with fountain.Force.
+	Standard string `toml:"Standard"`
 	metadata toml.MetaData
 }
 
@@ -67,6 +71,7 @@ func DefaultConf() TOMLConf {
 			"ja":  {"○", "◯"},
 			"tok": {"INSA", "KON", "INSA/KON", "I./K", "I/K", "KON/INSA", "K./I", "K/I"},
 		},
+		Standard: "en",
 		Matchups: map[string][]string{
 			//     inside, outside, both, both the other way, establishing
 			"en":  {"INT.", "EXT.", "INT./EXT.", "EXT./INT.", "EST."},
@@ -82,6 +87,14 @@ func DefaultConf() TOMLConf {
 			"tok": {"INSA.", "KON.", "INSA/KON.", "KON/INSA.", ""},
 		},
 	}
+}
+
+// StandardLanguage is the configured Standard, the default's if none.
+func (c TOMLConf) StandardLanguage() string {
+	if c.Standard != "" {
+		return c.Standard
+	}
+	return DefaultConf().Standard
 }
 
 func Dump(file string) error {
