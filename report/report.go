@@ -49,6 +49,9 @@ type Scene struct {
 	// Characters are those who speak in it, in the order they first do.
 	Characters []string
 	Omitted    bool // an OMITTED scene: it keeps its number, it has no length
+	// Synopsis is the scene's first synopsis (Fountain's "= …"), as a
+	// breakdown sheet's.
+	Synopsis string
 }
 
 // ID is how the reports name the scene: its number, or its place in the
@@ -149,6 +152,11 @@ func Make(s lex.Screenplay, o Options) Report {
 				speaker.Words += countWords(lex.Unstyled(lex.StripNotes(l.Contents)))
 			}
 		case lex.TypeParen, lex.TypeEmpty, lex.TypeDualOpen, lex.TypeDualNext, lex.TypeDualClose, lex.TypeNote:
+		case lex.TypeSynopsis:
+			if scene != nil && scene.Synopsis == "" {
+				scene.Synopsis = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(lex.StripNotes(l.Contents)), "="))
+			}
+			speaker = nil
 		default:
 			speaker = nil
 		}

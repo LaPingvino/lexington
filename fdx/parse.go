@@ -31,6 +31,8 @@ type FdxFile struct {
 	// were (revisions.go).
 	Revisions   *FdxRevisions   `xml:"Revisions,omitempty"`
 	DeletedText *FdxDeletedText `xml:"DeletedText,omitempty"`
+	// TagData are the breakdown's categories, elements and tags (tags.go).
+	TagData *FdxTagData `xml:"TagData,omitempty"`
 }
 
 // FdxContent represents a <Content> element, which contains paragraphs.
@@ -119,7 +121,11 @@ type FdxScriptNote struct {
 // exports by others).
 type FdxSceneProperties struct {
 	// Color is the scene's color (colors.go), "#000000000000" for none.
-	Color   string         `xml:"Color,attr,omitempty"`
+	Color string `xml:"Color,attr,omitempty"`
+	// Length is the scene's length in eighths of a page ("1 3/8"), Page
+	// the page its heading is on, as Final Draft writes them.
+	Length  string         `xml:"Length,attr,omitempty"`
+	Page    string         `xml:"Page,attr,omitempty"`
 	Title   string         `xml:"Title,attr"`
 	Summary *FdxScriptNote `xml:"Summary,omitempty"`
 }
@@ -194,6 +200,8 @@ type FdxText struct {
 	RevisionID     string `xml:"RevisionID,attr,omitempty"`
 	Size           string `xml:"Size,attr,omitempty"`
 	Style          string `xml:"Style,attr,omitempty"`
+	// TagNumber is the breakdown Tag the run is (tags.go).
+	TagNumber string `xml:"TagNumber,attr,omitempty"`
 }
 
 // Parse reads an .fdx file from an io.Reader and converts it into the

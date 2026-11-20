@@ -204,6 +204,14 @@ type Options struct {
 	// Continueds prints the scenes' CONTINUEDs in the PDF (a lock's own
 	// setting wins).
 	Continueds bool
+	// Breakdown is the script's breakdown categories and elements, and
+	// LineTags the words tagged as them by the rows' Source line
+	// (fountain.ParseLines): the FDX's <TagData> and TagNumbers.
+	Breakdown *lex.TagSet
+	LineTags  map[int][]lex.LineTag
+	// SceneLengths writes each scene's page and length in eighths in the
+	// FDX's SceneProperties, as the PDF prints it with these settings.
+	SceneLengths bool
 }
 
 // colorScheme is the color scheme o asks for, on the settings' own.
@@ -332,6 +340,8 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 		"Write the lock of the script's pages as the PDF prints them (with -lock: locked again, A-pages kept), instead of the script.")
 	fs.BoolVar(&o.Continueds, "continueds", false,
 		"Print the scenes' CONTINUEDs in the PDF: (CONTINUED) at the foot of a page a scene goes on from, CONTINUED: at the top of the next.")
+	fs.BoolVar(&o.SceneLengths, "lengths", false,
+		"Write each scene's page and length in eighths into the FDX (SceneProperties Page and Length), measured as -e and -page print them.")
 	fs.StringVar(&o.TemplatePath, "template", "",
 		"Path to a custom template file (e.g., for HTML, FDX, or LaTeX output).")
 	fs.BoolVar(&help, "help", false, "Show this help message")
@@ -469,6 +479,15 @@ func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.S
 	w, err := createWriter(o, conf)
 	if err != nil {
 		return err
+	}
+	if fw, ok := w.(*fdx.FDXWriter); ok && o.SceneLengths {
+		lw, err := lockWriter(o, conf)
+		if err != nil {
+			return err
+		}
+		for _, l := range lw.Measure(screenplay) {
+			fw.Scenes = append(fw.Scenes, fdx.SceneProperty{Page: l.Page, Length: l.Eighths})
+		}
 	}
 	out, closeOut, err := openOutput(o.Output)
 	if err != nil {
@@ -784,7 +803,8 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 	case internal.FormatFountain:
 		return &fountain.FountainWriter{SceneConfig: conf.Scenes[o.SceneOut]}, nil
 	case internal.FormatFDX:
-		return &fdx.FDXWriter{TemplatePath: o.TemplatePath, Revisions: o.Revisions, Lock: o.Lock}, nil
+		return &fdx.FDXWriter{TemplatePath: o.TemplatePath, Revisions: o.Revisions, Lock: o.Lock,
+			Tags: o.Breakdown, LineTags: o.LineTags}, nil
 	case internal.FormatHTML:
 		return &html.HTMLWriter{Elements: elements, Page: pageFor(o)}, nil
 	case internal.FormatLaTeX:

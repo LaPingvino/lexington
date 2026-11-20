@@ -1,0 +1,5 @@
+order,number,int_ext,location,time,page,eighths,length,synopsis,cast,background_actors,stunts,vehicles,props,camera,special_effects,wardrobe,makeup_hair,animals,animal_wrangler,music,sound,art_department,set_dressing,greenery,special_equipment,security,additional_labor,visual_effects,mechanical_effects,miscellaneous,notes,script_day,unit,sequence,comments,puppets
+1,1,INT,KOVAČ HOUSE - KITCHEN,DAY,1,2,2/8,Anna and Tom wait out the rain.,1 ANNA; 2 TOM; 3 CARL,,,,revolver,,,raincoat,,,,,,,,,,,,,,,,,,,,
+2,1A,EXT,GARDEN,NIGHT,1,1,1/8,,1 ANNA; 2 TOM,neighbours,,taxi,,,,,,dog,,,,,,,,,,,,,,,,,,dog puppet
+4,3,INT,KOVAČ HOUSE - KITCHEN,NIGHT,1,1,1/8,,1 ANNA; 2 TOM,,,,revolver,,,,,,,,,,,,,,,,,,,,,,,
+5,4,EXT,GARDEN,DAY,1,1,1/8,,3 CARL,,,,,,,,,dog,,,,,,,,,,,,,,,,,,

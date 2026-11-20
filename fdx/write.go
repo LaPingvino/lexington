@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -20,6 +21,17 @@ type FDXWriter struct {
 	// Lock is the script's locked pages: written as <LockedPages>, each
 	// page found at its Position (pages.go).
 	Lock *lex.PageLock
+	// Tags are the breakdown's categories and elements: written as
+	// <TagData> (tags.go). nil: no TagData.
+	Tags *lex.TagSet
+	// LineTags are the words tagged, by the row's Source (its line of the
+	// Fountain text, fountain.ParseLines): written as TagNumbers on the
+	// paragraph's runs.
+	LineTags map[int][]lex.LineTag
+	// Scenes are the scene headings' pages and lengths, in order (as
+	// pdf.PDFWriter.Measure gives them): written in their
+	// SceneProperties. nil: none written.
+	Scenes []SceneProperty
 }
 
 // processInlineMarkup turns Fountain's emphasis (lex.Emphasis) into
@@ -101,12 +113,12 @@ const alignCenter = "Center"
 // Versions 2 and 4 have them, without their dates. No file written so has
 // been opened in Final Draft itself.
 func buildDocument(screenplay lex.Screenplay) FdxFile {
-	return buildRevised(screenplay, nil, nil)
+	return buildRevised(screenplay, nil, nil, nil, nil, nil)
 }
 
 // buildRevised is buildDocument with the revision sets and the locked
 // pages.
-func buildRevised(screenplay lex.Screenplay, revs *lex.Revisions, lock *lex.PageLock) FdxFile {
+func buildRevised(screenplay lex.Screenplay, revs *lex.Revisions, lock *lex.PageLock, tags *lex.TagSet, lineTags map[int][]lex.LineTag, scenes []SceneProperty) FdxFile {
 	doc := FdxFile{DocumentType: "Script", Template: "No", Version: "5", ElementSettings: elementSettings}
 	ids := revisionIDs(revs)
 	doc.Revisions = buildRevisions(revs, ids)
@@ -117,7 +129,8 @@ func buildRevised(screenplay lex.Screenplay, revs *lex.Revisions, lock *lex.Page
 		doc.TitlePage, i = buildTitlePage(lex.Printable(screenplay, nil))
 	}
 
-	b := docBuilder{doc: &doc, ids: ids, seqOf: map[int]int{}}
+	b := docBuilder{doc: &doc, ids: ids, seqOf: map[int]int{}, tags: newTagWriter(tags), lineTags: lineTags}
+	heading := 0 // the scene headings so far
 	for k := i; k < len(screenplay); k++ {
 		line := screenplay[k]
 		b.row = k
@@ -138,8 +151,26 @@ func buildRevised(screenplay lex.Screenplay, revs *lex.Revisions, lock *lex.Page
 		}
 		line.Contents = lex.StripNotes(line.Contents)
 		b.add(line, notes)
-		if ps := doc.Content.Paragraphs; color != "" && len(ps) > 0 && ps[len(ps)-1].Type == FDXSceneHeading {
-			ps[len(ps)-1].SceneProperties = &FdxSceneProperties{Color: color}
+		if line.Type != lex.TypeScene {
+			continue
+		}
+		var props *FdxSceneProperties
+		if color != "" {
+			props = &FdxSceneProperties{Color: color}
+		}
+		if heading < len(scenes) {
+			sc := scenes[heading]
+			if props == nil {
+				props = &FdxSceneProperties{}
+			}
+			props.Length = sc.Length.String()
+			if sc.Page > 0 {
+				props.Page = strconv.Itoa(sc.Page)
+			}
+		}
+		heading++
+		if ps := doc.Content.Paragraphs; props != nil && len(ps) > 0 && ps[len(ps)-1].Type == FDXSceneHeading {
+			ps[len(ps)-1].SceneProperties = props
 		}
 	}
 	b.closeDual()
@@ -147,6 +178,7 @@ func buildRevised(screenplay lex.Screenplay, revs *lex.Revisions, lock *lex.Page
 		ps[len(ps)-1].ScriptNotes = append(ps[len(ps)-1].ScriptNotes, scriptNotes(b.notes)...)
 	}
 	doc.LockedPages = buildLockedPages(&doc, screenplay, lock, b.seqOf)
+	doc.TagData = b.tags.tagData()
 	return doc
 }
 
@@ -179,15 +211,17 @@ func scriptNotes(notes []string) []FdxScriptNote {
 // blank lines, pending page breaks, notes for the next paragraph and open
 // dual dialogue.
 type docBuilder struct {
-	doc     *FdxFile
-	dual    *FdxDualDialogue
-	newPage bool
-	blanks  int
-	notes   []string
-	ids     map[string]string // the revision sets' IDs by name
-	row     int               // the row being added
-	seq     int               // the paragraphs so far, in the order places counts them
-	seqOf   map[int]int       // each row's paragraph
+	doc      *FdxFile
+	dual     *FdxDualDialogue
+	newPage  bool
+	blanks   int
+	notes    []string
+	ids      map[string]string     // the revision sets' IDs by name
+	row      int                   // the row being added
+	seq      int                   // the paragraphs so far, in the order places counts them
+	seqOf    map[int]int           // each row's paragraph
+	tags     *tagWriter            // the breakdown's (nil: none)
+	lineTags map[int][]lex.LineTag // the words tagged, by Source
 }
 
 func (b *docBuilder) add(line lex.Line, notes []string) {
@@ -210,6 +244,9 @@ func (b *docBuilder) add(line lex.Line, notes []string) {
 		text, p.Number = lex.SceneNumber(text)
 	}
 	p.Texts = processInlineMarkup(text)
+	if line.Source > 0 {
+		p.Texts = b.tags.tagRuns(p.Texts, b.lineTags[line.Source])
+	}
 	if id := b.ids[line.Revision]; id != "" && id != "0" {
 		for i := range p.Texts {
 			p.Texts[i].RevisionID = id
@@ -349,7 +386,7 @@ func buildTitlePage(screenplay lex.Screenplay) (*FdxTitlePage, int) {
 // Write converts the internal lex.Screenplay format to an FDX XML file.
 // It implements the writer.Writer interface.
 func (f *FDXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
-	doc := buildRevised(screenplay, f.Revisions, f.Lock)
+	doc := buildRevised(screenplay, f.Revisions, f.Lock, f.Tags, f.LineTags, f.Scenes)
 
 	if f.TemplatePath != "" {
 		return f.writeTemplate(w, doc)

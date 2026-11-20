@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-11-20
+
+### New Features
+- **Breakdown categories** (`lex.TagCategories`, `lex.TagCategoryOf`):
+  Final Draft's tag categories as Final Draft 13 writes them (Ids, names,
+  numbers; Movie Magic's names), with the colours Final Draft (a Version 5
+  file) and Fade In's OSF 4.0 share; older names, Ids and Beat's keys read
+  as the same categories.
+- **FDX tags** (`FDXWriter.Tags`, `FDXWriter.LineTags`, `fdx.ParseTags`):
+  `<TagData>` (categories, definitions, tags) and `TagNumber` on the
+  tagged words' runs, as Beat writes them; read back with the words and
+  their place in the line (`lex.LineTag`, `lex.TagPlain`, `lex.TagIndex`).
+  Movie Magic Scheduling reads only headings and speaking characters from
+  an FDX (its documentation); the tags are for Final Draft and the others.
+- **Scene lengths in FDX** (`FDXWriter.Scenes`, `cli.Options.SceneLengths`,
+  `-lengths`): each heading's `SceneProperties Page` and `Length` in
+  eighths, as the PDF prints them.
+- **Breakdown sheets and element reports** (`report.Breakdown`,
+  `Report.Sheets`, `Breakdown.SheetTable`, `Report.ElementTable`,
+  `report.WriteSheetsPDF`): a sheet per scene (number, INT/EXT, location,
+  time, page, eighths, synopsis, cast by number, elements by category) as
+  CSV and as a PDF in the classic layout; each element with its scenes.
+  `Scene.Synopsis` is the scene's first synopsis.
+
 ## [1.10.0] - 2026-11-20
 
 ### New Features
