@@ -14,6 +14,9 @@ import (
 // FDXWriter implements the writer.Writer interface for FDX output.
 type FDXWriter struct {
 	TemplatePath string // Path to a custom FDX template file
+	// Revisions are the script's revision sets: written as <Revisions>,
+	// each line's Revision as its runs' RevisionID (revisions.go).
+	Revisions *lex.Revisions
 }
 
 // processInlineMarkup turns Fountain's emphasis (lex.Emphasis) into
@@ -95,7 +98,14 @@ const alignCenter = "Center"
 // Versions 2 and 4 have them, without their dates. No file written so has
 // been opened in Final Draft itself.
 func buildDocument(screenplay lex.Screenplay) FdxFile {
+	return buildRevised(screenplay, nil)
+}
+
+// buildRevised is buildDocument with the revision sets.
+func buildRevised(screenplay lex.Screenplay, revs *lex.Revisions) FdxFile {
 	doc := FdxFile{DocumentType: "Script", Template: "No", Version: "5", ElementSettings: elementSettings}
+	ids := revisionIDs(revs)
+	doc.Revisions = buildRevisions(revs, ids)
 
 	i := 0
 	if len(screenplay) > 0 && screenplay[0].Type == lex.TypeTitlePage {
@@ -103,7 +113,7 @@ func buildDocument(screenplay lex.Screenplay) FdxFile {
 		doc.TitlePage, i = buildTitlePage(lex.Printable(screenplay, nil))
 	}
 
-	b := docBuilder{doc: &doc}
+	b := docBuilder{doc: &doc, ids: ids}
 	for k := i; k < len(screenplay); k++ {
 		line := screenplay[k]
 		if lex.IsNoteLine(line) {
@@ -168,6 +178,7 @@ type docBuilder struct {
 	newPage bool
 	blanks  int
 	notes   []string
+	ids     map[string]string // the revision sets' IDs by name
 }
 
 func (b *docBuilder) add(line lex.Line, notes []string) {
@@ -190,6 +201,11 @@ func (b *docBuilder) add(line lex.Line, notes []string) {
 		text, p.Number = lex.SceneNumber(text)
 	}
 	p.Texts = processInlineMarkup(text)
+	if id := b.ids[line.Revision]; id != "" && id != "0" {
+		for i := range p.Texts {
+			p.Texts[i].RevisionID = id
+		}
+	}
 	if line.Type == lex.TypeCenter {
 		p.Alignment = alignCenter
 	}
@@ -321,7 +337,7 @@ func buildTitlePage(screenplay lex.Screenplay) (*FdxTitlePage, int) {
 // Write converts the internal lex.Screenplay format to an FDX XML file.
 // It implements the writer.Writer interface.
 func (f *FDXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
-	doc := buildDocument(screenplay)
+	doc := buildRevised(screenplay, f.Revisions)
 
 	if f.TemplatePath != "" {
 		return f.writeTemplate(w, doc)

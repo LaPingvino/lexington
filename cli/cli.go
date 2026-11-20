@@ -189,6 +189,10 @@ type Options struct {
 	// Report writes a production report as CSV (report.Kinds: scenes,
 	// locations, characters, cast) instead of the script.
 	Report string
+	// Revisions prints the lines' revisions (lex.Line.Revision): the PDF's
+	// marks, changed pages' headers, those pages only or on coloured
+	// paper; the FDX's <Revisions> and RevisionIDs. nil: none.
+	Revisions *lex.Revisions
 }
 
 // colorScheme is the color scheme o asks for, on the settings' own.
@@ -678,13 +682,13 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 		if o.Output == "-" {
 			return nil, errors.New("cannot write PDF to standard output: give an output file (-o output.pdf)")
 		}
-		return &pdf.PDFWriter{OutputFile: o.Output, Elements: elements, Page: pageFor(o)}, nil
+		return &pdf.PDFWriter{OutputFile: o.Output, Elements: elements, Page: pageFor(o), Revisions: o.Revisions}, nil
 	case internal.FormatLex:
 		return &lex.LexWriter{}, nil
 	case internal.FormatFountain:
 		return &fountain.FountainWriter{SceneConfig: conf.Scenes[o.SceneOut]}, nil
 	case internal.FormatFDX:
-		return &fdx.FDXWriter{TemplatePath: o.TemplatePath}, nil
+		return &fdx.FDXWriter{TemplatePath: o.TemplatePath, Revisions: o.Revisions}, nil
 	case internal.FormatHTML:
 		return &html.HTMLWriter{Elements: elements, Page: pageFor(o)}, nil
 	case internal.FormatLaTeX:

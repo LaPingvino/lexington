@@ -134,6 +134,19 @@ type ParseState struct {
 const TypeBoneyard = lex.TypeBoneyard
 
 func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
+	return parse(scenes, file, false)
+}
+
+// ParseLines is Parse with each row's Source: the line of the text it
+// was read from, counted from 1 (a note over several lines: its first;
+// the rows Parse adds itself, a dual dialogue's markers, the line they
+// were added at). With it a caller that knows things per line of its
+// text (a revision's changed lines) can put them on the rows.
+func ParseLines(scenes []string, file io.Reader) lex.Screenplay {
+	return parse(scenes, file, true)
+}
+
+func parse(scenes []string, file io.Reader, lines bool) (out lex.Screenplay) {
 	Scene = scenes
 
 	toParse := readAllLines(file)
@@ -144,7 +157,22 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 		out:       make(lex.Screenplay, 0),
 	}
 
+	stamped, from := 0, 0 // the rows given their line so far; the line being read
+	stamp := func() {
+		if !lines {
+			return
+		}
+		for k := stamped; k < len(state.out); k++ {
+			if state.out[k].Source == 0 {
+				state.out[k].Source = from + 1
+			}
+		}
+		stamped = len(state.out)
+	}
+	defer func() { stamp(); out = state.out }()
 	for i := 0; i < len(toParse); i++ {
+		stamp()
+		from = min(i, len(toParse)-2)
 		originalRow := toParse[i]
 		row := strings.TrimRight(originalRow, "\n\r")
 		if !state.inBoneyard && !strings.HasPrefix(strings.TrimSpace(row), "/*") {

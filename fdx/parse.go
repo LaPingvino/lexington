@@ -25,6 +25,10 @@ type FdxFile struct {
 	// ElementSettings are the look of each paragraph type: Final Draft
 	// writes them for every type it has (in capitals, hidden, ...).
 	ElementSettings []FdxElementSettings `xml:"ElementSettings,omitempty"`
+	// Revisions are the revision sets, DeletedText where their deletions
+	// were (revisions.go).
+	Revisions   *FdxRevisions   `xml:"Revisions,omitempty"`
+	DeletedText *FdxDeletedText `xml:"DeletedText,omitempty"`
 }
 
 // FdxContent represents a <Content> element, which contains paragraphs.
@@ -214,11 +218,18 @@ func Parse(file io.Reader) lex.Screenplay {
 // are action, centred if their type is, after a page break if their type
 // starts a page, with their type's bold, italics and underlining.
 func ParseWithError(file io.Reader) (lex.Screenplay, error) {
+	s, _, err := parse(file)
+	return s, err
+}
+
+// parse is ParseWithError, with the file's revisions (ParseRevisions).
+func parse(file io.Reader) (lex.Screenplay, fileRevisions, error) {
 	var fdxFile FdxFile
 	if err := xml.NewDecoder(file).Decode(&fdxFile); err != nil {
-		return nil, fmt.Errorf("reading FDX: %w", err)
+		return nil, fileRevisions{}, fmt.Errorf("reading FDX: %w", err)
 	}
-	r := reader{types: typeSettings(fdxFile.ElementSettings)}
+	r := reader{types: typeSettings(fdxFile.ElementSettings), revs: newFileRevisions(fdxFile.Revisions)}
+	r.deleted = deletedAt(fdxFile.Content, fdxFile.DeletedText)
 
 	var out lex.Screenplay
 	if fdxFile.TitlePage != nil {
@@ -226,7 +237,8 @@ func ParseWithError(file io.Reader) (lex.Screenplay, error) {
 	}
 	bodyStart := len(out)
 
-	for _, p := range fdxFile.Content.Paragraphs {
+	for i := range fdxFile.Content.Paragraphs {
+		p := fdxFile.Content.Paragraphs[i]
 		if p.DualDialogue != nil {
 			if len(out) > bodyStart {
 				out = append(out, lex.Line{Type: lex.TypeEmpty})
@@ -239,6 +251,7 @@ func ParseWithError(file io.Reader) (lex.Screenplay, error) {
 		}
 
 		line := r.parseParagraph(p)
+		line.Revision = r.revisionOf(&fdxFile.Content.Paragraphs[i])
 		line.Contents = strings.TrimRightFunc(line.Contents, unicode.IsSpace)
 		if line.Type == lex.TypeEmpty {
 			line.Contents = ""
@@ -267,7 +280,7 @@ func ParseWithError(file io.Reader) (lex.Screenplay, error) {
 		}
 	}
 
-	return out, nil
+	return out, r.revs, nil
 }
 
 // settings are what Lexington reads of a paragraph type's ElementSettings.
@@ -317,7 +330,22 @@ func typeSettings(es []FdxElementSettings) map[string]settings {
 
 // reader reads paragraphs with the file's settings.
 type reader struct {
-	types map[string]settings
+	types   map[string]settings
+	revs    fileRevisions
+	deleted map[*FdxParagraph][]string
+}
+
+// revisionOf is the latest set a paragraph was changed in: of its runs,
+// or of a deletion in it.
+func (r reader) revisionOf(p *FdxParagraph) string {
+	if r.revs.byID == nil {
+		return ""
+	}
+	var ids []string
+	for _, t := range p.Texts {
+		ids = append(ids, t.RevisionID)
+	}
+	return r.revs.of(append(ids, r.deleted[p]...)...)
 }
 
 // fountainTypes are the paragraph types with an element of their own.
@@ -418,11 +446,12 @@ func (r reader) notes(ns []FdxScriptNote) string {
 func (r reader) parseDualDialogue(ps []FdxParagraph) lex.Screenplay {
 	out := lex.Screenplay{{Type: lex.TypeDualOpen}}
 	speakers := 0
-	for _, p := range ps {
+	for i, p := range ps {
 		line := r.parseParagraph(p)
 		if line.Type == lex.TypeEmpty {
 			continue
 		}
+		line.Revision = r.revisionOf(&ps[i])
 		if line.Type == lex.TypeSpeaker {
 			speakers++
 			if speakers == 2 {

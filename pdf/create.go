@@ -4,7 +4,9 @@
 package pdf
 
 import (
+	"bytes"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 
@@ -24,6 +26,10 @@ type PDFWriter struct {
 	// are for Letter; on other paper their positions scale with the
 	// page's width (and the title page's with its height).
 	Page string
+	// Revisions, when set, prints the rows' revisions: their marks, the
+	// changed pages' headers, those pages only or on coloured paper
+	// (lex.Revisions; revisions.go).
+	Revisions *lex.Revisions
 }
 
 // pages are the paper sizes by name, as gofpdf names them.
@@ -49,6 +55,8 @@ type Tree struct {
 	foot         float64 // the page's bottom margin, while a row's break raises it (0: none)
 	heights      map[[2]string]int
 	measure      *measuring // where the scenes are printed, when measured (Measure)
+	revs         *lex.Revisions
+	revising     *revising // the revised rows as printed (revs set)
 }
 
 // span is where printed text is on a page: from its top to its foot.
@@ -186,6 +194,9 @@ func (t *Tree) Render() {
 	if t.printing == nil {
 		t.printing = &printing{}
 	}
+	if t.revising == nil {
+		t.revising = &revising{}
+	}
 	t.pagination = t.Rules.Pagination()
 	t.PDF.SetAcceptPageBreakFunc(func() bool {
 		auto, _ := t.PDF.GetAutoPageBreak()
@@ -238,7 +249,10 @@ func (t *Tree) Render() {
 			continue
 		}
 		if row.Type == lex.TypeDualClose {
-			t.extendBar(t.printed(func() { t.handleSpecialCases(row, &block, &lastsection) }))
+			spans := t.printed(func() { t.handleSpecialCases(row, &block, &lastsection) })
+			t.revised(lex.Line{Type: lex.TypeDialog, Revision: t.revising.dual}, spans)
+			t.revising.dual = ""
+			t.extendBar(spans)
 			continue
 		}
 		if t.handleSpecialCases(row, &block, &lastsection) {
@@ -252,7 +266,7 @@ func (t *Tree) Render() {
 		}
 
 		contents, level := t.processBookmarkContent(row, lastsection)
-		if contents != "" {
+		if contents != "" && (t.revs == nil || !t.revs.PagesOnly) { // (a page left out would be marked)
 			t.PDF.Bookmark(contents, level, -1)
 		}
 
@@ -274,6 +288,9 @@ func (t *Tree) Render() {
 				t.measure.heading(spans)
 			}
 			t.PDF.SetTextColor(0, 0, 0)
+			if block == "" {
+				t.revised(row, spans)
+			}
 			continue
 		}
 		// text+block: every line of a block of a color in it (the
@@ -292,15 +309,19 @@ func (t *Tree) Render() {
 		}
 		t.restoreFoot()
 		if block == "" {
+			t.revised(row, spans)
 			t.extendBar(spans)
 		}
 	}
 
 	// Flush any remaining dual dialogue at the end
 	if t.DualDialogue {
-		t.extendBar(t.printed(t.flushDualDialogue))
+		spans := t.printed(t.flushDualDialogue)
+		t.revised(lex.Line{Type: lex.TypeDialog, Revision: t.revising.dual}, spans)
+		t.extendBar(spans)
 	}
 	t.closeBar()
+	t.drawRevisions()
 }
 
 // colorBar is the bar of a scene's color in the left margin (the line
@@ -533,6 +554,9 @@ func (t *Tree) handleSpecialCases(row lex.Line, block *string, lastsection *int)
 
 // bufferDualDialogue adds a line to the dual dialogue buffer
 func (t *Tree) bufferDualDialogue(row lex.Line) {
+	if t.revising != nil && t.revs != nil {
+		t.revising.dual = t.later(t.revising.dual, row.Revision)
+	}
 	lineCopy := row
 	lineCopy.Type = row.Type + "_col" + strconv.Itoa(t.DualColumn)
 	t.DualBuffer = append(t.DualBuffer, lineCopy)
@@ -755,11 +779,19 @@ func (t Tree) renderDualDialogueLine(format rules.Format, text string, columnWid
 func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	f := p.tree(screenplay)
 	f.Render()
-	err := f.PDF.OutputFileAndClose(p.OutputFile) // Use the OutputFile from the PDFWriter struct
-	if err != nil {
-		return err // Return the error instead of panicking
+	if p.Revisions == nil || !p.Revisions.PagesOnly {
+		return f.PDF.OutputFileAndClose(p.OutputFile) // Use the OutputFile from the PDFWriter struct
 	}
-	return nil
+	revised := f.revisedPages()
+	var buf bytes.Buffer
+	if err := f.PDF.Output(&buf); err != nil {
+		return err
+	}
+	data, err := onlyPages(buf.Bytes(), func(page int) bool { return revised[page] != "" })
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(p.OutputFile, data, 0o644)
 }
 
 // tree is the screenplay ready to render on the writer's paper, with its
@@ -796,6 +828,7 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 	pdf.SetMargins(1, 1, 1)
 	pdf.SetXY(1, 1)
 	return &Tree{
+		revs:         p.Revisions,
 		PDF:          pdf,
 		Rules:        elements,
 		F:            lex.Printable(screenplay, elements.Hides), // notes are not printed

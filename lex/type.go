@@ -45,6 +45,13 @@ type Line struct {
 	// ColorBlocks): the same for a section and its scenes without a color
 	// of their own, another for a scene with one; 0 for none.
 	Block int
+	// Revision is the revision set the line was last changed in (a
+	// RevisionSet's Name; "" none): printed with its mark in the right
+	// margin, its page with the set's header (Revisions).
+	Revision string
+	// Source is the line of the Fountain text the row was read from,
+	// counted from 1 (fountain.ParseLines; 0 not known).
+	Source int
 }
 
 // IsDialogueElement returns true if the line is part of dialogue

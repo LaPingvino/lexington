@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-20
+
+### New Features
+- **Production revisions** (`lex.Line.Revision`, `lex.Revisions`,
+  `lex.RevisionSet`): a line's revision set, printed in the PDF as an
+  asterisk at the right margin (7.75" on Letter, as Final Draft; right of a
+  numbered heading's number) on every line it prints on, and the changed
+  pages' header on the page number's line ("Blue Revision – 20/11/26";
+  `Revisions.Header` with `{set}` and `{date}`, `DateLayout`).
+  `Revisions.PagesOnly` writes only the changed pages, numbered as in the
+  whole script (`pdf.PDFWriter.RevisedPages` lists them;
+  `pdf.ErrNoRevisedPages` when there are none); `Revisions.PageColors`
+  tints them in their set's paper colour. `cli.Options.Revisions` passes
+  them to the PDF and FDX writers.
+- **The revision colours** in the WGA's order (`lex.RevisionName`,
+  `lex.RevisionIndex`, `lex.RevisionColor`, `lex.RevisionPaper`,
+  `lex.RevisionInk`): White, Blue, Pink, Yellow, Green, Goldenrod, Buff,
+  Salmon, Cherry, then Second Blue … Second Cherry, Third Blue (Final
+  Draft's knowledge base "Per the WGA west…", and Quote-Unquote's "The WGA
+  script revision order").
+- **FDX revisions**: `FDXWriter.Revisions` writes `<Revisions>` (Final
+  Draft's attributes, its paper colours, a set named "Blue Rev. 20/11/26")
+  and each revised paragraph's runs' `RevisionID`; no `<DeletedText>`.
+  `fdx.ParseRevisions` reads a line's set from its runs' `RevisionID` (the
+  latest) or a `<DeletedTextLocation>` in it (its Offset counts the text
+  runs' characters and one per paragraph end), and the sets the text uses
+  ("Blue Rev. (mm/dd/yy)" read as Blue).
+- **`fountain.ParseLines`**: Parse with each row's `lex.Line.Source`, the
+  text's line it was read from, so that what a caller knows per line (a
+  revision) can go on the rows.
+
 ## [1.8.0] - 2026-11-20
 
 ### New Features
