@@ -6,7 +6,8 @@ import (
 )
 
 // Ranges of scene numbers. A run of omitted scenes can be one heading,
-// "OMITTED #12-14#", as shooting scripts print "12-14 OMITTED 12-14";
+// "OMITTED #12-14#", printed "12-14 OMITTED 12-14" (the form I know
+// from shooting scripts; not checked against a source);
 // Fountain allows the dash in a scene number ("any alphanumerics, plus
 // dashes and periods", https://fountain.io/syntax). Such a range is one
 // number written as its first and last, a dash between: both ends

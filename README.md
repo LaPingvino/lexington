@@ -251,14 +251,16 @@ An omitted scene is written `.OMITTED #12#`, the scene itself in a
 boneyard under it (`fountain.OmitScene`, `fountain.RestoreScene`); it
 prints as OMITTED with its number, in FDX too. A run of them can be one
 heading, `.OMITTED #12-14#` (a dash is allowed in a Fountain scene
-number), printed `12-14 OMITTED 12-14`; a locked script never gives a
+number), printed `12-14 OMITTED 12-14` (a shooting-script form, not checked
+against a source); a locked script never gives a
 number in the range again, and `fountain.SplitOmitted` makes it one
 heading a scene again.
 
 `lex.Renumber` numbers the scenes again by a strategy: which scenes get a
 new number (the others are pinned), A-scenes folded into whole numbers or
 kept lettered, OMITTED ones dropped, kept or merged into ranges, numbers
-reserved (sent out, never given again). Free scenes count on from the
+reserved (sent out, never given again: a reserved range its whole numbers,
+its letters left free). Free scenes count on from the
 pinned one before them and take a letter where a pinned number forces it.
 `lex.ParseNumberSet` reads a typed list, `5, 12A, 20-24`.
 

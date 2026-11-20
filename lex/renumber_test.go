@@ -107,6 +107,7 @@ func TestRenumber(t *testing.T) {
 		{"reserved", "1 2 2A 3", RenumberOptions{Reserved: []string{"3"}}, "1 2 4 5"},
 		{"reserved before a pinned", "1 1A 3", RenumberOptions{Free: freeOf("xx."), Reserved: []string{"2", "3"}}, "1 1A 3"},
 		{"reserved range", "1 2 3", RenumberOptions{Reserved: []string{"2-4"}}, "1 5 6"},
+		{"a reserved range leaves its letters", "5 ~ 6", RenumberOptions{Free: freeOf(".x."), Reserved: []string{"5-6"}}, "5 5A 6"},
 		// a scene without a number gets one when free, keeps none when not
 		{"unnumbered", "1 ~ 2 ~", RenumberOptions{Free: freeOf("xx..")}, "1 1A 2 ~"},
 		// pinned out of order (a scene moved): letters, no number twice
@@ -146,7 +147,7 @@ func TestRenumberProperties(t *testing.T) {
 		desc := fmt.Sprintf("%+v %+v → %+v", scenes, o, got)
 		reserved := newTaken()
 		for _, r := range o.Reserved {
-			reserved.add(r)
+			reserve(reserved, r)
 		}
 		for i, r := range got {
 			if r.Drop || r.Merged {
@@ -169,6 +170,45 @@ func TestRenumberProperties(t *testing.T) {
 			}
 			if r.Number != "" {
 				seen[r.Number]++
+			}
+		}
+		// a free scene lands between its pinned neighbours, when they are
+		// in order (ranges aside: an OMITTED one can take all between; and
+		// letters of one style only: 1 < A1A < 1A has no order)
+		oneStyle := true
+		for _, sc := range scenes {
+			if l, ok := parseLabel(sc.Number); ok && (o.Style == NumberAfter && l.lead != "" || o.Style == NumberBefore && l.tail != "") {
+				oneStyle = false
+			}
+		}
+		if oneStyle && !strings.Contains(fmt.Sprint(scenes, o.Reserved), "-") {
+			var prev *label
+			for i, r := range got {
+				if r.Drop || r.Merged {
+					continue
+				}
+				l, ok := parseLabel(r.Number)
+				if !ok {
+					continue
+				}
+				pinned := !free[i] || scenes[i].Omitted
+				if !pinned {
+					var next *label
+					for j := i + 1; j < len(got) && next == nil; j++ {
+						if (!free[j] || scenes[j].Omitted) && !got[j].Drop && !got[j].Merged {
+							if nl, ok := parseLabel(got[j].Number); ok {
+								next = &nl
+							}
+						}
+					}
+					if prev != nil && next != nil && compareLabels(*prev, *next) < 0 &&
+						(compareLabels(*prev, l) >= 0 || compareLabels(l, *next) >= 0) {
+						t.Fatalf("scene %d (%s) not between its neighbours: %s", i, r.Number, desc)
+					}
+				}
+				if pinned {
+					prev = &l
+				}
 			}
 		}
 		for num, c := range seen {

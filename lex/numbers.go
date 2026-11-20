@@ -174,6 +174,9 @@ func parseLabel(s string) (label, bool) {
 	return label{lead: m[1], num: n, digits: m[2], tail: m[3]}, true
 }
 
+// String is the label as written: A11B.
+func (l label) String() string { return l.lead + l.digits + l.tail }
+
 // head is the label up to its tail's letters (A11 of A11B); rest from
 // its number on (11B).
 func (l label) head() string { return l.lead + l.digits }
@@ -306,16 +309,21 @@ func letters(n int, filler bool, f func(string) bool) bool {
 	return rec("", n)
 }
 
-// maxLetters is the most letters after and before look at: past it
-// they give up ("").
-const maxLetters = 3
+// moreLetters is how many letters after and before look at past the
+// longest of their neighbours': past it they give up ("").
+const moreLetters = 2
 
 // after is the first free number after prev (and before its tail upper,
 // if given), with the fewest letters: prev's head and a tail.
 func after(prev label, upper *string, taken *takenSet) string {
 	lo := afterKey(prev.tail)
+	most := len(prev.tail)
+	if upper != nil {
+		most = max(most, len(*upper))
+	}
+	most += moreLetters
 	var found string
-	for n := 1; found == "" && n <= maxLetters; n++ {
+	for n := 1; found == "" && n <= most; n++ {
 		letters(n, true, func(s string) bool {
 			k := afterKey(s) // the whole tail: 10B after 10A
 			if k <= lo || (upper != nil && k >= afterKey(*upper)) || taken.has(prev.head()+s) {
@@ -332,8 +340,13 @@ func after(prev label, upper *string, taken *takenSet) string {
 // if given), with the fewest letters: a lead and next's number and tail.
 func before(lower *string, next label, taken *takenSet) string {
 	hi := beforeKey(next.lead)
+	most := len(next.lead)
+	if lower != nil {
+		most = max(most, len(*lower))
+	}
+	most += moreLetters
 	var found string
-	for n := 1; found == "" && n <= maxLetters; n++ {
+	for n := 1; found == "" && n <= most; n++ {
 		// the letter next to the number first, as the key orders them
 		letters(n, false, func(rev string) bool {
 			r := []rune(rev)

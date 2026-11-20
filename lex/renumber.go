@@ -46,8 +46,10 @@ type RenumberOptions struct {
 	// whole number (unless a pinned number forces a letter).
 	KeepLetters bool
 	Omitted     OmittedMode
-	// Reserved are numbers never given, though no scene has them now
-	// (ranges included: "20-24").
+	// Reserved are numbers never given, though no scene has them now.
+	// A range ("20-24") reserves its ends and the whole numbers between;
+	// the letters between stay free (a new scene between 20 and 21 can
+	// be 20A), unlike an OMITTED range, which takes them all.
 	Reserved []string
 	Style    NumberStyle
 }
@@ -83,7 +85,7 @@ func Renumber(scenes []RenumberScene, o RenumberOptions) []Renumbered {
 	}
 	taken := newTaken()
 	for _, r := range o.Reserved {
-		taken.add(r)
+		reserve(taken, r)
 	}
 	var seq []int // the scenes that stay, in order
 	for i := range scenes {
@@ -175,7 +177,8 @@ func Renumber(scenes []RenumberScene, o RenumberOptions) []Renumbered {
 
 // mergeOmitted makes each run of free OMITTED scenes one after the other
 // one range: the first gets it, the rest are Merged. A run whose numbers
-// are not all numbers in order is left as it is.
+// are not all numbers in order is left as it is, and so is one whose
+// range would hold another scene's number.
 func mergeOmitted(scenes []RenumberScene, free []bool, out []Renumbered) {
 	isFree := func(i int) bool { return free == nil || (i < len(free) && free[i]) }
 	for i := 0; i < len(scenes); {
@@ -199,12 +202,45 @@ func mergeOmitted(scenes []RenumberScene, free []bool, out []Renumbered) {
 			last = &hi
 		}
 		if ok {
-			a, b := *first, *last
-			out[i].Number = a.lead + a.digits + a.tail + "-" + b.lead + b.digits + b.tail
-			for k := i + 1; k < j; k++ {
-				out[k] = Renumbered{Merged: true}
+			r := first.String() + "-" + last.String()
+			span := newTaken()
+			span.add(r)
+			for k, sc := range scenes { // a number in use elsewhere inside it: no merge
+				if k >= i && k < j || sc.Number == "" {
+					continue
+				}
+				for _, end := range []bool{false, true} {
+					if l, isNum := anchorLabel(sc.Number, end); isNum && span.has(l.String()) {
+						ok = false
+					}
+				}
+			}
+			if ok {
+				out[i].Number = r
+				for k := i + 1; k < j; k++ {
+					out[k] = Renumbered{Merged: true}
+				}
 			}
 		}
 		i = j
+	}
+}
+
+// reserve takes r: a number, or a range's ends and whole numbers.
+func reserve(taken *takenSet, r string) {
+	lo, hi, ok := NumberRange(r)
+	if !ok {
+		taken.add(r)
+		return
+	}
+	a, _ := parseLabel(lo)
+	b, _ := parseLabel(hi)
+	taken.add(lo)
+	taken.add(hi)
+	for n := a.num; n <= b.num; n++ {
+		l, _ := parseLabel(strconv.Itoa(n))
+		if compareLabels(a, l) <= 0 && compareLabels(l, b) <= 0 {
+			taken.add(l.digits)
+		}
 	}
 }

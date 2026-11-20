@@ -13,8 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Renumbering strategies** (`lex.Renumber`, `lex.RenumberOptions`): the
   scenes that get a new number (`Free`; the others keep theirs), letters
   folded or kept (10, 10A, 11 → 9, 9A, 10), OMITTED dropped, kept or
-  merged (`OmittedDrop`, `OmittedKeep`, `OmittedMerge`), reserved numbers
-  never given. Free scenes count on from the pinned scene before them, and
+  merged (`OmittedDrop`, `OmittedKeep`, `OmittedMerge`; never a range
+  holding another scene's number), reserved numbers never given (a range
+  reserves its whole numbers, its letters stay free). Free scenes count on from the pinned scene before them, and
   get a letter between their neighbours where a pinned number forces it.
 - **Ranges of scene numbers**: `.OMITTED #12-14#` for a run of omitted
   scenes (`lex.NumberRange`, `lex.CompareNumbers`); prints as
@@ -26,9 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every number from its first to its last.
 
 ### Fixes
-- Locked numbering gives up a search of more than three letters and takes
-  the next number past those taken, rather than looking for ever where a
-  range takes every number between two scenes.
+- Locked numbering looks for letters up to two more than its neighbours
+  have, then takes the next number past those taken, rather than looking
+  for ever where a range takes every number between two scenes.
 
 ## [1.12.0] - 2026-11-20
 

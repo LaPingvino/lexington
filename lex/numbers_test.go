@@ -33,8 +33,9 @@ func TestNumberLabelsLocked(t *testing.T) {
 		{"10 10A  10B 11", after, "10 10A 10AA 10B 11"},
 		{"10  10A 11", after, "10 10aA 10A 11"}, // nothing between 10 and 10A but Wikipedia's small a
 		{"10 10A  10AA", after, "10 10A 10AaA 10AA"},
-		{" 1 2", after, "A1 1 2"},     // before the first
-		{"  1 2", after, "A1 B1 1 2"}, // two before it
+		{"10  10aaA 10aA 10A", after, "10 10aaaA 10aaA 10aA 10A"}, // four letters: past the first three
+		{" 1 2", after, "A1 1 2"},                                 // before the first
+		{"  1 2", after, "A1 B1 1 2"},                             // two before it
 		{" A1 1", after, "AA1 A1 1"},
 		{"86 87 ", after, "86 87 88"},     // at the end: the next number
 		{"86 87  ", after, "86 87 88 89"}, // two
