@@ -163,7 +163,9 @@ func buildRevised(screenplay lex.Screenplay, revs *lex.Revisions, lock *lex.Page
 			if props == nil {
 				props = &FdxSceneProperties{}
 			}
-			props.Length = sc.Length.String()
+			if _, omitted := lex.OmittedNumber(line.Contents); !omitted { // an OMITTED scene has no length
+				props.Length = sc.Length.String()
+			}
 			if sc.Page > 0 {
 				props.Page = strconv.Itoa(sc.Page)
 			}
