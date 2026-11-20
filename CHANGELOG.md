@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-11-20
+
+### New Features
+- **Strips** (`Report.Strips`, `report.StripColour`): each scene's strip,
+  INT/EXT (by the language's place words: EXT., INT./EXT. and EST. are
+  outside) and day or night (NIGHT, EVENING, DUSK … in the known
+  languages; CONTINUOUS and LATER take the scene before's), coloured as the
+  generic stripboard convention has it (white INT. DAY, yellow EXT. DAY,
+  blue INT. NIGHT, green EXT. NIGHT: Wikipedia's "Production board",
+  StudioBinder), with its cast by number.
+- **The shooting schedule's reports** (`report.Schedule`, `report.Day`):
+  the one-liner (`Report.OneLinerTable`, `report.WriteOneLinerPDF`: each
+  day's head, its strips in their colours, the day break with its total in
+  eighths) and the Day Out of Days (`Report.DOOD`, `Report.DOODTable`,
+  `report.WriteDOODPDF`: SW, W, WF, SWF and H as Movie Magic Scheduling
+  codes them, days worked and held, start and finish), as CSV (stable
+  layouts, golden files) and PDF.
+- **Shoot days as iCalendar** (`report.WriteICS`): an event a dated day
+  (from the call for 12 hours, floating local time; a whole day without a
+  call), the scenes in the description, the notes as its location; RFC
+  5545 folding and escaping.
+
 ## [1.11.0] - 2026-11-20
 
 ### New Features

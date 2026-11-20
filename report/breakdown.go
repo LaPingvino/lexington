@@ -137,24 +137,17 @@ func (r Report) Sheets(b Breakdown) []Sheet {
 			continue
 		}
 		sh := Sheet{Scene: sc}
-		cast := slices.Clone(sc.Characters)
+		sh.Cast, _ = b.sceneCast(sc, numbers)
 		byCat := map[string][]string{}
 		for _, e := range b.Elements[sc.Order] {
 			c := b.category(e.Category)
 			if isCast(c) {
-				if name := castName(e.Name); name != "" && !slices.Contains(cast, name) {
-					cast = append(cast, name)
-				}
 				continue
 			}
 			key := strings.ToLower(c.Name)
 			if !slices.ContainsFunc(byCat[key], func(n string) bool { return strings.EqualFold(n, e.Name) }) {
 				byCat[key] = append(byCat[key], e.Name)
 			}
-		}
-		slices.SortStableFunc(cast, func(a, b string) int { return numbers[a] - numbers[b] })
-		for _, name := range cast {
-			sh.Cast = append(sh.Cast, strconv.Itoa(numbers[name])+" "+name)
 		}
 		for _, c := range cats {
 			if names := byCat[strings.ToLower(c.Name)]; len(names) > 0 && !isCast(c) {

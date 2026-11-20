@@ -1,0 +1,4 @@
+cast_number,name,day_1,day_2,day_3,day_4,work,hold,total,start_day,finish_day
+1,ANNA,SW,WF,,,2,0,2,1,2
+2,TOM,SW,WF,,,2,0,2,1,2
+3,CARL,SW,H,H,WF,2,2,4,1,4
