@@ -42,8 +42,11 @@ func TestMeasureEighths(t *testing.T) {
 		{"a short scene", "INT. A - DAY\n\nEnd.\n\nINT. B - DAY\n\n" + action(13), []lex.Eighths{1, 4}, []int{1, 1}},
 		// 2+2·33 = 68 lines: 1 page and 13/55 = 9.9 eighths
 		{"over a page", "INT. A - DAY\n\n" + action(33) + "INT. B - DAY\n\nEnd.\n", []lex.Eighths{10, 1}, []int{1, 2}},
-		// a forced page break: the rest of the page is the scene's
-		{"a forced break", "INT. A - DAY\n\n" + action(5) + "===\n\nINT. B - DAY\n\nEnd.\n", []lex.Eighths{8, 1}, []int{1, 2}},
+		// a forced page break: the rest of the page is no one's (2+9
+		// lines: 1.6 eighths)
+		{"a forced break", "INT. A - DAY\n\n" + action(5) + "===\n\nINT. B - DAY\n\nEnd.\n", []lex.Eighths{2, 1}, []int{1, 2}},
+		// a break within a scene: its text on both pages (2+9+10 lines)
+		{"a break within", "INT. A - DAY\n\n" + action(5) + "===\n\n" + action(5) + "INT. B - DAY\n\nEnd.\n", []lex.Eighths{3, 1}, []int{1, 2}},
 		// the title page is not page 1
 		{"title page", "Title: T\n\nINT. A - DAY\n\n" + action(13) + "INT. B - DAY\n\nEnd.\n", []lex.Eighths{4, 1}, []int{1, 1}},
 		// an omitted scene is a heading, and its boneyard is not printed

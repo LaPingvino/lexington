@@ -16,8 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Scenes measured as printed** (`pdf.PDFWriter.Measure`, `pdf.Measure`):
   each scene's page and length, laid out as the PDF prints it (its rules,
   paper and pagination; nothing is written). A scene runs from its
-  heading to the next one's; the room a page break leaves at a page's
-  foot is the scene's before it.
+  heading to the next one's; the room the pagination leaves at a page's
+  foot is the scene's before it, the rest of a page after a forced break
+  (`===`) no one's.
 - **Production reports** (the `report` package, `cli.Report`, `-report`):
   scenes (number, heading with INT/EXT, location and time apart, page,
   eighths, who speaks, OMITTED kept as such), locations (their scenes,

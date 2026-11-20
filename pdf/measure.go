@@ -17,9 +17,10 @@ type SceneLength struct {
 	Page int
 	// Pages is its length in pages: from the top of its heading to the
 	// top of the next scene's heading, or to the foot of the script's
-	// last line. The room a page break leaves at a page's foot (a heading
-	// kept with what follows it, a forced break) is the scene's before
-	// it, as a ruler laid on the printed page measures it. A page is the
+	// last line. The room the pagination leaves at a page's foot (a
+	// heading kept with what follows it) is the scene's before it, as a
+	// ruler laid on the printed page measures it; the rest of a page
+	// after a forced break (===, an act's end) is no one's. A page is the
 	// lines that fit on it.
 	Pages float64
 	// Eighths is Pages in eighths of a page (lex.EighthsOf).
@@ -49,7 +50,13 @@ func (p *PDFWriter) Measure(screenplay lex.Screenplay) []SceneLength {
 		if i+1 < len(m.starts) {
 			end = m.starts[i+1]
 		}
-		length := max(0, at(end)-at(start))
+		length := at(end) - at(start)
+		for _, g := range m.gaps {
+			if g.scene == i {
+				length -= at(g.to) - at(g.from)
+			}
+		}
+		length = max(0, length)
 		out[i] = SceneLength{Page: start.page - offset, Pages: length, Eighths: lex.EighthsOf(length)}
 	}
 	return out
@@ -75,6 +82,28 @@ type place struct {
 type measuring struct {
 	starts []place // the scenes' headings' tops
 	end    place   // the foot of the last text printed
+	gaps   []gap   // the pages' rests left by forced breaks
+}
+
+// gap is the room a forced page break leaves blank in a scene.
+type gap struct {
+	scene    int
+	from, to place
+}
+
+// forcedBreak notes the rest of the page a forced break leaves, from the
+// last text printed to the next page's top, in the scene it is in.
+func (m *measuring) forcedBreak(pdf *gofpdf.Fpdf) {
+	if m == nil || len(m.starts) == 0 {
+		return
+	}
+	_, top, _, _ := pdf.GetMargins()
+	start := m.starts[len(m.starts)-1]
+	from := m.end
+	if from.page < start.page || (from.page == start.page && from.y < start.y) {
+		from = start // nothing printed in the scene yet
+	}
+	m.gaps = append(m.gaps, gap{scene: len(m.starts) - 1, from: from, to: place{pdf.PageNo() + 1, top}})
 }
 
 // scene marks a scene starting where the PDF is now (its heading not yet

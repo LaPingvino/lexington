@@ -231,6 +231,9 @@ func (t *Tree) Render() {
 			t.extendBar(t.prf(f, row.Contents, false))
 			continue
 		}
+		if row.Type == lex.TypeNewPage {
+			t.measure.forcedBreak(t.PDF)
+		}
 		if row.Type == lex.TypeDualClose && !t.DualDialogue {
 			continue
 		}
