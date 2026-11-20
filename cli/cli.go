@@ -522,21 +522,68 @@ func makeReport(o Options, conf rules.TOMLConf, screenplay lex.Screenplay, ro re
 
 // writeLock writes the lock of the script's pages to o.Output.
 func writeLock(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
-	elements := conf.Elements[o.Elements]
-	if o.Pagination != "" {
-		p, err := rules.ParsePagination(o.Pagination)
-		if err != nil {
-			return err
-		}
-		elements = elements.WithPagination(p)
+	w, err := lockWriter(o, conf)
+	if err != nil {
+		return err
 	}
-	w := &pdf.PDFWriter{Elements: elements, Page: pageFor(o), Lock: o.Lock, Continueds: o.Continueds}
 	text := w.LockPages(screenplay).Text() + "\n"
 	if o.Output == "-" || o.Output == "" {
 		_, err := os.Stdout.WriteString(text)
 		return err
 	}
 	return os.WriteFile(o.Output, []byte(text), 0o644)
+}
+
+// lockWriter is the PDF writer that lays the script out as o prints it,
+// to lock or list its pages.
+func lockWriter(o Options, conf rules.TOMLConf) (*pdf.PDFWriter, error) {
+	elements := conf.Elements[o.Elements]
+	if o.Pagination != "" {
+		p, err := rules.ParsePagination(o.Pagination)
+		if err != nil {
+			return nil, err
+		}
+		elements = elements.WithPagination(p)
+	}
+	return &pdf.PDFWriter{Elements: elements, Page: pageFor(o), Lock: o.Lock, Continueds: o.Continueds,
+		Revisions: o.Revisions}, nil
+}
+
+// LockPages are the pages of a screenplay as the PDF prints it with o's
+// settings, locked (with o.Lock: locked again, its A-pages kept).
+func LockPages(screenplay lex.Screenplay, o Options) (lex.PageLock, error) {
+	w, err := pagesWriter(&o)
+	if err != nil {
+		return lex.PageLock{}, err
+	}
+	screenplay, err = filter(o, screenplay)
+	if err != nil {
+		return lex.PageLock{}, err
+	}
+	return w.LockPages(screenplay), nil
+}
+
+// Pages are the pages of a screenplay as the PDF prints it with o's
+// settings: their numbers (a lock's) and revisions.
+func Pages(screenplay lex.Screenplay, o Options) ([]pdf.Page, error) {
+	w, err := pagesWriter(&o)
+	if err != nil {
+		return nil, err
+	}
+	screenplay, err = filter(o, screenplay)
+	if err != nil {
+		return nil, err
+	}
+	return w.Pages(screenplay), nil
+}
+
+func pagesWriter(o *Options) (*pdf.PDFWriter, error) {
+	setDefaults(o)
+	conf := confOf(*o)
+	if _, ok := conf.Elements[o.Elements]; !ok {
+		return nil, fmt.Errorf("no element settings %q in %s or the presets", o.Elements, o.ConfigFile)
+	}
+	return lockWriter(*o, conf)
 }
 
 // writeReport writes o.Report as CSV to o.Output.

@@ -44,7 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A-page are a guess); `fdx.ParseLockedPages` reads them back as anchors.
 - **Command line**: `-lockpages` writes the lock of the script's pages
   (as printed; with `-lock`, locked again), `-lock file` keeps them in
-  the PDF and the FDX.
+  the PDF and the FDX. Programs: `cli.Options.Lock`, `.Continueds`,
+  `cli.LockPages` and `cli.Pages` (the pages as the options print them).
 
 ## [1.9.0] - 2026-11-20
 
