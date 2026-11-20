@@ -36,8 +36,8 @@ type revising struct {
 
 // revMark is a revised row as printed: its set and where.
 type revMark struct {
-	set  string
-	span span
+	set       string
+	span      span
 	numberEnd float64 // a numbered heading's: where its right number ends (0: none)
 }
 
@@ -112,6 +112,51 @@ func (t *Tree) revisedPages() map[int]string {
 	}
 	for _, m := range t.revising.marks {
 		out[m.span.page] = t.later(out[m.span.page], m.set)
+	}
+	if t.lock == nil || t.pages == nil || t.revs == nil {
+		return out
+	}
+	// Locked pages: a page that changed reflows the rest of its locked
+	// page's text (its A-pages, which are new pages anyway); a page whose
+	// text is gone ("12-13") is changed; and a page before one whose first
+	// line is marked (a deletion marks the line after it) may have lost
+	// its last lines.
+	labels, spans := t.labels()
+	latest := ""
+	if n := len(t.revs.Sets); n > 0 {
+		latest = t.revs.Sets[n-1].Name
+	}
+	spanSet := map[int]string{}
+	for p := t.pages.bodyFirst; p <= t.PDF.PageCount(); p++ {
+		spanSet[spans[p]] = t.later(spanSet[spans[p]], out[p])
+	}
+	changed := map[int]bool{}
+	for p := t.pages.bodyFirst; p <= t.PDF.PageCount(); p++ {
+		_, locked := t.pages.locks[p]
+		if p == t.pages.bodyFirst {
+			locked = true
+		}
+		next := p + 1
+		_, nextLocked := t.pages.locks[next]
+		switch {
+		case !locked, strings.Contains(labels[p], "-"), changed[spans[p]] && p > 0 && spans[p-1] == spans[p]:
+		case nextLocked && t.pages.firstRev[next] != "":
+		default:
+			if out[p] != "" {
+				changed[spans[p]] = true
+			}
+			continue
+		}
+		changed[spans[p]] = true
+		if out[p] == "" {
+			out[p] = spanSet[spans[p]]
+			if out[p] == "" {
+				out[p] = latest
+				if nextLocked {
+					out[p] = t.later(t.pages.firstRev[next], "")
+				}
+			}
+		}
 	}
 	return out
 }

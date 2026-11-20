@@ -193,6 +193,17 @@ type Options struct {
 	// marks, changed pages' headers, those pages only or on coloured
 	// paper; the FDX's <Revisions> and RevisionIDs. nil: none.
 	Revisions *lex.Revisions
+	// Lock keeps the locked pages in the PDF (A-pages for what grew) and
+	// writes them as the FDX's <LockedPages>; LockFile is a file it is
+	// read from (lex.ParsePageLock). LockPages writes, instead of the
+	// script, the lock of its pages as the PDF prints them (with a lock:
+	// locked again, its A-pages kept).
+	Lock      *lex.PageLock
+	LockFile  string
+	LockPages bool
+	// Continueds prints the scenes' CONTINUEDs in the PDF (a lock's own
+	// setting wins).
+	Continueds bool
 }
 
 // colorScheme is the color scheme o asks for, on the settings' own.
@@ -315,6 +326,12 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 		"Number the scenes without a number: count (on from the last whole number), or as a locked script, keeping the numbers there are: 10A (a new scene after 10 is 10A, the default style) or A11 (before 11).")
 	fs.StringVar(&o.Report, "report", "",
 		"Write a report as CSV instead of the script: scenes (number, heading, page, length in eighths, who speaks), locations, characters or cast (numbered by size). Pages are measured as -e and -page print them.")
+	fs.StringVar(&o.LockFile, "lock", "",
+		"Keep the locked pages in this file (as -lockpages writes them): each page's breaks and number, A-pages (12A) for text that grew; the FDX gets them as <LockedPages>.")
+	fs.BoolVar(&o.LockPages, "lockpages", false,
+		"Write the lock of the script's pages as the PDF prints them (with -lock: locked again, A-pages kept), instead of the script.")
+	fs.BoolVar(&o.Continueds, "continueds", false,
+		"Print the scenes' CONTINUEDs in the PDF: (CONTINUED) at the foot of a page a scene goes on from, CONTINUED: at the top of the next.")
 	fs.StringVar(&o.TemplatePath, "template", "",
 		"Path to a custom template file (e.g., for HTML, FDX, or LaTeX output).")
 	fs.BoolVar(&help, "help", false, "Show this help message")
@@ -400,8 +417,20 @@ func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.S
 	if err != nil {
 		return err
 	}
+	if o.Lock == nil && o.LockFile != "" {
+		data, err := os.ReadFile(o.LockFile)
+		if err != nil {
+			return err
+		}
+		if o.Lock = lex.ParsePageLock(string(data)); o.Lock == nil {
+			return fmt.Errorf("no locked pages in %s", o.LockFile)
+		}
+	}
 	if o.Report != "" {
 		return writeReport(o, conf, screenplay)
+	}
+	if o.LockPages {
+		return writeLock(o, conf, screenplay)
 	}
 	if o.Colors || o.ColorStyle != "" || o.ColorScope != "" || o.ColorTint || o.ColorPatterns {
 		// the element settings with colors on, for every writer
@@ -489,6 +518,25 @@ func makeReport(o Options, conf rules.TOMLConf, screenplay lex.Screenplay, ro re
 		ro.Scenes = conf.Scenes[o.SceneIn]
 	}
 	return report.Make(screenplay, ro), nil
+}
+
+// writeLock writes the lock of the script's pages to o.Output.
+func writeLock(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
+	elements := conf.Elements[o.Elements]
+	if o.Pagination != "" {
+		p, err := rules.ParsePagination(o.Pagination)
+		if err != nil {
+			return err
+		}
+		elements = elements.WithPagination(p)
+	}
+	w := &pdf.PDFWriter{Elements: elements, Page: pageFor(o), Lock: o.Lock, Continueds: o.Continueds}
+	text := w.LockPages(screenplay).Text() + "\n"
+	if o.Output == "-" || o.Output == "" {
+		_, err := os.Stdout.WriteString(text)
+		return err
+	}
+	return os.WriteFile(o.Output, []byte(text), 0o644)
 }
 
 // writeReport writes o.Report as CSV to o.Output.
@@ -682,13 +730,14 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 		if o.Output == "-" {
 			return nil, errors.New("cannot write PDF to standard output: give an output file (-o output.pdf)")
 		}
-		return &pdf.PDFWriter{OutputFile: o.Output, Elements: elements, Page: pageFor(o), Revisions: o.Revisions}, nil
+		return &pdf.PDFWriter{OutputFile: o.Output, Elements: elements, Page: pageFor(o), Revisions: o.Revisions,
+			Lock: o.Lock, Continueds: o.Continueds}, nil
 	case internal.FormatLex:
 		return &lex.LexWriter{}, nil
 	case internal.FormatFountain:
 		return &fountain.FountainWriter{SceneConfig: conf.Scenes[o.SceneOut]}, nil
 	case internal.FormatFDX:
-		return &fdx.FDXWriter{TemplatePath: o.TemplatePath, Revisions: o.Revisions}, nil
+		return &fdx.FDXWriter{TemplatePath: o.TemplatePath, Revisions: o.Revisions, Lock: o.Lock}, nil
 	case internal.FormatHTML:
 		return &html.HTMLWriter{Elements: elements, Page: pageFor(o)}, nil
 	case internal.FormatLaTeX:

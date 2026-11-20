@@ -17,6 +17,9 @@ type FDXWriter struct {
 	// Revisions are the script's revision sets: written as <Revisions>,
 	// each line's Revision as its runs' RevisionID (revisions.go).
 	Revisions *lex.Revisions
+	// Lock is the script's locked pages: written as <LockedPages>, each
+	// page found at its Position (pages.go).
+	Lock *lex.PageLock
 }
 
 // processInlineMarkup turns Fountain's emphasis (lex.Emphasis) into
@@ -98,11 +101,12 @@ const alignCenter = "Center"
 // Versions 2 and 4 have them, without their dates. No file written so has
 // been opened in Final Draft itself.
 func buildDocument(screenplay lex.Screenplay) FdxFile {
-	return buildRevised(screenplay, nil)
+	return buildRevised(screenplay, nil, nil)
 }
 
-// buildRevised is buildDocument with the revision sets.
-func buildRevised(screenplay lex.Screenplay, revs *lex.Revisions) FdxFile {
+// buildRevised is buildDocument with the revision sets and the locked
+// pages.
+func buildRevised(screenplay lex.Screenplay, revs *lex.Revisions, lock *lex.PageLock) FdxFile {
 	doc := FdxFile{DocumentType: "Script", Template: "No", Version: "5", ElementSettings: elementSettings}
 	ids := revisionIDs(revs)
 	doc.Revisions = buildRevisions(revs, ids)
@@ -113,9 +117,10 @@ func buildRevised(screenplay lex.Screenplay, revs *lex.Revisions) FdxFile {
 		doc.TitlePage, i = buildTitlePage(lex.Printable(screenplay, nil))
 	}
 
-	b := docBuilder{doc: &doc, ids: ids}
+	b := docBuilder{doc: &doc, ids: ids, seqOf: map[int]int{}}
 	for k := i; k < len(screenplay); k++ {
 		line := screenplay[k]
+		b.row = k
 		if lex.IsNoteLine(line) {
 			b.notes = append(b.notes, lex.Notes(line.Contents)...)
 			if b.blanks > 0 && k+1 < len(screenplay) && screenplay[k+1].Type == lex.TypeEmpty {
@@ -141,6 +146,7 @@ func buildRevised(screenplay lex.Screenplay, revs *lex.Revisions) FdxFile {
 	if ps := doc.Content.Paragraphs; len(b.notes) > 0 && len(ps) > 0 {
 		ps[len(ps)-1].ScriptNotes = append(ps[len(ps)-1].ScriptNotes, scriptNotes(b.notes)...)
 	}
+	doc.LockedPages = buildLockedPages(&doc, screenplay, lock, b.seqOf)
 	return doc
 }
 
@@ -179,6 +185,9 @@ type docBuilder struct {
 	blanks  int
 	notes   []string
 	ids     map[string]string // the revision sets' IDs by name
+	row     int               // the row being added
+	seq     int               // the paragraphs so far, in the order places counts them
+	seqOf   map[int]int       // each row's paragraph
 }
 
 func (b *docBuilder) add(line lex.Line, notes []string) {
@@ -212,6 +221,8 @@ func (b *docBuilder) add(line lex.Line, notes []string) {
 	if notes = append(b.notes, notes...); len(notes) > 0 {
 		p.ScriptNotes, b.notes = scriptNotes(notes), nil
 	}
+	b.seqOf[b.row] = b.seq
+	b.seq++
 	if b.dual != nil {
 		b.dual.Paragraphs = append(b.dual.Paragraphs, p)
 		return
@@ -260,6 +271,7 @@ func setting(t, style, align, first, left, right, before, paginate, next, key st
 func (b *docBuilder) flushBlanks() {
 	for ; b.blanks > 1 && b.dual == nil; b.blanks-- {
 		b.doc.Content.Paragraphs = append(b.doc.Content.Paragraphs, FdxParagraph{Type: FDXAction, Texts: []FdxText{{}}})
+		b.seq++
 	}
 	b.blanks = 0
 }
@@ -337,7 +349,7 @@ func buildTitlePage(screenplay lex.Screenplay) (*FdxTitlePage, int) {
 // Write converts the internal lex.Screenplay format to an FDX XML file.
 // It implements the writer.Writer interface.
 func (f *FDXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
-	doc := buildRevised(screenplay, f.Revisions)
+	doc := buildRevised(screenplay, f.Revisions, f.Lock)
 
 	if f.TemplatePath != "" {
 		return f.writeTemplate(w, doc)

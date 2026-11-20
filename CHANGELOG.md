@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-20
+
+### New Features
+- **Locked pages and A-pages** (`lex.PageLock`, `lex.LockedPage`,
+  `pdf.PDFWriter.Lock`): once a script goes out, each page keeps its
+  number and its first line. Text that grows past a locked page goes onto
+  A-pages, named as A-scenes are (`lex.PageLabelBetween`: 12A, 12B; 12AA
+  between 12A and 12B; 12aA between 12 and 12A, as Final Draft writes it);
+  text that shrinks leaves the page short; a page whose text is gone gives
+  its number to the page before ("12-13", as Scripto and Final Draft do).
+  Pages after the last locked one count on (121). A page is anchored by
+  words, not offsets: the scene it starts in, its first words and the words
+  before it (`lex.PageAnchor(s)`, `lex.LocatePages`), so edits elsewhere,
+  in any program, do not move it; it is found by its first words, else
+  after the words before it (its first line edited), else near.
+  `pdf.PDFWriter.LockPages` locks the pages as printed (with a lock:
+  locked again, its A-pages kept, Final Draft's Lock A Pages);
+  `pdf.PDFWriter.Pages` lists the pages with their numbers and revisions.
+  A lock carries its paper and CONTINUEDs, and the writer prints a locked
+  script so. `PageLock.Text` / `lex.ParsePageLock` are its text form
+  (`pages: locked, letter` and a line per page).
+- **Revised pages with locks**: a changed page's A-pages are revised
+  pages too, numbered so ("12A" in the header and in revised pages only);
+  so is a "12-13" page, and a page before one whose first line is marked
+  (a deletion at its foot).
+- **Scene CONTINUEDs** (`pdf.PDFWriter.Continueds`, `-continueds`):
+  "(CONTINUED)" under a page's last line when its scene goes on, and
+  "CONTINUED:" (then "CONTINUED: (2)" …) at the next page's top, with the
+  scene's number in both margins. A page keeps its last line for it.
+- **Page numbers** are printed without a title page too (from the second
+  page on), and a page no longer starts with a blank line.
+- **FDX `<LockedPages>`**: `FDXWriter.Lock` writes each page found at its
+  `Position` (characters of the text runs plus one per paragraph end, as
+  Final Draft's own file has them; `LockLevel` and `LevelIndex` for an
+  A-page are a guess); `fdx.ParseLockedPages` reads them back as anchors.
+- **Command line**: `-lockpages` writes the lock of the script's pages
+  (as printed; with `-lock`, locked again), `-lock file` keeps them in
+  the PDF and the FDX.
+
 ## [1.9.0] - 2026-11-20
 
 ### New Features

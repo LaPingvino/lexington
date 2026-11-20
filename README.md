@@ -262,6 +262,18 @@ scene is at least 1/8 and rounded to the nearest eighth
 lexington -report scenes -i script.fountain -o scenes.csv
 ```
 
+Locked pages: `-lockpages` writes where each page starts (by its words,
+so edits elsewhere do not move it); `-lock` keeps those pages after
+edits, text that grows going onto A-pages (12A, 12B) and a page whose
+text is gone giving its number to the one before (12-13). The FDX gets
+them as `<LockedPages>`. `-continueds` prints the scenes' (CONTINUED)
+and CONTINUED: where a scene breaks over pages:
+
+```bash
+lexington -i script.fountain -to pdf -lockpages -continueds -o pages.txt
+lexington -i script.fountain -to pdf -lock pages.txt -o script.pdf
+```
+
 The title page stays, scene numbers are the script's own, and the
 sections above a scene that is kept stay as headings. In a settings
 file, a set's `notecolors` rule switches colors on, its `Style` the

@@ -30,6 +30,12 @@ type PDFWriter struct {
 	// changed pages' headers, those pages only or on coloured paper
 	// (lex.Revisions; revisions.go).
 	Revisions *lex.Revisions
+	// Lock, when set, keeps the locked pages: their breaks and numbers,
+	// A-pages for what grew (pages.go). The paper and the CONTINUEDs are
+	// then the lock's.
+	Lock *lex.PageLock
+	// Continueds prints the scenes' CONTINUEDs (pages.go).
+	Continueds bool
 }
 
 // pages are the paper sizes by name, as gofpdf names them.
@@ -57,6 +63,11 @@ type Tree struct {
 	measure      *measuring // where the scenes are printed, when measured (Measure)
 	revs         *lex.Revisions
 	revising     *revising // the revised rows as printed (revs set)
+	lock         *lex.PageLock
+	found        []bool // the lock's pages found in the text
+	continueds   bool
+	paper        string
+	pages        *pageState
 }
 
 // span is where printed text is on a page: from its top to its foot.
@@ -169,6 +180,7 @@ func (t Tree) sceneNumber(f rules.Format, number string) {
 	y := t.PDF.GetY()
 	pageWidth, pageHeight := t.PDF.GetPageSize()
 	if _, margin := t.PDF.GetAutoPageBreak(); y+0.165 > pageHeight-margin {
+		t.breaking(false, 0)
 		t.PDF.AddPage() // the heading goes there: its numbers with it
 		y = t.PDF.GetY()
 	}
@@ -198,10 +210,21 @@ func (t *Tree) Render() {
 		t.revising = &revising{}
 	}
 	t.pagination = t.Rules.Pagination()
+	s := t.state()
+	s.bodyFirst = 1
+	if hasTitlePage(t.F) {
+		s.bodyFirst = 0 // (the page after it)
+	}
+	if t.continueds { // the last line of a page kept for its (CONTINUED)
+		auto, margin := t.PDF.GetAutoPageBreak()
+		t.PDF.SetAutoPageBreak(auto, margin+lineHeight)
+	}
+	t.PDF.SetHeaderFuncMode(t.pageBegins, false)
 	t.PDF.SetAcceptPageBreakFunc(func() bool {
 		auto, _ := t.PDF.GetAutoPageBreak()
 		if auto {
 			t.printing.cut(t.PDF)
+			t.breaking(!s.heading, t.PDF.GetY())
 		}
 		t.restoreFoot()
 		return auto
@@ -212,38 +235,57 @@ func (t *Tree) Render() {
 		style = sch.Style
 	}
 	rows := t.F
-	blocks, colorOf := lex.ColorBlocks(rows), map[int]string{} // the color block of each row, its color
+	info, colorOf := rowInfos(rows), map[int]string{} // the color block of each row, its color
+	if t.lock != nil {
+		rows, info, t.found = t.lockRows(rows, info)
+	}
 	for _, row := range rows {
 		if row.Block != 0 && colorOf[row.Block] == "" {
 			colorOf[row.Block] = row.Color
 		}
 	}
+	var dualInfo rowInfo
 	for i := 0; i < len(rows); i++ {
 		if block == "" && !t.DualDialogue {
-			rows, blocks = t.paginate(rows, blocks, i)
+			rows, info = t.paginate(rows, info, i)
 		}
 		row := rows[i]
+		if row.Type == lex.TypeEmpty && block == "" && !t.DualDialogue && (t.atTop() || t.room() < 1) {
+			continue // no blank line at a page's top (nor one that would make a page)
+		}
 		// the block of a color (a scene, a section whole) the row is in;
 		// none on the blank lines between two blocks
-		t.bar.id, t.bar.color, t.bar.block = blocks[i], "", colorOf[blocks[i]]
+		t.bar.id, t.bar.color, t.bar.block = info[i].block, "", colorOf[info[i].block]
 		if style == lex.ColorLine || (sch.Block && style == lex.ColorBackground) {
 			t.bar.color = t.bar.block
 		}
 		if row.Type == lex.TypeScene || row.Type == lex.TypeSection {
 			t.bar.block = row.Color
 		}
+		s.heading = row.Type == lex.TypeScene || row.Type == lex.TypeSection
 		switch row.Type {
 		case typeBreak:
-			t.PDF.AddPage()
+			t.newPage(true)
+			continue
+		case typeLock:
+			if !t.atTop() {
+				t.newPage(!headingAhead(rows, i+1))
+			}
+			s.locks[t.PDF.PageNo()] = row.Contents
 			continue
 		case typeMore:
 			f := t.Rules.Get(lex.TypeSpeaker)
 			f.Prefix, f.Postfix = "", ""
-			t.extendBar(t.prf(f, row.Contents, false))
+			spans := t.prf(f, row.Contents, false)
+			t.extendBar(spans)
+			t.textPrinted(row, info[i], spans)
 			continue
+		case lex.TypeDualOpen:
+			dualInfo = info[i]
 		}
 		if row.Type == lex.TypeNewPage {
 			t.measure.forcedBreak(t.PDF)
+			t.breaking(block == "" && !headingAhead(rows, i+1), 0)
 		}
 		if row.Type == lex.TypeDualClose && !t.DualDialogue {
 			continue
@@ -252,11 +294,16 @@ func (t *Tree) Render() {
 			blank := t.dualEndsBlank()
 			spans := t.printed(func() { t.handleSpecialCases(row, &block, &lastsection) })
 			t.revised(lex.Line{Type: lex.TypeDialog, Revision: t.revising.dual}, withoutLastLine(spans, blank))
+			t.textPrinted(lex.Line{Type: lex.TypeDualOpen, Revision: t.revising.dual}, dualInfo, spans)
 			t.revising.dual = ""
 			t.extendBar(spans)
 			continue
 		}
+		wasTitle := block != ""
 		if t.handleSpecialCases(row, &block, &lastsection) {
+			if row.Type == lex.TypeNewPage && wasTitle {
+				s.bodyFirst = t.PDF.PageNo()
+			}
 			continue
 		}
 
@@ -291,6 +338,7 @@ func (t *Tree) Render() {
 			t.PDF.SetTextColor(0, 0, 0)
 			if block == "" {
 				t.revised(row, spans)
+				t.bodyPrinted(row, info[i], spans)
 			}
 			continue
 		}
@@ -311,6 +359,7 @@ func (t *Tree) Render() {
 		t.restoreFoot()
 		if block == "" {
 			t.revised(row, spans)
+			t.bodyPrinted(row, info[i], spans)
 			t.extendBar(spans)
 		}
 	}
@@ -323,6 +372,7 @@ func (t *Tree) Render() {
 		t.extendBar(spans)
 	}
 	t.closeBar()
+	t.drawPages()
 	t.drawRevisions()
 }
 
@@ -517,11 +567,6 @@ func (t *Tree) handleSpecialCases(row lex.Line, block *string, lastsection *int)
 		}
 		*block = ""
 		t.PDF.AddPage()
-		t.PDF.SetHeaderFuncMode(func() {
-			t.PDF.SetFont("CourierPrime", "", 12)
-			t.PDF.SetXY(-1, 0.5)
-			t.PDF.Cell(0, 0, strconv.Itoa(t.PDF.PageNo()-1)+".")
-		}, true)
 		return true
 	case "titlepage":
 		*block = internal.ElementTitle
@@ -799,7 +844,14 @@ func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 // tree is the screenplay ready to render on the writer's paper, with its
 // rules.
 func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
-	size, ok := pages[strings.ToLower(p.Page)]
+	paper, continueds := p.Page, p.Continueds
+	if p.Lock != nil { // a lock is a layout: its paper, its CONTINUEDs
+		continueds = p.Lock.Continueds
+		if p.Lock.Paper != "" {
+			paper = p.Lock.Paper
+		}
+	}
+	size, ok := pages[strings.ToLower(paper)]
 	if !ok {
 		size = "Letter"
 	}
@@ -831,6 +883,9 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 	pdf.SetXY(1, 1)
 	return &Tree{
 		revs:         p.Revisions,
+		lock:         p.Lock,
+		continueds:   continueds,
+		paper:        strings.ToLower(size),
 		PDF:          pdf,
 		Rules:        elements,
 		F:            lex.Printable(screenplay, elements.Hides), // notes are not printed

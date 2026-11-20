@@ -216,29 +216,7 @@ func deletedAt(c FdxContent, d *FdxDeletedText) map[*FdxParagraph][]string {
 	if d == nil || len(d.Locations) == 0 {
 		return out
 	}
-	type place struct {
-		p          *FdxParagraph
-		start, end int
-	}
-	var places []place
-	off := 0
-	var walk func(ps []FdxParagraph)
-	walk = func(ps []FdxParagraph) {
-		for i := range ps {
-			p := &ps[i]
-			if p.DualDialogue != nil {
-				walk(p.DualDialogue.Paragraphs)
-				continue
-			}
-			start := off
-			for _, t := range p.Texts {
-				off += len([]rune(t.Content))
-			}
-			places = append(places, place{p, start, off})
-			off++ // the paragraph's end
-		}
-	}
-	walk(c.Paragraphs)
+	places := places(&c)
 	for _, l := range d.Locations {
 		at, err := strconv.Atoi(l.Offset)
 		if err != nil {

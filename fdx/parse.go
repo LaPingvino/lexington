@@ -25,6 +25,8 @@ type FdxFile struct {
 	// ElementSettings are the look of each paragraph type: Final Draft
 	// writes them for every type it has (in capitals, hidden, ...).
 	ElementSettings []FdxElementSettings `xml:"ElementSettings,omitempty"`
+	// LockedPages are the locked pages (pages.go).
+	LockedPages *FdxLockedPages `xml:"LockedPages,omitempty"`
 	// Revisions are the revision sets, DeletedText where their deletions
 	// were (revisions.go).
 	Revisions   *FdxRevisions   `xml:"Revisions,omitempty"`
@@ -224,10 +226,18 @@ func ParseWithError(file io.Reader) (lex.Screenplay, error) {
 
 // parse is ParseWithError, with the file's revisions (ParseRevisions).
 func parse(file io.Reader) (lex.Screenplay, fileRevisions, error) {
+	s, revs, _, _, err := parseFile(file)
+	return s, revs, err
+}
+
+// parseFile is parse with the file as read and the row each paragraph
+// of its body became (a dual dialogue's: the dialogue's first).
+func parseFile(file io.Reader) (lex.Screenplay, fileRevisions, *FdxFile, map[*FdxParagraph]int, error) {
 	var fdxFile FdxFile
 	if err := xml.NewDecoder(file).Decode(&fdxFile); err != nil {
-		return nil, fileRevisions{}, fmt.Errorf("reading FDX: %w", err)
+		return nil, fileRevisions{}, nil, nil, fmt.Errorf("reading FDX: %w", err)
 	}
+	rowOf := map[*FdxParagraph]int{}
 	r := reader{types: typeSettings(fdxFile.ElementSettings), revs: newFileRevisions(fdxFile.Revisions)}
 	r.deleted = deletedAt(fdxFile.Content, fdxFile.DeletedText)
 
@@ -245,6 +255,9 @@ func parse(file io.Reader) (lex.Screenplay, fileRevisions, error) {
 			}
 			if notes := r.notes(p.ScriptNotes); notes != "" {
 				out = append(out, lex.Line{Type: lex.TypeNote, Contents: notes})
+			}
+			for j := range p.DualDialogue.Paragraphs {
+				rowOf[&p.DualDialogue.Paragraphs[j]] = len(out)
 			}
 			out = append(out, r.parseDualDialogue(p.DualDialogue.Paragraphs)...)
 			continue
@@ -270,6 +283,7 @@ func parse(file io.Reader) (lex.Screenplay, fileRevisions, error) {
 				line.Contents += " [[" + c + "]]"
 			}
 		}
+		rowOf[&fdxFile.Content.Paragraphs[i]] = len(out)
 		out = append(out, line)
 		if line.Type == lex.TypeScene && p.SceneProperties != nil && p.SceneProperties.Summary != nil {
 			for _, sp := range p.SceneProperties.Summary.Paragraphs {
@@ -280,7 +294,7 @@ func parse(file io.Reader) (lex.Screenplay, fileRevisions, error) {
 		}
 	}
 
-	return out, r.revs, nil
+	return out, r.revs, &fdxFile, rowOf, nil
 }
 
 // settings are what Lexington reads of a paragraph type's ElementSettings.

@@ -73,8 +73,7 @@ func (t *Tree) room() int {
 
 // atTop reports whether nothing is printed on the page yet.
 func (t *Tree) atTop() bool {
-	_, top, _, _ := t.PDF.GetMargins()
-	return t.PDF.GetY() <= top+1e-6
+	return t.PDF.GetY() <= t.textTop()+1e-6
 }
 
 // format is the format a row prints in and its text as printed (with the
@@ -116,6 +115,13 @@ func (t *Tree) height(a, text string) int {
 // lines is how many lines text wraps to in a format and a width, as
 // MultiCell wraps it (styled text, which Write wraps, as near as does).
 func (t *Tree) lines(f rules.Format, text string, width float64) int {
+	_, starts := t.wrap(f, text, width)
+	return len(starts)
+}
+
+// wrap is the text as it is wrapped (styles taken out) and the byte each
+// of its lines starts at, as lines counts them.
+func (t *Tree) wrap(f rules.Format, text string, width float64) (string, []int) {
 	fontName, spans := t.Fonts.spans(f.Font, strings.TrimRight(text, "\r\n"))
 	var b strings.Builder
 	for _, s := range spans {
@@ -123,7 +129,7 @@ func (t *Tree) lines(f rules.Format, text string, width float64) int {
 	}
 	s := strings.TrimRight(strings.ReplaceAll(b.String(), "\r", ""), "\n")
 	if strings.TrimSpace(s) == "" {
-		return 1
+		return s, []int{0}
 	}
 	pdf := t.PDF
 	pdf.SetFont(fontName, f.Style, f.Size)
@@ -139,14 +145,19 @@ func (t *Tree) lines(f rules.Format, text string, width float64) int {
 			chars = append(chars, string(r))
 		}
 	}
+	offsets := make([]int, len(chars)+1) // the byte each char starts at
+	for k, c := range chars {
+		offsets[k+1] = offsets[k] + len(c)
+	}
 	widths := map[string]int{}
-	n, sep, i, j, l := 1, -1, 0, 0, 0
+	starts := []int{0}
+	sep, i, j, l := -1, 0, 0, 0
 	for i < len(chars) {
 		c := chars[i]
 		if c == "\n" {
 			i++
 			sep, j, l = -1, i, 0
-			n++
+			starts = append(starts, offsets[i])
 			continue
 		}
 		if c == " " {
@@ -167,12 +178,12 @@ func (t *Tree) lines(f rules.Format, text string, width float64) int {
 				i = sep + 1
 			}
 			sep, j, l = -1, i, 0
-			n++
+			starts = append(starts, offsets[i])
 			continue
 		}
 		i++
 	}
-	return n
+	return s, starts
 }
 
 // dualHeight is how many lines the dual dialogue that starts at row i
@@ -272,7 +283,7 @@ func speechOf(rows lex.Screenplay, j int) string {
 // speech broken over pages. It returns the rows as they are now.
 //
 //nolint:gocyclo,funlen // one walk down the page, case by case
-func (t *Tree) paginate(rows lex.Screenplay, blocks []int, i int) (lex.Screenplay, []int) {
+func (t *Tree) paginate(rows lex.Screenplay, blocks []rowInfo, i int) (lex.Screenplay, []rowInfo) {
 	p := t.pagination
 	if p == (rules.Pagination{}) {
 		return rows, blocks
@@ -307,7 +318,7 @@ walk:
 			continue
 		}
 		switch r.Type {
-		case lex.TypeNewPage, lex.TypeTitlePage, typeBreak:
+		case lex.TypeNewPage, lex.TypeTitlePage, typeBreak, typeLock:
 			return rows, blocks // it all fits before the page ends
 		case lex.TypeDualOpen:
 			h, end := t.dualHeight(rows, j)
@@ -428,35 +439,34 @@ func (t *Tree) speechBreaks(r lex.Line, j, used, room int, speech string, overfl
 }
 
 // breakPage breaks the page at b, in row b.row, the row about to print.
-func (t *Tree) breakPage(rows lex.Screenplay, blocks []int, b breakAt) (lex.Screenplay, []int) {
+func (t *Tree) breakPage(rows lex.Screenplay, blocks []rowInfo, b breakAt) (lex.Screenplay, []rowInfo) {
 	i := b.row
 	r := rows[i]
 	switch {
 	case b.more:
 		// (MORE), the page's end, the name again, the rest of the speech
-		name := strings.TrimSpace(lex.StripNotes(b.speaker))
-		if !strings.HasSuffix(strings.ToUpper(name), contdText[1:]) {
-			name += contdText
-		}
+		name := contd(b.speaker)
 		mark := func(typ, text string) lex.Line {
 			return lex.Line{Type: typ, Contents: text, Color: r.Color, Block: r.Block}
 		}
 		add := []lex.Line{mark(typeMore, moreText), mark(typeBreak, ""), mark(lex.TypeSpeaker, name)}
-		after := rows[i:] // the rest: the row on
-		if b.at > 0 {     // the row split after a sentence
+		gen := rowInfo{block: blocks[i].block, origin: -1}
+		addInfo := []rowInfo{gen, gen, gen}
+		after, afterInfo := rows[i:], blocks[i:] // the rest: the row on
+		if b.at > 0 {                            // the row split after a sentence
 			first, rest := r, r
 			first.Contents, rest.Contents = strings.TrimSpace(r.Contents[:b.at]), strings.TrimSpace(r.Contents[b.at:])
 			add = append([]lex.Line{first}, add...)
+			addInfo = append([]rowInfo{blocks[i]}, addInfo...)
 			after = append(lex.Screenplay{rest}, rows[i+1:]...)
+			restInfo := blocks[i]
+			restInfo.word += len(strings.Fields(r.Contents[:b.at]))
+			afterInfo = append([]rowInfo{restInfo}, blocks[i+1:]...)
 		}
 		out := append(append(slices.Clone(rows[:i]), add...), after...)
-		bl := slices.Clone(blocks[:i])
-		for range len(out) - len(rows) {
-			bl = append(bl, blocks[i])
-		}
-		return out, append(bl, blocks[i:]...)
+		return out, append(append(slices.Clone(blocks[:i]), addInfo...), afterInfo...)
 	case b.lines == 0:
-		t.PDF.AddPage()
+		t.newPage(!headingAhead(rows, i))
 	default:
 		// the row breaks after b.lines lines: the page's foot raised to
 		// there until it breaks (Render's page break function puts it back)
