@@ -195,7 +195,11 @@ func (t Tree) sceneNumber(f rules.Format, number string) {
 	t.PDF.SetMargins(0, top, 0)
 	t.PDF.SetXY(f.Left-0.85, y)
 	t.PDF.CellFormat(0.6, 0.165, number, "", 0, "R", false, 0, "")
-	t.PDF.SetXY(pageWidth-f.Right+0.25, y)
+	// the right one a quarter inch past the text, a long label (a run
+	// printed as one, I-1-A–I-1-C) moved in to end a quarter inch
+	// before the page's edge
+	x := min(pageWidth-f.Right+0.25, pageWidth-0.25-t.PDF.GetStringWidth(number))
+	t.PDF.SetXY(x, y)
 	t.PDF.CellFormat(0.6, 0.165, number, "", 0, "L", false, 0, "")
 	t.PDF.SetXY(0, y)
 }

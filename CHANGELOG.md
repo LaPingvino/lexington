@@ -44,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   measures back to each heading); FDX, Fountain and lex keep one heading
   a number.
 
+### Fixes
+- A long scene number in the PDF's right margin (a run printed as one,
+  `I-1-A–I-1-C`) is moved in to end a quarter inch before the page's
+  edge instead of running off it.
+
 ## [1.13.0] - 2026-11-20
 
 ### New Features

@@ -108,3 +108,26 @@ func TestMergeOmittedRuns(t *testing.T) {
 		}
 	}
 }
+
+// A run of fixed labels prints as one too, joined by an en dash.
+func TestMergeOmittedFixedLabels(t *testing.T) {
+	if _, err := exec.LookPath("pdftotext"); err != nil {
+		t.Skip("no pdftotext")
+	}
+	dir := t.TempDir()
+	text := "INT. A - DAY #I-1#\n\nHi.\n\n.OMITTED #I-1-A#\n\n.OMITTED #I-1-C#\n\nEXT. B - DAY #I-2#\n\nBye.\n"
+	in, out := filepath.Join(dir, "s.fountain"), filepath.Join(dir, "s.pdf")
+	if err := os.WriteFile(in, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := Main(context.Background(), []string{"-i", in, "-o", out, "-mergeomitted", "-config", filepath.Join(dir, "none.toml")}); got != 0 {
+		t.Fatalf("exit %d", got)
+	}
+	b, err := exec.Command("pdftotext", "-layout", out, "-").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !regexp.MustCompile(`(?m)^\s*I-1-A–I-1-C\s+OMITTED\s+I-1-A–I-1-C\s*$`).Match(b) {
+		t.Errorf("no I-1-A–I-1-C OMITTED line in\n%s", b)
+	}
+}

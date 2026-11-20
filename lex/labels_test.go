@@ -209,3 +209,13 @@ func TestSplitOmittedRanges(t *testing.T) {
 		t.Errorf("sources %d %d", out[1].Source, out[6].Source)
 	}
 }
+
+// A locked page names its scene by any label, and reads it back.
+func TestLockedPageLabels(t *testing.T) {
+	for _, scene := range []string{"I-1-A", "1.", "1.1", "12-14", "I-1-A–I-1-C", "PROLOGUE", "10aA"} {
+		lp := LockedPage{Label: "3", Scene: scene, Nth: 2, Before: "so he left", Words: "she opens"}
+		if got, ok := ParseLockedPage(lp.String()); !ok || got != lp {
+			t.Errorf("%q: %+v %v", scene, got, ok)
+		}
+	}
+}
