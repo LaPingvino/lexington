@@ -138,18 +138,19 @@ func formatKeys(needs bool) string {
 
 // Options are a conversion's settings: what the command line's flags set.
 type Options struct {
-	ConfigFile   string // the settings file (lexington.toml)
-	FormatDir    string // folders of format (preset) files of one's own, as a path list, or ""
-	SceneIn      string // the scene heading language of the input ("en")
-	SceneOut     string // and of the output
-	Elements     string // the element settings: a preset or a set from the settings file
-	Page         string // paper for pdf, docx and odt: letter, a4, a5; "" for the preset's
-	Input        string // file name, "-" for standard input
-	Output       string // file name, "-" for standard output
-	From         string // input format: fountain, lex, fdx, pdf
-	To           string // output format (Formats)
-	TemplatePath string // a template for HTML, FDX or LaTeX
-	Lint         bool   // run the Fountain linter
+	ConfigFile   string          // the settings file (lexington.toml)
+	Conf         *rules.TOMLConf // if not nil, the settings themselves, in place of ConfigFile's
+	FormatDir    string          // folders of format (preset) files of one's own, as a path list, or ""
+	SceneIn      string          // the scene heading language of the input ("en")
+	SceneOut     string          // and of the output
+	Elements     string          // the element settings: a preset or a set from the settings file
+	Page         string          // paper for pdf, docx and odt: letter, a4, a5; "" for the preset's
+	Input        string          // file name, "-" for standard input
+	Output       string          // file name, "-" for standard output
+	From         string          // input format: fountain, lex, fdx, pdf
+	To           string          // output format (Formats)
+	TemplatePath string          // a template for HTML, FDX or LaTeX
+	Lint         bool            // run the Fountain linter
 	// Colors prints scene headings and sections in their notes' colors
 	// (rules.Set.WithColors).
 	Colors bool
@@ -772,7 +773,12 @@ func lint(screenplay lex.Screenplay) bool {
 // confOf is the settings with the format files' element sets, which take
 // the place of the presets of their names.
 func confOf(o Options) rules.TOMLConf {
-	conf := rules.GetConf(o.ConfigFile)
+	var conf rules.TOMLConf
+	if o.Conf != nil {
+		conf = o.Conf.WithPresets()
+	} else {
+		conf = rules.GetConf(o.ConfigFile)
+	}
 	if o.FormatDir != "" {
 		list, err := rules.PresetsIn(filepath.SplitList(o.FormatDir)...)
 		if err != nil {

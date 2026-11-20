@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-11-20
+
+### Added
+- **A configuration that travels with a script** (`rules/layer.go`).
+  `TOMLConf.Part(langs, sets)` is what a script in those languages, laid
+  out with those element sets, uses (their scene words and matchups, the
+  sets, the `Standard`); `Encode` writes a configuration as TOML (empty
+  parts left out), `Decode` reads one from bytes; `With(layer)` lays one
+  over another (the layer's languages, sets and Standard win; neither is
+  changed). `Items`, `Of`, `Same` and `Renamed` list a configuration's
+  languages, sets and Standard, take one out, compare and rename it: a
+  program can copy a script's settings into its own without knowing the
+  fields. A field added to `TOMLConf` travels by being added there.
+- **`rules.WithPresetFiles(list, files)`:** format files given as text by
+  key, as in a folder of `PresetsIn` (a Base among them resolved first).
+- **`TOMLConf.WithPresets()`:** the presets among a configuration's
+  element sets, the configuration itself unchanged.
+- **`cli.Options.Conf`:** the settings themselves, in place of
+  `ConfigFile`'s (a program with its own, layered ones).
+
+### Changed
+- `TOMLConf`'s fields are `omitempty` in TOML: an encoded part has only
+  what it holds.
+
 ## [1.16.0] - 2026-11-20
 
 ### Added

@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"embed"
 	"fmt"
+	"maps"
 	"path"
 	"path/filepath"
 	"slices"
@@ -132,6 +133,58 @@ func PresetsIn(dirs ...string) ([]Preset, error) {
 	return list, first
 }
 
+// WithPresetFiles is list with format files given as their text, by key
+// (as name.toml in a folder of PresetsIn): a file with a preset's key
+// takes its place, the others are added; a Base among the files is
+// resolved first. A file that cannot be read is left out, and the first
+// such error returned.
+func WithPresetFiles(list []Preset, files map[string][]byte) ([]Preset, error) {
+	list = slices.Clone(list)
+	parsed := map[string]presetFile{}
+	var first error
+	for _, key := range slices.Sorted(maps.Keys(files)) {
+		var p presetFile
+		if _, err := toml.Decode(string(files[key]), &p); err != nil {
+			if first == nil {
+				first = fmt.Errorf("preset %s: %w", key, err)
+			}
+			continue
+		}
+		parsed[key] = p
+	}
+	done := map[string]bool{}
+	var add func(key string, depth int)
+	add = func(key string, depth int) {
+		if done[key] {
+			return
+		}
+		done[key] = true
+		p := parsed[key]
+		if _, ok := parsed[p.Base]; ok && p.Base != key && depth < len(parsed) {
+			add(p.Base, depth+1)
+		}
+		find := func(k string) (Preset, bool) {
+			for _, q := range list {
+				if q.Key == k {
+					return q, true
+				}
+			}
+			return Preset{}, false
+		}
+		np := p.preset(key, find)
+		np.Name = cmp.Or(np.Name, key)
+		if i := slices.IndexFunc(list, func(q Preset) bool { return q.Key == key }); i >= 0 {
+			list[i] = np
+		} else {
+			list = append(list, np)
+		}
+	}
+	for _, key := range slices.Sorted(maps.Keys(parsed)) {
+		add(key, 0)
+	}
+	return list, first
+}
+
 // PresetSource is a preset's file, to start one's own from.
 func PresetSource(key string) (string, bool) {
 	if key == ScreenplayPreset {
@@ -155,6 +208,13 @@ func GetPreset(key string) (Preset, bool) {
 		}
 	}
 	return Preset{}, false
+}
+
+// WithPresets is c with the presets among its element sets, where it
+// does not have a set of that name itself; c is not changed.
+func (c TOMLConf) WithPresets() TOMLConf {
+	c.Elements = maps.Clone(c.Elements)
+	return c.withPresets()
 }
 
 // withPresets adds the presets to a configuration's element sets, where

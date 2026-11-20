@@ -10,16 +10,16 @@ import (
 )
 
 type TOMLConf struct {
-	Elements map[string]Set      `toml:"Elements"`
-	Scenes   map[string][]string `toml:"Scenes"`
+	Elements map[string]Set      `toml:"Elements,omitempty"`
+	Scenes   map[string][]string `toml:"Scenes,omitempty"`
 	// Matchups are, by language, its scene heading words in the order of
 	// Roles (inside, outside, ...), "" for one it has none for: what
 	// translates to what (matchups.go).
-	Matchups map[string][]string `toml:"Matchups"`
+	Matchups map[string][]string `toml:"Matchups,omitempty"`
 	// Standard is the language whose Scenes are standard Fountain's: what
 	// other Fountain apps read. A script in another language is a dialect
 	// of Fountain, written for them with fountain.Force.
-	Standard string `toml:"Standard"`
+	Standard string `toml:"Standard,omitempty"`
 	metadata toml.MetaData
 }
 
