@@ -26,8 +26,11 @@ import (
 // puts them in a shooting script (johnaugust.com/?p=3959: "most
 // screenwriting software will offer to put CONTINUED: at the top left of
 // the next page, next to the scene number"; the bottom's "(CONTINUED)" as
-// in Charles Deemer's and SimplyScripts' format guides; the "(2)" is
-// Final Draft's way as remembered, not seen in a source). They take
+// SimplyScripts' format sample has it under a page's (MORE), and a school's
+// format page, seen as a search snippet only: "(CONTINUED)" at the bottom
+// of the page where the break occurs; Charles Deemer's guide has the top's
+// (and an old "CONTINUED 2:"); the "(2)" is Final Draft's way as
+// remembered, not seen in a source). They take
 // lines: a page keeps its last line free for the bottom one always (so
 // that a page's text does not depend on what follows it), and a page that
 // continues a scene starts two lines down.
@@ -241,8 +244,8 @@ func (t *Tree) lockRows(rows lex.Screenplay, info []rowInfo) (lex.Screenplay, []
 		if w > 0 && !(flows(row.Type) || row.Type == lex.TypeDialog) {
 			w = 0
 		}
-		speech := ""
-		if row.Type == lex.TypeDialog || row.Type == lex.TypeParen {
+		speech := "" // a speech broken with (MORE), as the pagination breaks one
+		if (row.Type == lex.TypeDialog || row.Type == lex.TypeParen) && t.pagination.More {
 			speech = speechOf(rows, r)
 		}
 		at0 := 0

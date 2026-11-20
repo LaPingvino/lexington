@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   words, not offsets: the scene it starts in, its first words and the words
   before it (`lex.PageAnchor(s)`, `lex.LocatePages`), so edits elsewhere,
   in any program, do not move it; it is found by its first words, else
-  after the words before it (its first line edited), else near.
+  after the words before it (its first line edited), else it is gone.
   `pdf.PDFWriter.LockPages` locks the pages as printed (with a lock:
   locked again, its A-pages kept, Final Draft's Lock A Pages);
   `pdf.PDFWriter.Pages` lists the pages with their numbers and revisions.

@@ -23,9 +23,12 @@ import (
 // A locked page is anchored by words, not by an offset, so that an edit
 // anywhere else (in any other program too) does not move it: the scene it
 // starts in (by its number), its first words, and the last words of the
-// page before it. A page is found again by its first words in its scene;
-// else right after the words before it (its first line was edited); else
-// near (three of its first words in a row). A page found by none is gone.
+// page before it. A page is found again by its first words in its scene
+// (where the words before it are before them, if they repeat); else right
+// after the words before it (its first line was edited). A page found by
+// neither is gone (both sides of its break rewritten): no nearer matching,
+// as a script's few words in a row ("he looks at her") repeat too often to
+// tell a page by.
 
 // PageLock is a script's locked pages.
 type PageLock struct {
@@ -255,7 +258,7 @@ func (p pageStream) region(lp LockedPage, prev int) (from, to int, ok bool) {
 }
 
 // locate is where a page starts, -1 if not found, with how sure: 2 its
-// words and those before it, 1 its words, 0 near.
+// words and those before it, 1 its words, 0 the words before it only.
 func (p pageStream) locate(lp LockedPage, prev int) (int, int) {
 	from, to, ok := p.region(lp, prev)
 	if !ok { // its scene is gone: its words wherever they are now
@@ -322,17 +325,6 @@ func (p pageStream) locate(lp LockedPage, prev int) (int, int) {
 		for k := lo; k+len(before) < to; k++ { // (its start in its scene)
 			if p.at(k, before) && k+len(before) > prev {
 				return k + len(before), 0
-			}
-		}
-	}
-	// near: three of its first words in a row
-	for j := 0; j+3 <= len(words); j++ {
-		for k := from; k+3 <= to; k++ {
-			if p.at(k, words[j:j+3]) {
-				if at := k - j; at > prev && at >= from {
-					return at, 0
-				}
-				return k, 0
 			}
 		}
 	}

@@ -36,6 +36,13 @@ func lockedSource(scenes int) string {
 		fmt.Fprintf(&b, "ANNA\nS%[1]dD1 This is room %[1]d. I remember the light %[1]da. I remember the smell of the "+
 			"floor %[1]db. We used to run here. Mother would call us %[1]dc from the kitchen. Nobody came. "+
 			"Then the rain %[1]dd started and we stayed.\n\n", k)
+		if k%3 == 0 { // a long speech, a line at a time, to break within
+			fmt.Fprintf(&b, "BEN\n")
+			for n := 1; n <= 14; n++ {
+				fmt.Fprintf(&b, "S%dL%d Ben says something %d%d of his own, on and on, word %d%d after word.\n", k, n, k, n, k, n)
+			}
+			b.WriteString("\n")
+		}
 		if k%4 == 0 {
 			fmt.Fprintf(&b, "BEN\nS%dD2 Shall we go?\n\nANNA ^\nS%dD3 Not yet.\n\n", k, k)
 		}
@@ -84,12 +91,8 @@ func startOf(t *testing.T, src string, lock lex.PageLock, i int) string {
 	if !strings.HasPrefix(r.Contents, "S") || !tokenForm.MatchString(strings.ToLower(tok)) {
 		t.Fatalf("page %d starts in %q", i, r.Contents)
 	}
-	if r.Type == lex.TypeDialog { // its cue with it
-		for k := at.Row - 1; k >= 0; k-- {
-			if rows[k].Type == lex.TypeSpeaker {
-				return rows[k].Contents + "\n" + tok
-			}
-		}
+	if r.Type == lex.TypeDialog && rows[at.Row-1].Type == lex.TypeSpeaker { // its cue with it
+		return rows[at.Row-1].Contents + "\n" + tok
 	}
 	return tok
 }
@@ -258,7 +261,7 @@ func TestLockedPageShrinks(t *testing.T) {
 	}
 }
 
-var tokenForm = regexp.MustCompile(`^s\d+[pd]\d+$`)
+var tokenForm = regexp.MustCompile(`^s\d+[pdl]\d+$`)
 
 // TestLockedFirstLineEdited: a locked page whose first line changes is
 // found by the words before it.
@@ -270,7 +273,7 @@ func TestLockedFirstLineEdited(t *testing.T) {
 		lp := lock.Pages[p]
 		head := strings.Index(src, "INT. ROOM "+lp.Scene+" - DAY")
 		f := strings.Fields(lp.Words)
-		if lp.Nth > 0 || head < 0 || len(f) < 3 || tokenForm.MatchString(f[0]) || f[0] == "int" {
+		if lp.Nth > 0 || head < 0 || len(f) < 3 || f[0] == "int" {
 			continue
 		}
 		// its first three words, written otherwise
@@ -324,10 +327,22 @@ func TestLockedRevisedPages(t *testing.T) {
 	lock := lockOf(t, parseLocked(src), false)
 	i := 4
 	base := lock.Pages[i-1].Label
-	grown := insertBefore(t, src, startOf(t, src, lock, 4), "NEWLINE "+extras("XA", 2))
+	// a paragraph in the middle of the page grows the page
+	rows := lex.Printable(parseLocked(src), nil)
+	pos := lex.LocatePages(rows, &lock)
+	mid := ""
+	for k := pos[i-1].Row + 1; k < pos[i].Row && mid == ""; k++ {
+		if f := strings.Fields(rows[k].Contents); rows[k].Type == lex.TypeAction && len(f) > 0 && tokenForm.MatchString(strings.ToLower(f[0])) {
+			mid = f[0]
+		}
+	}
+	if mid == "" {
+		t.Fatalf("no paragraph within page %s", base)
+	}
+	grown := insertBefore(t, src, mid+" ", "NEWLINE "+extras("XA", 2))
 	s := parseLocked(grown)
 	for k := range s {
-		if strings.HasPrefix(s[k].Contents, "NEWLINE") {
+		if strings.HasPrefix(s[k].Contents, "NEWLINE") || strings.HasPrefix(s[k].Contents, "XA") {
 			s[k].Revision = "Blue"
 		}
 	}
@@ -362,12 +377,21 @@ func TestLockedRevisedPages(t *testing.T) {
 	}
 	// a deletion at the foot of a page marks the next page's first line:
 	// the short page is revised too
-	j := 6
 	s = parseLocked(src)
-	pos := lex.LocatePages(lex.Printable(s, nil), &lock)
-	first := lex.Printable(s, nil)[pos[j].Row]
+	printable := lex.Printable(s, nil)
+	pos = lex.LocatePages(printable, &lock)
+	j := 0
+	for k := 1; k < len(pos) && j == 0; k++ {
+		if pos[k].Word == 0 && printable[pos[k].Row].Type != lex.TypeDialog {
+			j = k
+		}
+	}
+	if j < 1 {
+		t.Fatal("no page starting with a paragraph")
+	}
+	first := printable[pos[j].Row]
 	for k := range s {
-		if s[k].Contents == first.Contents && pos[j].Word == 0 {
+		if s[k].Contents == first.Contents {
 			s[k].Revision = "Blue"
 		}
 	}
@@ -377,7 +401,7 @@ func TestLockedRevisedPages(t *testing.T) {
 			revised = append(revised, p.Label)
 		}
 	}
-	if pos[j].Word == 0 && !slices.Equal(revised, []string{lock.Pages[j-1].Label, lock.Pages[j].Label}) {
+	if !slices.Equal(revised, []string{lock.Pages[j-1].Label, lock.Pages[j].Label}) {
 		t.Fatalf("a deletion's pages %v", revised)
 	}
 }
