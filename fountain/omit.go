@@ -88,30 +88,31 @@ func IsOmitted(scene string) bool {
 	return ok
 }
 
-// SplitOmitted is a merged run of omitted scenes (".OMITTED #12-14#",
-// the run's blocks under it: "/* Omitted 12 …", "/* Omitted 13 …") one
-// OMITTED heading a block again, each as OmitScene writes it, so that
-// each can be restored; false if the heading is no range or has no
-// block under it. The blocks are read up to the first line that is none;
-// from there on the text stays as it was.
+// SplitOmitted rewrites the merged OMITTED heading Lexington v1.13.0
+// wrote for a run of omitted scenes (".OMITTED #12-14#", the run's
+// blocks under it: "/* Omitted 12 …", "/* Omitted 13 …"; lex.OmittedRange)
+// as the text keeps them now: one OMITTED heading a block, each as
+// OmitScene writes it, so that each can be restored. The run's first and
+// last number get a heading even where their block is gone (a number
+// between them without a block is lost: nothing says what it was).
+// false if the heading is no such run. The blocks are read up to the
+// first line that is none; from there on the text stays as it was.
 func SplitOmitted(merged string) (string, bool) {
 	heading, rest, _ := strings.Cut(merged, "\n")
-	n, ok := lex.OmittedNumber(heading)
+	firstNo, lastNo, ok := lex.OmittedRange(heading)
 	if !ok {
 		return merged, false
 	}
-	if _, _, isRange := lex.NumberRange(n); !isRange {
-		return merged, false
-	}
+	head := func(n string) string { return "." + lex.Omitted + " #" + n + "#" }
 	var out strings.Builder
-	blocks := 0
+	var nums []string
 	for {
 		lead := len(rest) - len(strings.TrimLeft(rest, "\n"))
 		first, inside, _ := strings.Cut(rest[lead:], "\n")
 		f := strings.TrimSpace(first)
 		num, isBlock := strings.CutPrefix(f, omittedOpen+" ")
 		end := -1
-		if isBlock && num != "" {
+		if isBlock && num != "" && num != "scene" {
 			end = closingLine(inside)
 		}
 		if end < 0 {
@@ -119,15 +120,21 @@ func SplitOmitted(merged string) (string, bool) {
 		}
 		after := inside[end:]
 		after = after[strings.Index(after, "*/")+2:]
-		if blocks > 0 {
+		if len(nums) == 0 && num != firstNo {
+			out.WriteString(head(firstNo) + "\n\n")
+		}
+		if len(nums) > 0 {
 			out.WriteString(rest[:lead])
 		}
-		out.WriteString("." + lex.Omitted + " #" + num + "#\n\n" + first + "\n" + inside[:end] + "*/")
-		blocks++
+		out.WriteString(head(num) + "\n\n" + first + "\n" + inside[:end] + "*/")
+		nums = append(nums, num)
 		rest = after
 	}
-	if blocks == 0 {
-		return merged, false
+	switch {
+	case len(nums) == 0:
+		out.WriteString(head(firstNo) + "\n\n" + head(lastNo) + "\n")
+	case nums[len(nums)-1] != lastNo:
+		out.WriteString("\n\n" + head(lastNo))
 	}
 	return out.String() + rest, true
 }

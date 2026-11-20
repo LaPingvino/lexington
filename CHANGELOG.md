@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-11-20
+
+### Changed
+- **Scene numbers are labels.** The numbering engine (`NumberScenes`,
+  `NumberLabels`, `SceneNumberBetween`, `Renumber`) reads one scheme: a
+  whole number (no leading zero) with letters after it (10A, 10AA, 10aA)
+  or capitals before it (A11, AB11, A11B); `lex.InNumberScheme` tells.
+  Every other label (Fountain's I-1-A, 1-A, 1., 1.1, PROLOGUE, 01, 10a,
+  Storyboarder's 3-x2k9q) is fixed: never renumbered (by any strategy,
+  OMITTED or not), never given to another scene, never a neighbour (the
+  nearest scheme numbers are).
+- **No ranges as scene numbers.** v1.13.0's `.OMITTED #12-14#` form is
+  superseded: the text keeps one `.OMITTED #n#` a scene. `OmittedMerge`,
+  `Renumbered.Merged`, `NumberRange` and `CompareNumbers` are gone.
+  An old merged heading (`lex.OmittedRange`: an OMITTED heading, both
+  ends scheme numbers) is read as its scenes when Fountain is parsed
+  (`lex.SplitOmittedRanges`: one heading a `/* Omitted n` block, its first
+  and last kept), and `fountain.SplitOmitted` rewrites it in the text;
+  until then locked numbering never gives a number inside it.
+- **Number lists by the script's order** (`lex.ParseNumberSet(s, labels)`):
+  a range X-Y is every scene from the one labelled X to the one labelled Y
+  as they appear, whatever their labels ("4-2" where 4 comes first);
+  Y before X is an error, not swapped. Ranges join with "–", "..", "…"
+  or a spaced " - "; a lone "-" only where both sides are labels of the
+  script and it splits one way. `Has` takes a scene index; `Unknown`,
+  `Errors` and `Read` say how the list was read. `RenumberOptions.Reserved`
+  are labels only.
+
+### New Features
+- **OMITTED runs printed as one** (`lex.MergeOmittedRuns`,
+  `pdf.PDFWriter.MergeOmitted`, `cli.Options.MergeOmitted`,
+  `-mergeomitted`): consecutive OMITTED headings print as one
+  `12-14 OMITTED 12-14` line in PDF, HTML, DOCX, ODT and the rest, its
+  pages, lock and measures alike (`lex.OmittedRunSizes` gives the
+  measures back to each heading); FDX, Fountain and lex keep one heading
+  a number.
+
 ## [1.13.0] - 2026-11-20
 
 ### New Features

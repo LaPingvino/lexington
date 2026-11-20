@@ -247,22 +247,36 @@ lexington -character EDWARD -sides cue -cuewords 5 -i bigfish.fdx -o edward.pdf
 lexington -number 10A -i script.fountain -o script.pdf
 ```
 
+A scene number is a label: Fountain allows `#110A#`, `#1-A#`, `#I-1-A#`,
+`#1.#`. The numbering (`-number`, `lex.NumberScenes`, `lex.Renumber`) reads
+one scheme, the one it writes: a whole number with letters after it (10A,
+10AA, 10aA) or capitals before it (A11, AB11). Every other label is fixed:
+never renumbered, never given to another scene, and no neighbour (a new
+scene between 10, PROLOGUE and 11 is 10A).
+
 An omitted scene is written `.OMITTED #12#`, the scene itself in a
 boneyard under it (`fountain.OmitScene`, `fountain.RestoreScene`); it
-prints as OMITTED with its number, in FDX too. A run of them can be one
-heading, `.OMITTED #12-14#` (a dash is allowed in a Fountain scene
-number), printed `12-14 OMITTED 12-14` (a shooting-script form, not checked
-against a source); a locked script never gives a
-number in the range again, and `fountain.SplitOmitted` makes it one
-heading a scene again.
+prints as OMITTED with its number, in FDX too. The text keeps one OMITTED
+heading a scene; `-mergeomitted` prints a run of them as one,
+`12-14 OMITTED 12-14` (PDF, HTML, DOCX, ODT and the rest; FDX keeps one
+heading a number):
+
+```bash
+lexington -mergeomitted -i script.fountain -o script.pdf
+```
+
+Version 1.13.0 wrote such a run into the text as `.OMITTED #12-14#`; it is
+read as its scenes (one heading for each `/* Omitted 13` block under it),
+and `fountain.SplitOmitted` rewrites it so.
 
 `lex.Renumber` numbers the scenes again by a strategy: which scenes get a
 new number (the others are pinned), A-scenes folded into whole numbers or
-kept lettered, OMITTED ones dropped, kept or merged into ranges, numbers
-reserved (sent out, never given again: a reserved range its whole numbers,
-its letters left free). Free scenes count on from the
-pinned one before them and take a letter where a pinned number forces it.
-`lex.ParseNumberSet` reads a typed list, `5, 12A, 20-24`.
+kept lettered, OMITTED ones dropped or kept, labels reserved (sent out,
+never given again). Free scenes count on from the pinned one before them
+and take a letter where a pinned number forces it.
+`lex.ParseNumberSet` reads a typed list against the script's labels,
+`5, 12A, 20-24`: a range runs from scene to scene in the script's order,
+whatever their labels.
 
 Production reports come out as CSV: `-report scenes` (number, heading
 with INT/EXT, location and time apart, page, length in eighths of a page,

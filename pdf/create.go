@@ -36,6 +36,10 @@ type PDFWriter struct {
 	Lock *lex.PageLock
 	// Continueds prints the scenes' CONTINUEDs (pages.go).
 	Continueds bool
+	// MergeOmitted prints a run of OMITTED headings as one, "12-14
+	// OMITTED 12-14" (lex.MergeOmittedRuns): in the PDF and in its pages,
+	// lock and measures alike.
+	MergeOmitted bool
 }
 
 // pages are the paper sizes by name, as gofpdf names them.
@@ -844,6 +848,9 @@ func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 // tree is the screenplay ready to render on the writer's paper, with its
 // rules.
 func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
+	if p.MergeOmitted {
+		screenplay = lex.MergeOmittedRuns(screenplay)
+	}
 	paper, continueds := p.Page, p.Continueds
 	if p.Lock != nil { // a lock is a layout: its paper, its CONTINUEDs
 		continueds = p.Lock.Continueds

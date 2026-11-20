@@ -1,6 +1,7 @@
 package fountain
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -78,12 +79,37 @@ func TestSplitOmitted(t *testing.T) {
 	if n, _ := lex.OmittedNumber(".OMITTED #12-13#"); n != "12-13" {
 		t.Errorf("range number %q", n)
 	}
-	for _, s := range []string{a, ".OMITTED #12-13#\n\nNo block.\n", "INT. A - DAY #12-13#\n"} {
+	for _, s := range []string{a, "INT. A - DAY #12-13#\n", ".OMITTED #I-1-A#\n\n/* Omitted I\n*/\n", ".OMITTED #14-12#\n"} {
 		if _, ok := SplitOmitted(s); ok {
 			t.Errorf("split %q", s)
 		}
 	}
+	// the ends kept where their block is gone; the middle has no name
+	if got, ok := SplitOmitted(".OMITTED #12-14#\n\nNo block.\n"); !ok || got != ".OMITTED #12#\n\n.OMITTED #14#\n\nNo block.\n" {
+		t.Errorf("no blocks: %v %q", ok, got)
+	}
+	if got, _ := SplitOmitted(".OMITTED #12-14#\n\n" + strings.TrimPrefix(b, ".OMITTED #13#\n\n")); got != ".OMITTED #12#\n\n"+strings.TrimSuffix(b, "\n\n")+"\n\n.OMITTED #14#\n\n" {
+		t.Errorf("one block:\n%q", got)
+	}
 	if _, ok := RestoreScene(merged); ok {
 		t.Error("restored a merged run whole")
+	}
+}
+
+// A v1.13.0 file's merged run reads as its scenes: Lexington prints and
+// writes each number (and merges them again only when asked).
+func TestOldOmittedRunParses(t *testing.T) {
+	a, _ := OmitScene("INT. A - DAY #12#\n\nOne.\n\n")
+	b, _ := OmitScene("INT. B - DAY #13#\n\nTwo.\n\n")
+	text := "INT. X - DAY #11#\n\nHi.\n\n.OMITTED #12-13#\n\n" + strings.TrimPrefix(a, ".OMITTED #12#\n\n") +
+		strings.TrimPrefix(b, ".OMITTED #13#\n\n") + "EXT. C - DAY #14#\n"
+	var scenes []string
+	for _, l := range ParseLines([]string{"INT", "EXT"}, strings.NewReader(text)) {
+		if l.Type == lex.TypeScene {
+			scenes = append(scenes, fmt.Sprintf("%s@%d", l.Contents, l.Source))
+		}
+	}
+	if got := strings.Join(scenes, "|"); got != "INT. X - DAY #11#@1|OMITTED #12#@5|OMITTED #13#@13|EXT. C - DAY #14#@19" {
+		t.Errorf("scenes %q", got)
 	}
 }

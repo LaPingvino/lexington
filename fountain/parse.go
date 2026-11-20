@@ -169,7 +169,9 @@ func parse(scenes []string, file io.Reader, lines bool) (out lex.Screenplay) {
 		}
 		stamped = len(state.out)
 	}
-	defer func() { stamp(); out = state.out }()
+	// an OMITTED run Lexington v1.13.0 wrote as one heading (#12-14#) is
+	// read as its scenes (lex.SplitOmittedRanges)
+	defer func() { stamp(); out = lex.SplitOmittedRanges(state.out) }()
 	for i := 0; i < len(toParse); i++ {
 		stamp()
 		from = min(i, len(toParse)-2)

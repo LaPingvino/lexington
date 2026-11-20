@@ -54,25 +54,15 @@ func TestLockedNumbersFDX(t *testing.T) {
 	}
 }
 
-// A merged run of OMITTED scenes is one heading with the range as its
-// Number, and reads back so (Final Draft's own handling of a range is not
-// verified).
-func TestOmittedRangeFDX(t *testing.T) {
+// v1.13.0's merged OMITTED heading is read as its scenes (here no blocks
+// under it: its first and last), and FDX writes one heading a number.
+func TestOldOmittedRangeFDX(t *testing.T) {
 	src := "INT. ONE - DAY #11#\n\nHi.\n\n.OMITTED #12-14#\n\nEXT. TWO - DAY #15#\n\nBye.\n"
 	var b bytes.Buffer
 	if err := (&FDXWriter{}).Write(&b, fountain.Parse([]string{"INT", "EXT"}, strings.NewReader(src))); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(b.String(), `<Paragraph Type="Scene Heading" Number="12-14">`) {
-		t.Errorf("no range in\n%s", b.String())
-	}
-	var heads []string
-	for _, l := range Parse(strings.NewReader(b.String())) {
-		if l.Type == lex.TypeScene {
-			heads = append(heads, l.Contents)
-		}
-	}
-	if strings.Join(heads, "|") != "INT. ONE - DAY #11#|OMITTED #12-14#|EXT. TWO - DAY #15#" {
-		t.Errorf("read back %q", heads)
+	if strings.Contains(b.String(), `Number="12-14"`) || !strings.Contains(b.String(), `Number="12"`) || !strings.Contains(b.String(), `Number="14"`) {
+		t.Errorf("not one heading a number:\n%s", b.String())
 	}
 }

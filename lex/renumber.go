@@ -15,6 +15,12 @@ import "strconv"
 // one (SceneNumberBetween): so pinning a number never moves it, and the
 // numbers stay in order around it.
 
+// A scene whose label is out of the scheme (labels.go: I-1-A, PROLOGUE)
+// is pinned whatever the options say, OMITTED or not: never renumbered,
+// never dropped, its label never given to another scene, and no
+// neighbour (the free scenes after it count on from the scheme number
+// before it).
+
 // OmittedMode is what Renumber does with a free OMITTED scene.
 type OmittedMode int
 
@@ -22,11 +28,10 @@ const (
 	// OmittedDrop takes its number away: the heading goes and the gap
 	// closes (the scene's text is the caller's to keep).
 	OmittedDrop OmittedMode = iota
-	// OmittedKeep keeps it with its number: the gap stays.
+	// OmittedKeep keeps it with its number: the gap stays. A run of
+	// OMITTED scenes prints as one heading only when asked
+	// (MergeOmittedRuns); the text keeps one a scene.
 	OmittedKeep
-	// OmittedMerge keeps it, and runs of OMITTED headings one after the
-	// other become one, "OMITTED #12-14#" (NumberRange).
-	OmittedMerge
 )
 
 // RenumberScene is a scene as Renumber sees it: its number ("" none) and
@@ -46,10 +51,8 @@ type RenumberOptions struct {
 	// whole number (unless a pinned number forces a letter).
 	KeepLetters bool
 	Omitted     OmittedMode
-	// Reserved are numbers never given, though no scene has them now.
-	// A range ("20-24") reserves its ends and the whole numbers between;
-	// the letters between stay free (a new scene between 20 and 21 can
-	// be 20A), unlike an OMITTED range, which takes them all.
+	// Reserved are labels never given, though no scene has them now
+	// (a number that went out with an issue).
 	Reserved []string
 	Style    NumberStyle
 }
@@ -59,20 +62,20 @@ type Renumbered struct {
 	Number string // its number now ("" none)
 	// Drop: an OMITTED scene whose heading goes, with its number.
 	Drop bool
-	// Merged: an OMITTED heading taken into the run's first (which has
-	// the run's range as Number); this heading goes.
-	Merged bool
 }
 
 // Renumber numbers the scenes as o says: one result a scene, in order.
-// A pinned scene, and an OMITTED one kept, has its number unchanged; no
-// number is given that a pinned scene or o.Reserved has, nor twice.
+// A pinned scene, a fixed label's and an OMITTED one kept, has its
+// number unchanged; no number is given that a pinned scene or o.Reserved
+// has, nor twice.
 func Renumber(scenes []RenumberScene, o RenumberOptions) []Renumbered {
 	out := make([]Renumbered, len(scenes))
 	free := make([]bool, len(scenes))
+	read := make([]sceneNo, len(scenes))
 	for i, sc := range scenes {
+		read[i] = readNo(sc.Number, sc.Omitted)
 		out[i].Number = sc.Number
-		free[i] = o.Free == nil || (i < len(o.Free) && o.Free[i])
+		free[i] = (o.Free == nil || (i < len(o.Free) && o.Free[i])) && !read[i].fixed()
 		if sc.Omitted && free[i] {
 			if o.Omitted == OmittedDrop {
 				out[i] = Renumbered{Drop: true}
@@ -80,21 +83,18 @@ func Renumber(scenes []RenumberScene, o RenumberOptions) []Renumbered {
 			free[i] = false // kept: pinned
 		}
 	}
-	if o.Omitted == OmittedMerge {
-		mergeOmitted(scenes, o.Free, out)
-	}
 	taken := newTaken()
 	for _, r := range o.Reserved {
-		reserve(taken, r)
+		taken.add(r)
 	}
 	var seq []int // the scenes that stay, in order
 	for i := range scenes {
-		if out[i].Drop || out[i].Merged {
+		if out[i].Drop {
 			continue
 		}
 		seq = append(seq, i)
-		if !free[i] && out[i].Number != "" {
-			taken.add(out[i].Number)
+		if !free[i] {
+			taken.addNo(read[i])
 		}
 	}
 	lettered := func(n string) bool {
@@ -105,8 +105,8 @@ func Renumber(scenes []RenumberScene, o RenumberOptions) []Renumbered {
 	nextPinned := func(k int) *label {
 		for j := k + 1; j < len(seq); j++ {
 			if i := seq[j]; !free[i] {
-				if l, ok := anchorLabel(out[i].Number, false); ok {
-					return &l
+				if l := read[i].next(); l != nil {
+					return l
 				}
 			}
 		}
@@ -117,8 +117,8 @@ func Renumber(scenes []RenumberScene, o RenumberOptions) []Renumbered {
 	var prev *label
 	for k, i := range seq {
 		if !free[i] {
-			if l, ok := anchorLabel(out[i].Number, true); ok {
-				prev = &l
+			if l := read[i].prev(); l != nil {
+				prev = l
 			}
 			continue
 		}
@@ -156,91 +156,24 @@ func Renumber(scenes []RenumberScene, o RenumberOptions) []Renumbered {
 		}
 	}
 	// then the A-scenes, between their neighbours as numbered now
+	now := func(j int) sceneNo {
+		i := seq[j]
+		if free[i] {
+			return readNo(out[i].Number, false)
+		}
+		return read[i]
+	}
 	for _, k := range later {
 		var p, n *label
 		for j := k - 1; j >= 0 && p == nil; j-- {
-			if l, ok := anchorLabel(out[seq[j]].Number, true); ok {
-				p = &l
-			}
+			p = now(j).prev()
 		}
 		for j := k + 1; j < len(seq) && n == nil; j++ {
-			if l, ok := anchorLabel(out[seq[j]].Number, false); ok {
-				n = &l
-			}
+			n = now(j).next()
 		}
 		num := nextNumber(p, n, taken, o.Style)
 		out[seq[k]].Number = num
 		taken.add(num)
 	}
 	return out
-}
-
-// mergeOmitted makes each run of free OMITTED scenes one after the other
-// one range: the first gets it, the rest are Merged. A run whose numbers
-// are not all numbers in order is left as it is, and so is one whose
-// range would hold another scene's number.
-func mergeOmitted(scenes []RenumberScene, free []bool, out []Renumbered) {
-	isFree := func(i int) bool { return free == nil || (i < len(free) && free[i]) }
-	for i := 0; i < len(scenes); {
-		j := i
-		for j < len(scenes) && scenes[j].Omitted && isFree(j) {
-			j++
-		}
-		if j-i < 2 {
-			i = max(j, i+1)
-			continue
-		}
-		var first, last *label
-		ok := true
-		for k := i; k < j && ok; k++ {
-			lo, okLo := anchorLabel(scenes[k].Number, false)
-			hi, okHi := anchorLabel(scenes[k].Number, true)
-			ok = okLo && okHi && (last == nil || compareLabels(*last, lo) < 0)
-			if first == nil {
-				first = &lo
-			}
-			last = &hi
-		}
-		if ok {
-			r := first.String() + "-" + last.String()
-			span := newTaken()
-			span.add(r)
-			for k, sc := range scenes { // a number in use elsewhere inside it: no merge
-				if k >= i && k < j || sc.Number == "" {
-					continue
-				}
-				for _, end := range []bool{false, true} {
-					if l, isNum := anchorLabel(sc.Number, end); isNum && span.has(l.String()) {
-						ok = false
-					}
-				}
-			}
-			if ok {
-				out[i].Number = r
-				for k := i + 1; k < j; k++ {
-					out[k] = Renumbered{Merged: true}
-				}
-			}
-		}
-		i = j
-	}
-}
-
-// reserve takes r: a number, or a range's ends and whole numbers.
-func reserve(taken *takenSet, r string) {
-	lo, hi, ok := NumberRange(r)
-	if !ok {
-		taken.add(r)
-		return
-	}
-	a, _ := parseLabel(lo)
-	b, _ := parseLabel(hi)
-	taken.add(lo)
-	taken.add(hi)
-	for n := a.num; n <= b.num; n++ {
-		l, _ := parseLabel(strconv.Itoa(n))
-		if compareLabels(a, l) <= 0 && compareLabels(l, b) <= 0 {
-			taken.add(l.digits)
-		}
-	}
 }

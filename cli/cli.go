@@ -212,6 +212,11 @@ type Options struct {
 	// SceneLengths writes each scene's page and length in eighths in the
 	// FDX's SceneProperties, as the PDF prints it with these settings.
 	SceneLengths bool
+	// MergeOmitted prints a run of OMITTED headings as one, "12-14
+	// OMITTED 12-14" (lex.MergeOmittedRuns), in every format but FDX,
+	// Fountain and lex, which keep one heading a number; the pages, the
+	// lock and the measures are the merged PDF's.
+	MergeOmitted bool
 }
 
 // colorScheme is the color scheme o asks for, on the settings' own.
@@ -340,6 +345,8 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 		"Write the lock of the script's pages as the PDF prints them (with -lock: locked again, A-pages kept), instead of the script.")
 	fs.BoolVar(&o.Continueds, "continueds", false,
 		"Print the scenes' CONTINUEDs in the PDF: (CONTINUED) at the foot of a page a scene goes on from, CONTINUED: at the top of the next.")
+	fs.BoolVar(&o.MergeOmitted, "mergeomitted", false,
+		"Print a run of OMITTED scenes as one heading, 12-14 OMITTED (not in FDX, Fountain or lex, which keep one a number).")
 	fs.BoolVar(&o.SceneLengths, "lengths", false,
 		"Write each scene's page and length in eighths into the FDX (SceneProperties Page and Length), measured as -e and -page print them.")
 	fs.StringVar(&o.TemplatePath, "template", "",
@@ -473,6 +480,9 @@ func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.S
 		return fmt.Errorf("%s is not a supported output type; choose from %s, or with other programs %s",
 			o.To, formatKeys(false), formatKeys(true))
 	}
+	if mergesOmitted(o) {
+		screenplay = lex.MergeOmittedRuns(screenplay)
+	}
 	if f.Needs != "" {
 		return external(o, conf, screenplay)
 	}
@@ -531,7 +541,7 @@ func makeReport(o Options, conf rules.TOMLConf, screenplay lex.Screenplay, ro re
 			}
 			elements = elements.WithPagination(p)
 		}
-		ro.PDF = &pdf.PDFWriter{Elements: elements, Page: pageFor(o)}
+		ro.PDF = &pdf.PDFWriter{Elements: elements, Page: pageFor(o), MergeOmitted: o.MergeOmitted}
 	}
 	if ro.Scenes == nil {
 		ro.Scenes = conf.Scenes[o.SceneIn]
@@ -565,7 +575,7 @@ func lockWriter(o Options, conf rules.TOMLConf) (*pdf.PDFWriter, error) {
 		elements = elements.WithPagination(p)
 	}
 	return &pdf.PDFWriter{Elements: elements, Page: pageFor(o), Lock: o.Lock, Continueds: o.Continueds,
-		Revisions: o.Revisions}, nil
+		Revisions: o.Revisions, MergeOmitted: o.MergeOmitted}, nil
 }
 
 // LockPages are the pages of a screenplay as the PDF prints it with o's
@@ -797,7 +807,7 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 			return nil, errors.New("cannot write PDF to standard output: give an output file (-o output.pdf)")
 		}
 		return &pdf.PDFWriter{OutputFile: o.Output, Elements: elements, Page: pageFor(o), Revisions: o.Revisions,
-			Lock: o.Lock, Continueds: o.Continueds}, nil
+			Lock: o.Lock, Continueds: o.Continueds, MergeOmitted: o.MergeOmitted}, nil
 	case internal.FormatLex:
 		return &lex.LexWriter{}, nil
 	case internal.FormatFountain:
@@ -815,6 +825,17 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 		return &office.ODTWriter{Elements: elements, Page: pageFor(o)}, nil
 	}
 	return nil, fmt.Errorf("%s is not a supported output type", o.To)
+}
+
+// mergesOmitted tells whether o prints OMITTED runs as one in its
+// format: not FDX, Fountain or lex, which keep one heading a number, nor
+// the PDF, whose writer merges them itself (in its measures too).
+func mergesOmitted(o Options) bool {
+	switch o.To {
+	case internal.FormatFDX, internal.FormatFountain, internal.FormatLex, internal.FormatPDF:
+		return false
+	}
+	return o.MergeOmitted
 }
 
 // external makes the formats that need another program.

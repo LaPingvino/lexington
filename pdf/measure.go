@@ -29,7 +29,9 @@ type SceneLength struct {
 
 // Measure lays a screenplay out as Write prints it (the same rules and
 // paper; nothing is written) and measures its scenes: one SceneLength for
-// each scene heading of the screenplay, in order, OMITTED ones too.
+// each scene heading of the screenplay, in order, OMITTED ones too (a
+// run printed as one, MergeOmitted: each on the run's page, the first
+// with its length).
 func (p *PDFWriter) Measure(screenplay lex.Screenplay) []SceneLength {
 	t := p.tree(screenplay)
 	t.measure = &measuring{}
@@ -58,6 +60,19 @@ func (p *PDFWriter) Measure(screenplay lex.Screenplay) []SceneLength {
 		}
 		length = max(0, length)
 		out[i] = SceneLength{Page: start.page - offset, Pages: length, Eighths: lex.EighthsOf(length)}
+	}
+	if p.MergeOmitted { // a run printed as one: each of its headings on its page
+		var each []SceneLength
+		for i, n := range lex.OmittedRunSizes(screenplay) {
+			for k := 0; k < n && i < len(out); k++ {
+				l := out[i]
+				if k > 0 {
+					l.Pages, l.Eighths = 0, 0
+				}
+				each = append(each, l)
+			}
+		}
+		out = each
 	}
 	return out
 }

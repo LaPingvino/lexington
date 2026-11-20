@@ -67,6 +67,10 @@ type NumberOptions struct {
 	// number before them: 1, 2, 3, or 8 after a scene numbered 7.
 	Locked bool
 	Style  NumberStyle
+	// Omitted tells, for NumberLabels, which of the numbers are OMITTED
+	// headings' (nil: none), where a v1.13.0 run (12-14) is read as its
+	// numbers (OmittedRange). NumberScenes reads it off the headings.
+	Omitted []bool
 }
 
 // NumberScenes gives each scene heading without a number (Fountain's
@@ -76,10 +80,13 @@ func NumberScenes(s Screenplay, o NumberOptions) Screenplay {
 	copy(out, s)
 	var at []int
 	var nums []string
+	o.Omitted = nil
 	for i, l := range out {
 		if l.Type == TypeScene {
 			_, n := SceneNumber(l.Contents)
+			_, omitted := OmittedNumber(l.Contents)
 			at, nums = append(at, i), append(nums, n)
+			o.Omitted = append(o.Omitted, omitted)
 		}
 	}
 	for k, n := range NumberLabels(nums, o) {
@@ -91,15 +98,21 @@ func NumberScenes(s Screenplay, o NumberOptions) Screenplay {
 }
 
 // NumberLabels are the scenes' numbers, in the script's order, with the
-// empty ones ("": no number yet) filled in as NumberScenes does.
+// empty ones ("": no number yet) filled in as NumberScenes does. The
+// numbers there are stay; a fixed label (one out of the scheme: I-1-A,
+// PROLOGUE) is never given again and never a neighbour (labels.go).
 func NumberLabels(nums []string, o NumberOptions) []string {
 	out := append([]string(nil), nums...)
+	read := make([]sceneNo, len(nums))
+	for i, n := range nums {
+		read[i] = readNo(n, i < len(o.Omitted) && o.Omitted[i])
+	}
 	if !o.Locked {
 		n := 0
 		for i, num := range out {
 			if num != "" {
-				if v, err := strconv.Atoi(num); err == nil {
-					n = v
+				if l, ok := parseLabel(num); ok && l.lead == "" && l.tail == "" {
+					n = l.num
 				}
 				continue
 			}
@@ -110,13 +123,9 @@ func NumberLabels(nums []string, o NumberOptions) []string {
 	}
 	taken := newTaken()
 	anchors := false
-	for _, num := range nums {
-		if num != "" {
-			taken.add(num)
-			if _, ok := anchorLabel(num, true); ok {
-				anchors = true
-			}
-		}
+	for _, r := range read {
+		taken.addNo(r)
+		anchors = anchors || r.scheme
 	}
 	if !anchors { // nothing to keep: count
 		n := 0
@@ -137,50 +146,21 @@ func NumberLabels(nums []string, o NumberOptions) []string {
 		}
 		var prev, next *label
 		for j := i - 1; j >= 0 && prev == nil; j-- {
-			if l, ok := anchorLabel(out[j], true); ok {
+			if out[j] != nums[j] { // given here: in the scheme
+				l, _ := parseLabel(out[j])
 				prev = &l
+			} else {
+				prev = read[j].prev()
 			}
 		}
 		for j := i + 1; j < len(nums) && next == nil; j++ {
-			if l, ok := anchorLabel(nums[j], false); ok {
-				next = &l
-			}
+			next = read[j].next()
 		}
 		out[i] = nextNumber(prev, next, taken, o.Style)
 		taken.add(out[i])
 	}
 	return out
 }
-
-// label is a scene number taken apart: A11B is lead "A", number 11,
-// tail "B".
-type label struct {
-	lead, tail string
-	num        int
-	digits     string
-}
-
-var labelForm = regexp.MustCompile(`^([A-Za-z]*)([0-9]+)([A-Za-z]*)$`)
-
-func parseLabel(s string) (label, bool) {
-	m := labelForm.FindStringSubmatch(s)
-	if m == nil {
-		return label{}, false
-	}
-	n, err := strconv.Atoi(m[2])
-	if err != nil {
-		return label{}, false
-	}
-	return label{lead: m[1], num: n, digits: m[2], tail: m[3]}, true
-}
-
-// String is the label as written: A11B.
-func (l label) String() string { return l.lead + l.digits + l.tail }
-
-// head is the label up to its tail's letters (A11 of A11B); rest from
-// its number on (11B).
-func (l label) head() string { return l.lead + l.digits }
-func (l label) rest() string { return l.digits + l.tail }
 
 // nextNumber is the number for a new scene between the numbered scenes
 // prev and next (nil: none that side), not one of taken: see NumberStyle.
@@ -231,25 +211,17 @@ func between(prev, next *label, taken *takenSet, style NumberStyle) string {
 
 // SceneNumberBetween is the number for a new scene between the scenes
 // numbered prev and next in a locked script ("": none that side), not
-// one of taken: see NumberStyle. A number that is not digits with
-// letters (Storyboarder's 3-x2k9q) counts as none; a range (12-14, an
-// OMITTED run's) is its last number before, its first after, and takes
-// every number in it (NumberRange).
+// one of taken: see NumberStyle. A label out of the scheme (I-1-A,
+// Storyboarder's 3-x2k9q) counts as none: the caller passes the nearest
+// scheme numbers as neighbours.
 func SceneNumberBetween(prev, next string, taken map[string]bool, style NumberStyle) string {
-	var p, n *label
-	if l, ok := anchorLabel(prev, true); ok {
-		p = &l
-	}
-	if l, ok := anchorLabel(next, false); ok {
-		n = &l
-	}
 	t := newTaken()
 	for k, v := range taken {
 		if v {
 			t.add(k)
 		}
 	}
-	return nextNumber(p, n, t, style)
+	return nextNumber(readNo(prev, false).prev(), readNo(next, false).next(), t, style)
 }
 
 // rank orders the letters: the small a, Wikipedia's filler for "before
