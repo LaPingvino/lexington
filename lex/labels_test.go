@@ -25,11 +25,11 @@ func TestInNumberScheme(t *testing.T) {
 func TestNumberLabelsFixed(t *testing.T) {
 	after := NumberOptions{Locked: true}
 	for _, c := range []struct{ in, want string }{
-		{"10 I-1-A  11", "10 I-1-A 10A 11"},          // the scheme numbers around it
-		{"10  PROLOGUE 11", "10 10A PROLOGUE 11"},    // after it: the next scheme number
-		{"I-1-A  1.1 ", "I-1-A 1 1.1 2"},             // no scheme number at all: count
-		{"1-A  1. #1-A#", "1-A 1 1. #1-A#"},          // Fountain's examples
-		{"12-14  15", "12-14 A15 15"},                // a dashed label on a scene is a label
+		{"10 I-1-A  11", "10 I-1-A 10A 11"},       // the scheme numbers around it
+		{"10  PROLOGUE 11", "10 10A PROLOGUE 11"}, // after it: the next scheme number
+		{"I-1-A  1.1 ", "I-1-A 1 1.1 2"},          // no scheme number at all: count
+		{"1-A  1. #1-A#", "1-A 1 1. #1-A#"},       // Fountain's examples
+		{"12-14  15", "12-14 A15 15"},             // a dashed label on a scene is a label
 		{"10 1.1 ", "10 1.1 11"},
 	} {
 		if got := labels(c.in, after); got != c.want {
@@ -100,7 +100,7 @@ func TestNumberSet(t *testing.T) {
 		{"2-4", "", "2-4: scene 4 comes before scene 2 in the script", ""},
 		{"I-1-A – PROLOGUE", "I-1-A PROLOGUE", "", ""},
 		{"I-1-A-PROLOGUE", "I-1-A PROLOGUE", "", ""}, // splits only one way
-		{"10-11", "10-11", "", ""},                    // a label wins over a split
+		{"10-11", "10-11", "", ""},                   // a label wins over a split
 		{"10 .. 12A", "10 10-11 11 12A", "", ""},
 		{"1, 12A; 99", "1 12A", "", "99"},
 		{"1-99", "", "1-99: no scene 99", ""},

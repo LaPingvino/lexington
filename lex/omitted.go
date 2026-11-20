@@ -13,9 +13,10 @@ import "strings"
 // ".OMITTED #12-14#"; SplitOmittedRanges (Fountain's reader runs it) reads
 // that back as its scenes.
 
-// omittedRunJoin joins a run's first and last label: a dash, or an en
+// OmittedRunLabel is how a run of OMITTED scenes prints its numbers,
+// its first and last label joined: a dash, or an en
 // dash when a label has a dash of its own (I-1-A – I-1-C).
-func omittedRunJoin(first, last string) string {
+func OmittedRunLabel(first, last string) string {
 	if strings.Contains(first, "-") || strings.Contains(last, "-") {
 		return first + "–" + last
 	}
@@ -88,7 +89,7 @@ func mergeOmittedRuns(s Screenplay) (Screenplay, []int) {
 		}
 		last, _ := omittedNo(s[heads[len(heads)-1]])
 		merged := l
-		merged.Contents = WithSceneNumber(l.Contents, omittedRunJoin(first, last))
+		merged.Contents = WithSceneNumber(l.Contents, OmittedRunLabel(first, last))
 		for _, h := range heads {
 			if merged.Revision == "" {
 				merged.Revision = s[h].Revision

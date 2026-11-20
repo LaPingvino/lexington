@@ -236,4 +236,3 @@ func TestRenumberProperties(t *testing.T) {
 		}
 	}
 }
-
