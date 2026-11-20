@@ -28,6 +28,7 @@ import (
 	"github.com/LaPingvino/lexington/office"
 	"github.com/LaPingvino/lexington/pdf"
 	"github.com/LaPingvino/lexington/pdfin"
+	"github.com/LaPingvino/lexington/report"
 	"github.com/LaPingvino/lexington/rules"
 	"github.com/LaPingvino/lexington/writer"
 )
@@ -185,6 +186,9 @@ type Options struct {
 	// "count" on from the last whole number, "10A" or "A11" as a locked
 	// script does (lex.NumberStyle); "" leaves them.
 	Number string
+	// Report writes a production report as CSV (report.Kinds: scenes,
+	// locations, characters, cast) instead of the script.
+	Report string
 }
 
 // colorScheme is the color scheme o asks for, on the settings' own.
@@ -305,6 +309,8 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 	fs.IntVar(&o.CueWords, "cuewords", 0, "With -sides cue: the cue's last words only, this many (0: the whole speech before).")
 	fs.StringVar(&o.Number, "number", "",
 		"Number the scenes without a number: count (on from the last whole number), or as a locked script, keeping the numbers there are: 10A (a new scene after 10 is 10A, the default style) or A11 (before 11).")
+	fs.StringVar(&o.Report, "report", "",
+		"Write a report as CSV instead of the script: scenes (number, heading, page, length in eighths, who speaks), locations, characters or cast (numbered by size). Pages are measured as -e and -page print them.")
 	fs.StringVar(&o.TemplatePath, "template", "",
 		"Path to a custom template file (e.g., for HTML, FDX, or LaTeX output).")
 	fs.BoolVar(&help, "help", false, "Show this help message")
@@ -390,6 +396,9 @@ func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.S
 	if err != nil {
 		return err
 	}
+	if o.Report != "" {
+		return writeReport(o, conf, screenplay)
+	}
 	if o.Colors || o.ColorStyle != "" || o.ColorScope != "" || o.ColorTint || o.ColorPatterns {
 		// the element settings with colors on, for every writer
 		set := conf.Elements[o.Elements]
@@ -439,6 +448,61 @@ func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.S
 		if warning := PDFWarning(screenplay); warning != "" {
 			log.Print(warning)
 		}
+	}
+	return closeOut()
+}
+
+// Report makes the screenplay's production reports, its pages measured as
+// o's PDF would print them (its element settings, paper and pagination:
+// ro.PDF, when not given), its headings read in o.SceneIn's language
+// (ro.Scenes, when not given).
+func Report(screenplay lex.Screenplay, o Options, ro report.Options) (report.Report, error) {
+	setDefaults(&o)
+	conf := confOf(o)
+	if _, ok := conf.Elements[o.Elements]; !ok {
+		return report.Report{}, fmt.Errorf("no element settings %q in %s or the presets", o.Elements, o.ConfigFile)
+	}
+	screenplay, err := filter(o, screenplay)
+	if err != nil {
+		return report.Report{}, err
+	}
+	return makeReport(o, conf, screenplay, ro)
+}
+
+func makeReport(o Options, conf rules.TOMLConf, screenplay lex.Screenplay, ro report.Options) (report.Report, error) {
+	if ro.PDF == nil {
+		elements := conf.Elements[o.Elements]
+		if o.Pagination != "" {
+			p, err := rules.ParsePagination(o.Pagination)
+			if err != nil {
+				return report.Report{}, err
+			}
+			elements = elements.WithPagination(p)
+		}
+		ro.PDF = &pdf.PDFWriter{Elements: elements, Page: pageFor(o)}
+	}
+	if ro.Scenes == nil {
+		ro.Scenes = conf.Scenes[o.SceneIn]
+	}
+	return report.Make(screenplay, ro), nil
+}
+
+// writeReport writes o.Report as CSV to o.Output.
+func writeReport(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
+	r, err := makeReport(o, conf, screenplay, report.Options{})
+	if err != nil {
+		return err
+	}
+	t, err := r.Table(strings.ToLower(o.Report))
+	if err != nil {
+		return err
+	}
+	out, closeOut, err := openOutput(o.Output)
+	if err != nil {
+		return err
+	}
+	if err := t.WriteCSV(out); err != nil {
+		return errors.Join(err, closeOut())
 	}
 	return closeOut()
 }

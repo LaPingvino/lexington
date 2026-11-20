@@ -48,6 +48,7 @@ type Tree struct {
 	pagination   rules.Pagination
 	foot         float64 // the page's bottom margin, while a row's break raises it (0: none)
 	heights      map[[2]string]int
+	measure      *measuring // where the scenes are printed, when measured (Measure)
 }
 
 // span is where printed text is on a page: from its top to its foot.
@@ -252,6 +253,9 @@ func (t *Tree) Render() {
 			t.PDF.Bookmark(contents, level, -1)
 		}
 
+		if row.Type == lex.TypeScene && block == "" {
+			t.measure.scene(t.PDF)
+		}
 		if t.shouldSkipElement(row, block) {
 			continue
 		}
@@ -262,7 +266,10 @@ func (t *Tree) Render() {
 		if c, ok := lex.ColorFor(lex.ColorText, row.Color); ok && style == lex.ColorText &&
 			(row.Type == lex.TypeScene || row.Type == lex.TypeSection) {
 			t.PDF.SetTextColor(int(c[0]), int(c[1]), int(c[2]))
-			t.pr(row.Type, row.Contents)
+			spans := t.pr(row.Type, row.Contents)
+			if row.Type == lex.TypeScene {
+				t.measure.heading(spans)
+			}
 			t.PDF.SetTextColor(0, 0, 0)
 			continue
 		}
@@ -274,6 +281,9 @@ func (t *Tree) Render() {
 			t.PDF.SetTextColor(int(c[0]), int(c[1]), int(c[2]))
 		}
 		spans := t.pr(row.Type, row.Contents)
+		if row.Type == lex.TypeScene && block == "" {
+			t.measure.heading(spans)
+		}
 		if blockText {
 			t.PDF.SetTextColor(0, 0, 0)
 		}
@@ -315,6 +325,7 @@ const (
 // printed, on the spans it filled (blank lines extend nothing: within a
 // block the bar runs on over them from text to text).
 func (t *Tree) extendBar(spans []span) {
+	t.measure.printed(spans)
 	b := t.bar
 	if b == nil {
 		return
@@ -739,6 +750,18 @@ func (t Tree) renderDualDialogueLine(format rules.Format, text string, columnWid
 // Note: For PDF, the 'w io.Writer' argument is currently ignored as gofpdf
 // requires a file path for output. The output file path is taken from PDFWriter.OutputFile.
 func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
+	f := p.tree(screenplay)
+	f.Render()
+	err := f.PDF.OutputFileAndClose(p.OutputFile) // Use the OutputFile from the PDFWriter struct
+	if err != nil {
+		return err // Return the error instead of panicking
+	}
+	return nil
+}
+
+// tree is the screenplay ready to render on the writer's paper, with its
+// rules.
+func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 	size, ok := pages[strings.ToLower(p.Page)]
 	if !ok {
 		size = "Letter"
@@ -769,7 +792,7 @@ func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	pdf.AddPage()
 	pdf.SetMargins(1, 1, 1)
 	pdf.SetXY(1, 1)
-	f := &Tree{
+	return &Tree{
 		PDF:          pdf,
 		Rules:        elements,
 		F:            lex.Printable(screenplay, elements.Hides), // notes are not printed
@@ -780,10 +803,4 @@ func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		Scale:        width / 8.5,
 		VScale:       height / 11,
 	}
-	f.Render()
-	err := pdf.OutputFileAndClose(p.OutputFile) // Use the OutputFile from the PDFWriter struct
-	if err != nil {
-		return err // Return the error instead of panicking
-	}
-	return nil
 }

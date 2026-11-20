@@ -251,6 +251,17 @@ An omitted scene is written `.OMITTED #12#`, the scene itself in a
 boneyard under it (`fountain.OmitScene`, `fountain.RestoreScene`); it
 prints as OMITTED with its number, in FDX too.
 
+Production reports come out as CSV: `-report scenes` (number, heading
+with INT/EXT, location and time apart, page, length in eighths of a page,
+who speaks), `locations`, `characters` or `cast` (numbered by size). The
+pages are measured as `-e`, `-page` and `-pagination` print the PDF; a
+scene is at least 1/8 and rounded to the nearest eighth
+(`lex.EighthsOf`, `pdf.PDFWriter.Measure`, the `report` package):
+
+```bash
+lexington -report scenes -i script.fountain -o scenes.csv
+```
+
 The title page stays, scene numbers are the script's own, and the
 sections above a scene that is kept stay as headings. In a settings
 file, a set's `notecolors` rule switches colors on, its `Style` the

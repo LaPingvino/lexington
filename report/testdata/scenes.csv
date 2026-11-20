@@ -1,0 +1,6 @@
+order,number,heading,int_ext,location,time,page,eighths,length,characters,omitted
+1,1,INT. KOVAČ HOUSE - KITCHEN - DAY,INT,KOVAČ HOUSE - KITCHEN,DAY,1,2,2/8,ANNA; TOM,
+2,1A,EXT. GARDEN - NIGHT,EXT,GARDEN,NIGHT,1,1,1/8,TOM; ANNA,
+3,2,OMITTED,,,,1,0,,,yes
+4,3,INT. KOVAČ HOUSE - KITCHEN - NIGHT,INT,KOVAČ HOUSE - KITCHEN,NIGHT,1,1,1/8,ANNA; TOM,
+5,4,EXT. GARDEN - DAY,EXT,GARDEN,DAY,1,1,1/8,,

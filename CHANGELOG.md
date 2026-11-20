@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-20
+
+### New Features
+- **Page eighths** (`lex.Eighths`, `lex.EighthsOf`): a length of script in
+  eighths of a page, written as productions write it (`4/8`, `1`,
+  `1 3/8`, never reduced): to the nearest eighth, and at least one.
+- **Scenes measured as printed** (`pdf.PDFWriter.Measure`, `pdf.Measure`):
+  each scene's page and length, laid out as the PDF prints it (its rules,
+  paper and pagination; nothing is written). A scene runs from its
+  heading to the next one's; the room a page break leaves at a page's
+  foot is the scene's before it.
+- **Production reports** (the `report` package, `cli.Report`, `-report`):
+  scenes (number, heading with INT/EXT, location and time apart, page,
+  eighths, who speaks, OMITTED kept as such), locations (their scenes,
+  INT/EXT, times, eighths), characters (scenes, first and last, speeches,
+  words, eighths; other names merged with `report.Options.Aliases`) and
+  the cast list numbered by size (`Report.Cast`). Each is a `Table`,
+  written as CSV in a fixed layout (`report.SceneColumns`, ...: a header
+  row of the columns' keys, lists joined with `; `, CRLF) or as an HTML
+  page to print (`report.WriteHTML`).
+
 ## [1.7.0] - 2026-11-20
 
 ### New Features
