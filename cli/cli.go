@@ -181,6 +181,10 @@ type Options struct {
 	Character string
 	Sides     string
 	CueWords  int
+	// Number numbers the scenes without a number (lex.NumberScenes):
+	// "count" on from the last whole number, "10A" or "A11" as a locked
+	// script does (lex.NumberStyle); "" leaves them.
+	Number string
 }
 
 // colorScheme is the color scheme o asks for, on the settings' own.
@@ -219,6 +223,15 @@ func (t *tagList) Set(v string) error { *t = append(*t, v); return nil }
 func filter(o Options, s lex.Screenplay) (lex.Screenplay, error) {
 	if (o.Character == "") != (o.Sides == "") {
 		return nil, errors.New("give a character's sides as -character NAME with -sides full, cue or isolated")
+	}
+	switch strings.ToLower(o.Number) {
+	case "":
+	case "count", "yes", "true":
+		s = lex.NumberScenes(s, lex.NumberOptions{})
+	case "10a", "a11", "locked":
+		s = lex.NumberScenes(s, lex.NumberOptions{Locked: true, Style: lex.ParseNumberStyle(o.Number)})
+	default:
+		return nil, fmt.Errorf("-number %s: give count, 10A or A11", o.Number)
 	}
 	if len(o.Tags) > 0 {
 		s = lex.FilterTags(s, o.Tags...)
@@ -290,6 +303,8 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 	fs.StringVar(&o.Sides, "sides", "",
 		"With -character: full (the scenes they speak in), cue (their speeches after their cues) or isolated (their speeches only).")
 	fs.IntVar(&o.CueWords, "cuewords", 0, "With -sides cue: the cue's last words only, this many (0: the whole speech before).")
+	fs.StringVar(&o.Number, "number", "",
+		"Number the scenes without a number: count (on from the last whole number), or as a locked script, keeping the numbers there are: 10A (a new scene after 10 is 10A, the default style) or A11 (before 11).")
 	fs.StringVar(&o.TemplatePath, "template", "",
 		"Path to a custom template file (e.g., for HTML, FDX, or LaTeX output).")
 	fs.BoolVar(&help, "help", false, "Show this help message")

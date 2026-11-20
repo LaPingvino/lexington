@@ -55,9 +55,11 @@ func paragraphType(t lex.ElementType) (pType string, ok bool) {
 		return FDXLyrics, true
 	case lex.TypeTrans:
 		return FDXTransition, true
-	case lex.TypeEmpty, lex.TypeTitlePage, lex.TypeNewPage, "metasection", "section", "synopse", "note":
+	case lex.TypeEmpty, lex.TypeTitlePage, lex.TypeNewPage, "metasection", "section", "synopse", "note", lex.TypeBoneyard:
 		// Final Draft spaces elements itself; blank lines (handled in
-		// buildDocument) and structure markers have no paragraph.
+		// buildDocument), structure markers and Fountain's boneyard
+		// (never printed: notes blocks, an omitted scene) have no
+		// paragraph.
 		return "", false
 	}
 	return FDXGeneral, true

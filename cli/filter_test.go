@@ -110,3 +110,21 @@ func TestFilterFlags(t *testing.T) {
 		t.Errorf("colors by default")
 	}
 }
+
+// -number: count, or as a locked script.
+func TestNumberOption(t *testing.T) {
+	s := lex.Screenplay{
+		{Type: lex.TypeScene, Contents: "INT. A - DAY #10#"},
+		{Type: lex.TypeScene, Contents: "INT. B - DAY"},
+		{Type: lex.TypeScene, Contents: "INT. C - DAY #11#"},
+	}
+	for opt, want := range map[string]string{"count": "INT. B - DAY #11#", "10A": "INT. B - DAY #10A#", "A11": "INT. B - DAY #A11#", "": "INT. B - DAY"} {
+		out, err := filter(Options{Number: opt}, s)
+		if err != nil || out[1].Contents != want {
+			t.Errorf("-number %q: %q %v", opt, out[1].Contents, err)
+		}
+	}
+	if _, err := filter(Options{Number: "x"}, s); err == nil {
+		t.Error("-number x: no error")
+	}
+}

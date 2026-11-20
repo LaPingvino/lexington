@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-20
+
+### New Features
+- **Scene numbers for a locked script** (`lex.NumberScenes`,
+  `lex.NumberLabels`, `lex.SceneNumberBetween`, `-number`,
+  `cli.Options.Number`): number the scenes without a number, on from the
+  last whole number (`count`, what Accolade's export did), or keeping
+  every number there is, as a shooting script must. A scene between 10
+  and 11 is then 10A, the next 10B, one between 10A and 10B 10AA, and
+  between 10 and 10A 10aA (`lex.NumberAfter`, the default, Final Draft's
+  form); or A11, B11, AB11 between A11 and B11, AA11 between 10 and A11
+  (`lex.NumberBefore`, Movie Magic Screenwriter's "flipped"). A scene
+  before the first is A1, one after the last the next number, and no
+  number is given twice (OMITTED scenes keep theirs).
+  `lex.WithSceneNumber` puts `#n#` in a heading, before its notes.
+- **Omitted scenes** (`fountain.OmitScene`, `fountain.RestoreScene`,
+  `lex.OmittedNumber`): the heading becomes `.OMITTED #12#` and the scene
+  goes into a `/* Omitted 12 … */` boneyard under it, to come back whole.
+  FDX writes it as a Scene Heading `OMITTED` with `Number="12"`.
+
+### Fixed
+- FDX wrote Fountain's boneyard (`/* … */`, notes blocks too) as General
+  paragraphs, which Final Draft prints. It is left out now, as in print.
+
 ## [1.6.0] - 2026-11-19
 
 ### New Features

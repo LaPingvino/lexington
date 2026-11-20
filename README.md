@@ -238,7 +238,18 @@ lexington -tag London -tag "New York" -i script.fountain -o london.pdf
 #             (-cuewords 5: only its last five words)
 #   isolated  their speeches only
 lexington -character EDWARD -sides cue -cuewords 5 -i bigfish.fdx -o edward.pdf
+
+# number the scenes that have none: on from the last whole number
+# (count), or as a locked shooting script, keeping every number there is:
+# a new scene between 10 and 11 is 10A (then 10B; between 10A and 10B,
+# 10AA), or with A11, A11 (then B11; between 10 and A11, AA11); one
+# before the first is A1, one after the last the next number
+lexington -number 10A -i script.fountain -o script.pdf
 ```
+
+An omitted scene is written `.OMITTED #12#`, the scene itself in a
+boneyard under it (`fountain.OmitScene`, `fountain.RestoreScene`); it
+prints as OMITTED with its number, in FDX too.
 
 The title page stays, scene numbers are the script's own, and the
 sections above a scene that is kept stay as headings. In a settings
