@@ -63,3 +63,27 @@ func TestOmittedParses(t *testing.T) {
 		t.Errorf("scenes %q", scenes)
 	}
 }
+
+// A merged run of omitted scenes splits back into one OMITTED heading a
+// block, each restorable as it was.
+func TestSplitOmitted(t *testing.T) {
+	a, _ := OmitScene("INT. A - DAY #12#\n\nOne.\n\n")
+	b, _ := OmitScene("INT. B - DAY #13#\n\nTwo.\n\n")
+	// as Accolade merges them: the second heading and its blank line go
+	merged := ".OMITTED #12-13#\n\n" + strings.TrimPrefix(a, ".OMITTED #12#\n\n") + strings.TrimPrefix(b, ".OMITTED #13#\n\n") + "EXT. C - DAY #14#\n"
+	split, ok := SplitOmitted(merged)
+	if !ok || split != a+b+"EXT. C - DAY #14#\n" {
+		t.Fatalf("split %v:\n%q\nwant\n%q", ok, split, a+b+"EXT. C - DAY #14#\n")
+	}
+	if n, _ := lex.OmittedNumber(".OMITTED #12-13#"); n != "12-13" {
+		t.Errorf("range number %q", n)
+	}
+	for _, s := range []string{a, ".OMITTED #12-13#\n\nNo block.\n", "INT. A - DAY #12-13#\n"} {
+		if _, ok := SplitOmitted(s); ok {
+			t.Errorf("split %q", s)
+		}
+	}
+	if _, ok := RestoreScene(merged); ok {
+		t.Error("restored a merged run whole")
+	}
+}

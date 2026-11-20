@@ -108,12 +108,12 @@ func NumberLabels(nums []string, o NumberOptions) []string {
 		}
 		return out
 	}
-	taken := map[string]bool{}
+	taken := newTaken()
 	anchors := false
 	for _, num := range nums {
 		if num != "" {
-			taken[num] = true
-			if _, ok := parseLabel(num); ok {
+			taken.add(num)
+			if _, ok := anchorLabel(num, true); ok {
 				anchors = true
 			}
 		}
@@ -124,10 +124,10 @@ func NumberLabels(nums []string, o NumberOptions) []string {
 			if num != "" {
 				continue
 			}
-			for n++; taken[strconv.Itoa(n)]; n++ {
+			for n++; taken.has(strconv.Itoa(n)); n++ {
 			}
 			out[i] = strconv.Itoa(n)
-			taken[out[i]] = true
+			taken.add(out[i])
 		}
 		return out
 	}
@@ -137,17 +137,17 @@ func NumberLabels(nums []string, o NumberOptions) []string {
 		}
 		var prev, next *label
 		for j := i - 1; j >= 0 && prev == nil; j-- {
-			if l, ok := parseLabel(out[j]); ok {
+			if l, ok := anchorLabel(out[j], true); ok {
 				prev = &l
 			}
 		}
 		for j := i + 1; j < len(nums) && next == nil; j++ {
-			if l, ok := parseLabel(nums[j]); ok {
+			if l, ok := anchorLabel(nums[j], false); ok {
 				next = &l
 			}
 		}
 		out[i] = nextNumber(prev, next, taken, o.Style)
-		taken[out[i]] = true
+		taken.add(out[i])
 	}
 	return out
 }
@@ -181,18 +181,33 @@ func (l label) rest() string { return l.digits + l.tail }
 
 // nextNumber is the number for a new scene between the numbered scenes
 // prev and next (nil: none that side), not one of taken: see NumberStyle.
-func nextNumber(prev, next *label, taken map[string]bool, style NumberStyle) string {
+func nextNumber(prev, next *label, taken *takenSet, style NumberStyle) string {
+	if n := between(prev, next, taken, style); n != "" {
+		return n
+	}
+	// nothing free between them (a range takes it all): after prev, else
+	// past every number taken
+	if prev != nil {
+		if n := after(*prev, nil, taken); n != "" {
+			return n
+		}
+	}
+	return taken.beyond(prev)
+}
+
+// between is nextNumber's number, "" if every one there is taken.
+func between(prev, next *label, taken *takenSet, style NumberStyle) string {
 	switch {
 	case prev == nil && next == nil:
 		for n := 1; ; n++ {
-			if !taken[strconv.Itoa(n)] {
+			if !taken.has(strconv.Itoa(n)) {
 				return strconv.Itoa(n)
 			}
 		}
 	case prev == nil: // before the first: A1
 		return before(nil, *next, taken)
 	case next == nil: // after the last: the next number
-		if n := strconv.Itoa(prev.num + 1); !taken[n] {
+		if n := strconv.Itoa(prev.num + 1); !taken.has(n) {
 			return n
 		}
 		return after(*prev, nil, taken)
@@ -214,16 +229,24 @@ func nextNumber(prev, next *label, taken map[string]bool, style NumberStyle) str
 // SceneNumberBetween is the number for a new scene between the scenes
 // numbered prev and next in a locked script ("": none that side), not
 // one of taken: see NumberStyle. A number that is not digits with
-// letters (Storyboarder's 3-x2k9q) counts as none.
+// letters (Storyboarder's 3-x2k9q) counts as none; a range (12-14, an
+// OMITTED run's) is its last number before, its first after, and takes
+// every number in it (NumberRange).
 func SceneNumberBetween(prev, next string, taken map[string]bool, style NumberStyle) string {
 	var p, n *label
-	if l, ok := parseLabel(prev); ok {
+	if l, ok := anchorLabel(prev, true); ok {
 		p = &l
 	}
-	if l, ok := parseLabel(next); ok {
+	if l, ok := anchorLabel(next, false); ok {
 		n = &l
 	}
-	return nextNumber(p, n, taken, style)
+	t := newTaken()
+	for k, v := range taken {
+		if v {
+			t.add(k)
+		}
+	}
+	return nextNumber(p, n, t, style)
 }
 
 // rank orders the letters: the small a, Wikipedia's filler for "before
@@ -283,15 +306,19 @@ func letters(n int, filler bool, f func(string) bool) bool {
 	return rec("", n)
 }
 
+// maxLetters is the most letters after and before look at: past it
+// they give up ("").
+const maxLetters = 3
+
 // after is the first free number after prev (and before its tail upper,
 // if given), with the fewest letters: prev's head and a tail.
-func after(prev label, upper *string, taken map[string]bool) string {
+func after(prev label, upper *string, taken *takenSet) string {
 	lo := afterKey(prev.tail)
 	var found string
-	for n := 1; found == ""; n++ {
+	for n := 1; found == "" && n <= maxLetters; n++ {
 		letters(n, true, func(s string) bool {
 			k := afterKey(s) // the whole tail: 10B after 10A
-			if k <= lo || (upper != nil && k >= afterKey(*upper)) || taken[prev.head()+s] {
+			if k <= lo || (upper != nil && k >= afterKey(*upper)) || taken.has(prev.head()+s) {
 				return false
 			}
 			found = prev.head() + s
@@ -303,10 +330,10 @@ func after(prev label, upper *string, taken map[string]bool) string {
 
 // before is the first free number before next (and after the lead lower,
 // if given), with the fewest letters: a lead and next's number and tail.
-func before(lower *string, next label, taken map[string]bool) string {
+func before(lower *string, next label, taken *takenSet) string {
 	hi := beforeKey(next.lead)
 	var found string
-	for n := 1; found == ""; n++ {
+	for n := 1; found == "" && n <= maxLetters; n++ {
 		// the letter next to the number first, as the key orders them
 		letters(n, false, func(rev string) bool {
 			r := []rune(rev)
@@ -315,7 +342,7 @@ func before(lower *string, next label, taken map[string]bool) string {
 			}
 			lead := string(r)
 			k := beforeKey(lead)
-			if k >= hi || (lower != nil && k <= beforeKey(*lower)) || taken[lead+next.rest()] {
+			if k >= hi || (lower != nil && k <= beforeKey(*lower)) || taken.has(lead+next.rest()) {
 				return false
 			}
 			found = lead + next.rest()

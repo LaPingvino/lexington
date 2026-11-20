@@ -87,3 +87,47 @@ func IsOmitted(scene string) bool {
 	_, ok := RestoreScene(scene)
 	return ok
 }
+
+// SplitOmitted is a merged run of omitted scenes (".OMITTED #12-14#",
+// the run's blocks under it: "/* Omitted 12 …", "/* Omitted 13 …") one
+// OMITTED heading a block again, each as OmitScene writes it, so that
+// each can be restored; false if the heading is no range or has no
+// block under it. The blocks are read up to the first line that is none;
+// from there on the text stays as it was.
+func SplitOmitted(merged string) (string, bool) {
+	heading, rest, _ := strings.Cut(merged, "\n")
+	n, ok := lex.OmittedNumber(heading)
+	if !ok {
+		return merged, false
+	}
+	if _, _, isRange := lex.NumberRange(n); !isRange {
+		return merged, false
+	}
+	var out strings.Builder
+	blocks := 0
+	for {
+		lead := len(rest) - len(strings.TrimLeft(rest, "\n"))
+		first, inside, _ := strings.Cut(rest[lead:], "\n")
+		f := strings.TrimSpace(first)
+		num, isBlock := strings.CutPrefix(f, omittedOpen+" ")
+		end := -1
+		if isBlock && num != "" {
+			end = closingLine(inside)
+		}
+		if end < 0 {
+			break
+		}
+		after := inside[end:]
+		after = after[strings.Index(after, "*/")+2:]
+		if blocks > 0 {
+			out.WriteString(rest[:lead])
+		}
+		out.WriteString("." + lex.Omitted + " #" + num + "#\n\n" + first + "\n" + inside[:end] + "*/")
+		blocks++
+		rest = after
+	}
+	if blocks == 0 {
+		return merged, false
+	}
+	return out.String() + rest, true
+}
