@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/phpdave11/gofpdf"
-
 	"github.com/LaPingvino/lexington/font"
 	"github.com/LaPingvino/lexington/lex"
 )
@@ -22,13 +20,13 @@ import (
 // In the embedded and file fonts a Hebrew letter with points prints as
 // its presentation form when the font has it (composeHebrew).
 type fonts struct {
-	pdf       *gofpdf.Fpdf
+	pdf       Drawer
 	translate func(string) string
 	files     map[string]string          // a file's path to its name in the PDF
 	has       map[string]func(rune) bool // a font's name to its glyph test
 }
 
-func newFonts(pdf *gofpdf.Fpdf) *fonts {
+func newFonts(pdf Drawer) *fonts {
 	return &fonts{pdf: pdf, translate: pdf.UnicodeTranslatorFromDescriptor(""),
 		files: map[string]string{}, has: map[string]func(rune) bool{}}
 }

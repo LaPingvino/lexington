@@ -9,8 +9,6 @@ import (
 	"strings"
 
 	"github.com/LaPingvino/lexington/lex"
-
-	"github.com/phpdave11/gofpdf"
 )
 
 // Production revisions in print (lex.Revisions): a line with a Revision
@@ -222,7 +220,7 @@ func (t *Tree) drawRevisions() {
 // pageFont selects a font on the page the PDF is at again: a page gone
 // back to (SetPage) has in its text the font it last printed with, which
 // gofpdf's SetFont, the same as the document's current, would not write.
-func pageFont(pdf *gofpdf.Fpdf, family string, size float64) {
+func pageFont(pdf Drawer, family string, size float64) {
 	pdf.SetFont(family, "", size+1)
 	pdf.SetFont(family, "", size)
 }

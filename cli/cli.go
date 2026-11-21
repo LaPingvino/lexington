@@ -230,6 +230,9 @@ type Options struct {
 	// Fountain and lex, which keep one heading a number; the pages, the
 	// lock and the measures are the merged PDF's.
 	MergeOmitted bool
+	// Record, writing a PDF, is filled with its pages as drawn
+	// (pdf.Recorder): what a program shows of it without reading it.
+	Record *pdf.Drawing
 }
 
 // colorScheme is the color scheme o asks for, on the settings' own.
@@ -953,7 +956,8 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 			return nil, errors.New("cannot write PDF to standard output: give an output file (-o output.pdf)")
 		}
 		return &pdf.PDFWriter{OutputFile: o.Output, Elements: elements, Page: pageFor(o), Revisions: o.Revisions,
-			Lock: o.Lock, Continueds: o.Continueds, MergeOmitted: o.MergeOmitted, RTL: conf.RTL(o.SceneIn)}, nil
+			Lock: o.Lock, Continueds: o.Continueds, MergeOmitted: o.MergeOmitted, RTL: conf.RTL(o.SceneIn),
+			Record: o.Record}, nil
 	case internal.FormatLex:
 		return &lex.LexWriter{}, nil
 	case internal.FormatFountain:

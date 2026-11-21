@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/LaPingvino/lexington/font"
 	"github.com/LaPingvino/lexington/internal"
@@ -44,7 +45,14 @@ type PDFWriter struct {
 	// line with no direction of its own (no strong letter, no direction
 	// mark) reads right to left in it (bidi.go).
 	RTL bool
+	// Record, when set, is filled with the pages as Write draws them
+	// (Recorder): what a program shows of the PDF without reading it.
+	Record *Drawing
 }
+
+// fixedDate, when set (by the tests), is every PDF's creation date, so
+// that two PDFs of the same are the same.
+var fixedDate time.Time
 
 // pages are the paper sizes by name, as gofpdf names them.
 var pages = map[string]string{"letter": "Letter", "a4": "A4", "a5": "A5"}
@@ -54,7 +62,7 @@ var pages = map[string]string{"letter": "Letter", "a4": "A4", "a5": "A5"}
 const elementMeta = "meta"
 
 type Tree struct {
-	PDF          *gofpdf.Fpdf
+	PDF          Drawer
 	Rules        rules.Set
 	F            lex.Screenplay
 	DualDialogue bool       // Track if we're in dual dialogue mode
@@ -96,13 +104,13 @@ type printing struct {
 }
 
 // start begins following text printed from where the PDF is now.
-func (p *printing) start(pdf *gofpdf.Fpdf) {
+func (p *printing) start(pdf Drawer) {
 	p.on, p.page, p.top, p.spans = true, pdf.PageNo(), pdf.GetY(), nil
 }
 
 // cut ends the span on this page: the PDF is about to break to the next,
 // where the text goes on from the top margin.
-func (p *printing) cut(pdf *gofpdf.Fpdf) {
+func (p *printing) cut(pdf Drawer) {
 	if !p.on {
 		return
 	}
@@ -111,14 +119,14 @@ func (p *printing) cut(pdf *gofpdf.Fpdf) {
 	p.page, p.top = pdf.PageNo()+1, top
 }
 
-func (p *printing) add(pdf *gofpdf.Fpdf) {
+func (p *printing) add(pdf Drawer) {
 	if y := pdf.GetY(); pdf.PageNo() == p.page && y > p.top {
 		p.spans = append(p.spans, span{p.page, p.top, y})
 	}
 }
 
 // stop ends following, with the spans the text filled.
-func (p *printing) stop(pdf *gofpdf.Fpdf) []span {
+func (p *printing) stop(pdf Drawer) []span {
 	p.add(pdf)
 	p.on = false
 	return p.spans
@@ -846,21 +854,44 @@ func (t Tree) renderDualDialogueLine(format rules.Format, text string, columnWid
 // Note: For PDF, the 'w io.Writer' argument is currently ignored as gofpdf
 // requires a file path for output. The output file path is taken from PDFWriter.OutputFile.
 func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
-	f := p.tree(screenplay)
-	f.Render()
-	if p.Revisions == nil || !p.Revisions.PagesOnly {
-		return f.PDF.OutputFileAndClose(p.OutputFile) // Use the OutputFile from the PDFWriter struct
-	}
-	revised := f.revisedPages()
-	var buf bytes.Buffer
-	if err := f.PDF.Output(&buf); err != nil {
-		return err
-	}
-	data, err := onlyPages(buf.Bytes(), func(page int) bool { return revised[page] != "" })
+	data, err := p.Render(screenplay)
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(p.OutputFile, data, 0o644)
+}
+
+// Render is the screenplay's PDF, made as Write makes it (OutputFile
+// aside), and its drawing in p.Record if set.
+func (p *PDFWriter) Render(screenplay lex.Screenplay) ([]byte, error) {
+	f := p.tree(screenplay)
+	f.Render()
+	var buf bytes.Buffer
+	if err := f.PDF.Output(&buf); err != nil {
+		return nil, err
+	}
+	keep := func(int) bool { return true }
+	data := buf.Bytes()
+	if p.Revisions != nil && p.Revisions.PagesOnly {
+		revised := f.revisedPages()
+		keep = func(page int) bool { return revised[page] != "" }
+		var err error
+		if data, err = onlyPages(data, keep); err != nil {
+			return nil, err
+		}
+	}
+	if r, ok := f.PDF.(*Recorder); ok && p.Record != nil {
+		d := r.Drawing()
+		kept := d.Pages[:0:0]
+		for _, page := range d.Pages {
+			if keep(page.Number) {
+				kept = append(kept, page)
+			}
+		}
+		d.Pages = kept
+		*p.Record = d
+	}
+	return data, nil
 }
 
 // tree is the screenplay ready to render on the writer's paper, with its
@@ -880,7 +911,16 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 	if !ok {
 		size = "Letter"
 	}
-	pdf := gofpdf.New("P", "in", size, "")
+	fpdf := gofpdf.New("P", "in", size, "")
+	if !fixedDate.IsZero() {
+		fpdf.SetCreationDate(fixedDate)
+		fpdf.SetModificationDate(fixedDate)
+		fpdf.SetCatalogSort(true)
+	}
+	var pdf Drawer = fpdf
+	if p.Record != nil {
+		pdf = NewRecorder(fpdf)
+	}
 	width, height := pdf.GetPageSize()
 	elements := p.Elements
 	if elements == nil {

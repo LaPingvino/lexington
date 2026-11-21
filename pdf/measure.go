@@ -5,8 +5,6 @@ import (
 
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/rules"
-
-	"github.com/phpdave11/gofpdf"
 )
 
 // SceneLength is where a scene is printed and how long it is, as the PDF
@@ -108,7 +106,7 @@ type gap struct {
 
 // forcedBreak notes the rest of the page a forced break leaves, from the
 // last text printed to the next page's top, in the scene it is in.
-func (m *measuring) forcedBreak(pdf *gofpdf.Fpdf) {
+func (m *measuring) forcedBreak(pdf Drawer) {
 	if m == nil || len(m.starts) == 0 {
 		return
 	}
@@ -123,7 +121,7 @@ func (m *measuring) forcedBreak(pdf *gofpdf.Fpdf) {
 
 // scene marks a scene starting where the PDF is now (its heading not yet
 // printed: heading puts it where the heading landed).
-func (m *measuring) scene(pdf *gofpdf.Fpdf) {
+func (m *measuring) scene(pdf Drawer) {
 	if m != nil {
 		m.starts = append(m.starts, place{pdf.PageNo(), pdf.GetY()})
 	}
