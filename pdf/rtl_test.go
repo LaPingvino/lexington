@@ -2,11 +2,14 @@ package pdf_test
 
 import (
 	"math"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"unicode"
+
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/pdf"
@@ -116,7 +119,10 @@ func TestHebrewPrintsRightToLeft(t *testing.T) {
 	}
 	ends(find(seen("מִרְיָם")), "מִרְיָם", 8.5-3.7)
 	ends(find("(טקשב)"), "(בשקט)", 8.5-3.1)
-	ends(find(seen("שָׁלוֹם, דָּנִי!")), "שָׁלוֹם, דָּנִי!", 8.5-2.5)
+	// pointed letters print as their presentation forms (shin + shin dot,
+	// vav + holam, dalet + dagesh) and read back as those; the rest of a
+	// letter's points stand before it, as seen
+	ends(find("!\u05d9\u05b4\u05e0\u05b8\ufb33 ,\u05dd\ufb4b\u05dc\u05b8\ufb2a"), "שָׁלוֹם, דָּנִי!", 8.5-2.5)
 	ends(find("..."), "...", 8.5-1.5)
 	starts(find(seen("חתך ל:")), 1.0)
 
@@ -233,5 +239,51 @@ func TestDirectionMarkPrintsNothing(t *testing.T) {
 	}
 	if !slices.Equal(got, []string{".12", ".םולש"}) {
 		t.Errorf("printed %q", got)
+	}
+}
+
+// Pointed Hebrew prints its letters with points as their presentation
+// forms (the PDF applies no mark positioning): a shuruq as U+FB35, shin
+// with dagesh and sin dot as U+FB2D whatever the points' order, in a line
+// with Latin in it. pdftotext gives the forms; NFD gives back the text as
+// written (a Hebrew line: pdftotext's own reordering of a mixed line
+// moves its punctuation, forms or not).
+func TestHebrewPresentationForms(t *testing.T) {
+	const line = "Dani: וּבְשׁוּבוֹ, ש\u05C2\u05BC! (ok)"
+	const hebrew = "שָׁלוֹם וּבְשׁוּבוֹ שׂ\u05BC תּוֹרָה"
+	src := "INT. ROOM - DAY\n\n" + line + "\n\n" + hebrew + "\n"
+	file := filepath.Join(t.TempDir(), "forms.pdf")
+	s := fountain.Parse(rules.DefaultConf().Scenes["he"], strings.NewReader(src))
+	if err := (&pdf.PDFWriter{OutputFile: file, Elements: rules.Default}).Write(nil, s); err != nil {
+		t.Fatal(err)
+	}
+	pages, err := pdfin.Pages(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got string
+	for _, l := range pages[0] {
+		if strings.Contains(l.Text, "Dani") {
+			got = l.Text
+		}
+	}
+	for _, form := range []rune{0xFB35, 0xFB2A, 0xFB4B, 0xFB2D} {
+		if !strings.ContainsRune(got, form) {
+			t.Errorf("no %U in %+q", form, got)
+		}
+	}
+	if _, err := exec.LookPath("pdftotext"); err != nil {
+		t.Skip("no pdftotext")
+	}
+	out, err := exec.Command("pdftotext", file, "-").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	clean := strings.NewReplacer("\u202a", "", "\u202b", "", "\u202c", "").Replace(string(out))
+	if !strings.ContainsRune(clean, 0xFB35) {
+		t.Errorf("pdftotext gives no presentation form: %+q", clean)
+	}
+	if !strings.Contains(norm.NFD.String(clean), norm.NFD.String(hebrew)) {
+		t.Errorf("pdftotext, NFD, has no %+q:\n%+q", hebrew, clean)
 	}
 }

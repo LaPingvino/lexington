@@ -18,14 +18,33 @@ import (
 //     printed in Courier Badi instead;
 //   - the path of a TrueType or OpenType file, with its -Bold, -Italic and
 //     -BoldItalic siblings if there are; an unreadable file is Courier.
+//
+// In the embedded and file fonts a Hebrew letter with points prints as
+// its presentation form when the font has it (composeHebrew).
 type fonts struct {
 	pdf       *gofpdf.Fpdf
 	translate func(string) string
-	files     map[string]string // a file's path to its name in the PDF
+	files     map[string]string          // a file's path to its name in the PDF
+	has       map[string]func(rune) bool // a font's name to its glyph test
 }
 
 func newFonts(pdf *gofpdf.Fpdf) *fonts {
-	return &fonts{pdf: pdf, translate: pdf.UnicodeTranslatorFromDescriptor(""), files: map[string]string{}}
+	return &fonts{pdf: pdf, translate: pdf.UnicodeTranslatorFromDescriptor(""),
+		files: map[string]string{}, has: map[string]func(rune) bool{}}
+}
+
+// compose is text as the (embedded or file) font name prints it: Hebrew
+// letters with points as the presentation forms it has.
+func (f *fonts) compose(name, text string) string {
+	has, ok := f.has[name]
+	if !ok {
+		has = glyphTest(font.GetFont(name, ""))
+		f.has[name] = has
+	}
+	if has == nil {
+		return text
+	}
+	return composeHebrew(text, has)
 }
 
 // core are the standard fonts by the names one can give them.
@@ -42,16 +61,17 @@ func (f *fonts) font(setting, text string) (string, string) {
 	}
 	if name, ok := core[strings.ToLower(strings.TrimSpace(setting))]; ok {
 		if !cp1252(text) {
-			return font.CourierPrimeName, text
+			return font.CourierPrimeName, f.compose(font.CourierPrimeName, text)
 		}
 		return name, f.translate(text)
 	}
 	if ext := strings.ToLower(filepath.Ext(setting)); ext == ".ttf" || ext == ".otf" {
 		if name := f.file(setting); name != "" {
-			return name, text
+			return name, f.compose(name, text)
 		}
 	}
-	return font.GetFontName(setting), text
+	name := font.GetFontName(setting)
+	return name, f.compose(name, text)
 }
 
 // spans are a text's emphasis (lex.Emphasis), each span's text as the
@@ -59,9 +79,14 @@ func (f *fonts) font(setting, text string) (string, string) {
 func (f *fonts) spans(setting, text string) (string, []lex.Span) {
 	spans := lex.Emphasis(text)
 	name, _ := f.font(setting, lex.Unstyled(text))
-	if f != nil && (name == "Helvetica" || name == "Times") {
-		for i := range spans {
+	if f == nil {
+		return name, spans
+	}
+	for i := range spans {
+		if name == "Helvetica" || name == "Times" {
 			spans[i].Text = f.translate(spans[i].Text)
+		} else {
+			spans[i].Text = f.compose(name, spans[i].Text)
 		}
 	}
 	return name, spans
@@ -94,6 +119,7 @@ func (f *fonts) file(path string) string {
 	}
 	f.pdf.AddUTF8FontFromBytes(name, "", regular)
 	f.files[path] = name
+	f.has[name] = glyphTest(regular)
 	return name
 }
 

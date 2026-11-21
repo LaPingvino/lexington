@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Pointed Hebrew prints with its points in place.** The PDF does no
+  shaping, so the font's mark positioning is never applied and every point
+  stood where its glyph draws it, the same on every letter: a shuruq's
+  dot hid in the vav (and a dagesh in zayin, yod, final nun). A letter
+  with points now prints as its Hebrew presentation form (U+FB1D–FB4F:
+  letter + dagesh or mapiq, shin + shin or sin dot, shin + dagesh + dot,
+  vav + holam, alef + patah/qamats, …) when the font has that glyph — in
+  the embedded Courier Badi and in a font file given as the Font setting.
+  The points are matched in any order; the form taking the most of them
+  wins and the others follow it. The forms are composition exclusions, so
+  NFC never makes them; the table is their canonical decompositions.
+  Text copied from the PDF gives the presentation forms (gofpdf's
+  ToUnicode maps each glyph to its own character); NFKD or NFD gives back
+  letter and points.
+- **Courier Badi 1.101** embedded: the shin dot over shin's right arm, the
+  sin dot over the left, the holam male beside the vav's head instead of
+  on its stem, also where the PDF prints them without a presentation form.
+
 ## [1.22.0] - 2026-11-21
 
 ### Added
