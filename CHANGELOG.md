@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-11-21
+
 ### Added
 - **The PDF prints right to left** (scripts that need no shaping:
   Hebrew). A line reads right to left by its own direction mark or first
