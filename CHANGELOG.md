@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.22.0] - 2026-11-21
+
 ### Added
 - **`-strip`: a clean copy of a Fountain script** (`fountain.Strip`). It
   always takes out Accolade's data — its end blocks (Notes, Source,
