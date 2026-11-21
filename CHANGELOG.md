@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.23.0] - 2026-11-21
+
 ### Changed
 - **Pointed Hebrew prints with its points in place.** The PDF does no
   shaping, so the font's mark positioning is never applied and every point
