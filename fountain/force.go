@@ -52,17 +52,7 @@ func forced(line string) bool {
 // by line (from 1): each line's first row; the rows the parser adds
 // (dual dialogue's, the title page's) left out.
 func elements(text string, scenes []string) map[int]string {
-	out := map[int]string{}
-	for _, row := range ParseLines(scenes, strings.NewReader(text)) {
-		switch row.Type {
-		case lex.TypeDualOpen, lex.TypeDualNext, lex.TypeDualClose, lex.TypeTitlePage, lex.TypeNewPage, "metasection":
-			continue
-		}
-		if _, ok := out[row.Source]; !ok && row.Source > 0 {
-			out[row.Source] = row.Type
-		}
-	}
-	return out
+	return elementsOf(text, scenes, false)
 }
 
 // Force is text, written for the scene words from, as Fountain that the

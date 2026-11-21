@@ -153,3 +153,33 @@ func TestFormatDirs(t *testing.T) {
 		t.Error("the later folder's paper")
 	}
 }
+
+// -keeploose writes a script that relied on the old reading so that it
+// reads so under the spec; -loose reads it the old way.
+func TestKeepLoose(t *testing.T) {
+	dir := t.TempDir()
+	in := filepath.Join(dir, "old.fountain")
+	old := "INT. BARN - DAY\n\nRain falls.\nANNA\nIt's coming.\n"
+	if err := os.WriteFile(in, []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "kept.fountain")
+	if code := Main(context.Background(), []string{"-keeploose", "-config", filepath.Join(dir, "none.toml"), "-i", in, "-o", out}); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	data, _ := os.ReadFile(out)
+	if want := "INT. BARN - DAY\n\nRain falls.\n\nANNA\nIt's coming.\n"; string(data) != want {
+		t.Errorf("kept %q, want %q", data, want)
+	}
+	for _, loose := range []bool{false, true} {
+		html := filepath.Join(dir, "old.html")
+		o := Options{Input: in, Output: html, ConfigFile: filepath.Join(dir, "none.toml"), Loose: loose}
+		if err := Convert(context.Background(), o); err != nil {
+			t.Fatal(err)
+		}
+		data, _ := os.ReadFile(html)
+		if got := strings.Contains(string(data), `class="speaker"`); got != loose {
+			t.Errorf("loose %v: a cue in the HTML: %v", loose, got)
+		}
+	}
+}

@@ -151,6 +151,13 @@ type Options struct {
 	To           string          // output format (Formats)
 	TemplatePath string          // a template for HTML, FDX or LaTeX
 	Lint         bool            // run the Fountain linter
+	// Loose reads Fountain input as Lexington did before 1.19
+	// (fountain.ParseLoose), not as the spec has it.
+	Loose bool
+	// KeepLoose writes the Fountain input, as Fountain, so that it reads
+	// under the spec as Lexington before 1.19 read it (fountain.KeepLoose:
+	// blank lines and force marks added), instead of converting it.
+	KeepLoose bool
 	// Colors prints scene headings and sections in their notes' colors
 	// (rules.Set.WithColors).
 	Colors bool
@@ -319,6 +326,10 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 		"Output file type. Choose from "+formatKeys(false)+", or external formats requiring other programs: "+
 			formatKeys(true)+".")
 	fs.BoolVar(&o.Lint, "lint", false, "Run the Fountain linter on the input file")
+	fs.BoolVar(&o.Loose, "loose", false,
+		"Read Fountain as Lexington before 1.19 did: a scene word starts a heading anywhere, capitals after action are a name, any line ending in \" TO:\" is a transition, a line of spaces ends a speech.")
+	fs.BoolVar(&o.KeepLoose, "keeploose", false,
+		"Write the Fountain input so that it reads under the spec as Lexington before 1.19 read it (blank lines and force marks added), instead of converting it; says how many places changed.")
 	fs.BoolVar(&o.Colors, "colors", false,
 		"Print scene headings and sections in the colors of their notes ([[red]], [[COLOR BLUE]], [[#3366ff]]).")
 	fs.StringVar(&o.ColorStyle, "colorstyle", "",
@@ -401,6 +412,9 @@ func Convert(ctx context.Context, o Options) error {
 			log.Printf("Closing the input: %v", cerr)
 		}
 	}()
+	if o.KeepLoose {
+		return keepLoose(o, conf, in)
+	}
 	screenplay, err := parseInput(o, conf, in)
 	if err != nil {
 		return err
@@ -722,11 +736,48 @@ func openOutput(name string) (io.Writer, func() error, error) {
 	return f, f.Close, nil
 }
 
+// keepLoose writes the Fountain input as fountain.KeepLoose has it, to
+// o.Output (the input itself when it is "": read whole first).
+func keepLoose(o Options, conf rules.TOMLConf, in io.Reader) error {
+	if o.From != internal.FormatFountain {
+		return fmt.Errorf("-keeploose reads Fountain, not %s", o.From)
+	}
+	data, err := io.ReadAll(in)
+	if err != nil {
+		return err
+	}
+	text := string(data)
+	crlf := strings.Contains(text, "\r\n") // the lines added end as the others do
+	kept, places := fountain.KeepLoose(strings.ReplaceAll(text, "\r\n", "\n"), conf.Scenes[o.SceneIn])
+	if crlf {
+		kept = strings.ReplaceAll(kept, "\n", "\r\n")
+	}
+	if o.Output == "" {
+		o.Output = o.Input
+	}
+	out, closeOut, err := openOutput(o.Output)
+	if err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, kept); err != nil {
+		return errors.Join(err, closeOut())
+	}
+	if places == 0 {
+		log.Print("The script reads the same under the spec: nothing changed")
+	} else {
+		log.Printf("Changed %d places so the script reads as before 1.19", places)
+	}
+	return closeOut()
+}
+
 func parseInput(o Options, conf rules.TOMLConf, input io.Reader) (lex.Screenplay, error) {
 	switch o.From {
 	case internal.FormatLex:
 		return lex.Parse(input), nil
 	case internal.FormatFountain:
+		if o.Loose {
+			return fountain.ParseLoose(conf.Scenes[o.SceneIn], input), nil
+		}
 		return fountain.Parse(conf.Scenes[o.SceneIn], input), nil
 	case internal.FormatFDX:
 		s, err := fdx.ParseWithError(input)

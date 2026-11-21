@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-11-21
+
+### Changed
+- **Fountain is read as the spec has it** on four points where Lexington
+  read more loosely: a scene heading needs a blank line before it (a line
+  starting with `INT.` right under action is action); so does a
+  character cue (capitals right under action are action); a transition
+  is in capitals, ends in `TO:` and has blank lines around it (`cut to:`,
+  `... and DISSOLVE TO:` at the end of action are action); a line of two
+  spaces (or more) within dialogue keeps the speech going, as a blank
+  dialogue line (`lex.TypeDialog` with no text; the Fountain writer
+  writes it as two spaces again, Final Draft as an empty Dialogue
+  paragraph and back; PDF, HTML and DOCX print it as a blank line). Forced elements (`. @ > ! ~`) are unchanged, the
+  scene words are still each language's from the configuration, the
+  title page and the rest read as before. Over ~24,000 lines of real
+  scripts, examples and documentation 13 lines read otherwise, nearly all
+  where the old reading was wrong (dialogue starting "Open…" read as a
+  heading through another language's word, "We CUT back to:" ending
+  action read as a transition).
+- **The Fountain writer writes spec-valid Fountain**: a heading or a
+  name without a blank line before it gets its force mark (`.`, `@`), a
+  transition that would not read as one bare gets `>`, action that would
+  read as a heading `!`.
+
+### Added
+- **Scripts that relied on the old reading:** `fountain.ParseLoose` and
+  `ParseLinesLoose` read as Lexington did before; `fountain.KeepLoose(text,
+  scenes)` writes a script so that the spec reads it as the old reading
+  did — a blank line before a heading or a name that had none (or its
+  force mark, where a blank line would change the line before), `>` for
+  a transition, a line of spaces that ended a speech emptied — and says
+  in how many places (0, and the text unchanged, when both read it
+  alike). Accolade's *Keep It As It Was* is this.
+- **`-keeploose`** writes the Fountain input so (`-o`, or over the input
+  with `-o ""`; CR LF line ends kept), and **`-loose`** reads it the old way for one conversion.
+
 ## [1.18.0] - 2026-11-20
 
 ### Added

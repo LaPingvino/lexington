@@ -392,6 +392,8 @@ func (r reader) parseParagraph(p FdxParagraph) lex.Line {
 		return hiddenLine(p.Type, lex.StripNotes(contents), lex.Notes(contents))
 	}
 	switch {
+	case strings.TrimSpace(contents) == "" && line.Type == lex.TypeDialog:
+		line.Contents = "" // a blank line within a speech (Fountain's two spaces)
 	case strings.TrimSpace(lex.StripNotes(contents)) == "" && !lex.HasNotes(contents):
 		line.Type = lex.TypeEmpty
 	case strings.TrimSpace(lex.StripNotes(contents)) == "":

@@ -103,8 +103,8 @@ func TestParse(t *testing.T) {
 		lex.Line{Type: lex.TypeSpeaker, Contents: "TOM"},
 		lex.Line{Type: lex.TypeDialog, Contents: "What am I doing here now?"},
 		lex.Line{Type: lex.TypeDialog, Contents: "To be honest, I have absolutely no idea!"},
-		lex.Line{Type: lex.TypeEmpty, Contents: ""},
-		lex.Line{Type: lex.TypeAction, Contents: "And that means really no idea!"},
+		lex.Line{Type: lex.TypeDialog, Contents: ""}, // two spaces: the speech goes on
+		lex.Line{Type: lex.TypeDialog, Contents: "And that means really no idea!"},
 		lex.Line{Type: lex.TypeEmpty, Contents: ""},
 	}
 

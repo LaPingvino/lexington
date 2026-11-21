@@ -123,6 +123,10 @@ func CheckForce(row string) (bool, string, string) {
 // ParseState holds the state needed during parsing
 type ParseState struct {
 	scenes                []string
+	loose                 bool // the reading before 1.19 (ParseLoose)
+	prevBlank             bool // the line before was blank, or there was none
+	nextBlank             bool // the line after is blank, or there is none (notes passed over)
+	nextSpaces            bool // the line after is only spaces: within a speech, its blank line
 	titlepage             bool
 	inDialogueContext     bool
 	inBoneyard            bool // within /* ... */
@@ -133,13 +137,33 @@ type ParseState struct {
 	out                   lex.Screenplay
 }
 
-// Parse converts a Fountain file into the internal lex.Screenplay format.
 // TypeBoneyard is a line of Fountain's boneyard (/* ... */): kept, not
 // printed.
 const TypeBoneyard = lex.TypeBoneyard
 
+// Parse converts a Fountain file into the internal lex.Screenplay format.
+// It follows the Fountain spec (fountain.io/syntax) where Lexington
+// before 1.19 read more loosely: a scene heading and a character cue need
+// a blank line before them; a transition is in capitals, ends in TO: and
+// has blank lines around it; a line of two spaces (or more) within a
+// speech keeps it going, as a blank line of dialogue. Forced elements
+// (. @ > ! ~) are what they say anywhere. ParseLoose is the old reading,
+// KeepLoose writes a script that relied on it so that it reads the same.
 func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
-	return parse(scenes, file, false)
+	return parse(scenes, file, false, false)
+}
+
+// ParseLoose is Parse as Lexington read Fountain before 1.19: a line
+// starting with a scene word is a heading wherever it is, a line in
+// capitals right after action a character cue, any line ending in " TO:"
+// (in any case) a transition, and a line of spaces ends a speech.
+func ParseLoose(scenes []string, file io.Reader) lex.Screenplay {
+	return parse(scenes, file, false, true)
+}
+
+// ParseLinesLoose is ParseLines with ParseLoose's reading.
+func ParseLinesLoose(scenes []string, file io.Reader) lex.Screenplay {
+	return parse(scenes, file, true, true)
 }
 
 // ParseLines is Parse with each row's Source: the line of the text it
@@ -148,16 +172,18 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 // were added at). With it a caller that knows things per line of its
 // text (a revision's changed lines) can put them on the rows.
 func ParseLines(scenes []string, file io.Reader) lex.Screenplay {
-	return parse(scenes, file, true)
+	return parse(scenes, file, true, false)
 }
 
-func parse(scenes []string, file io.Reader, lines bool) (out lex.Screenplay) {
+func parse(scenes []string, file io.Reader, lines, loose bool) (out lex.Screenplay) {
 	Scene = scenes
 
 	toParse := readAllLines(file)
 
 	state := &ParseState{
 		scenes:    scenes,
+		loose:     loose,
+		prevBlank: true,
 		titlepage: true,
 		out:       make(lex.Screenplay, 0),
 	}
@@ -201,6 +227,7 @@ func parse(scenes []string, file io.Reader, lines bool) (out lex.Screenplay) {
 				state.inBoneyard = !strings.Contains(trimmedSpaceRow, "*/")
 			}
 			state.out = append(state.out, lex.Line{Type: TypeBoneyard, Contents: row})
+			state.prevBlank = false
 			continue
 		}
 
@@ -211,9 +238,11 @@ func parse(scenes []string, file io.Reader, lines bool) (out lex.Screenplay) {
 				next = strings.TrimRight(toParse[i+1], "\n\r")
 			}
 			if handled := state.handleTitlePage(row, trimmedSpaceRow, next, &currentLine); handled {
+				state.prevBlank = trimmedSpaceRow == ""
 				continue
 			}
 		}
+		state.nextBlank, state.nextSpaces = nextBlank(toParse, i)
 
 		// Parse screenplay body
 		currentLine, isCurrentLineDualSpeakerCandidate = state.parseScreenplayLine(originalRow, row, trimmedSpaceRow)
@@ -228,9 +257,33 @@ func parse(scenes []string, file io.Reader, lines bool) (out lex.Screenplay) {
 
 		// Update dialogue context for next iteration
 		state.updateDialogueContext(currentLine)
+		state.prevBlank = currentLine.Type == lex.TypeEmpty
 	}
 
 	return state.out
+}
+
+// nextBlank tells whether the line after rows[i] is blank, or there is
+// none, passing over lines of only notes (as "BOB" with a note below it
+// and a blank line after that is no cue); spaces tells whether that
+// blank line is two spaces or more.
+func nextBlank(rows []string, i int) (blank, spaces bool) {
+	for k := i + 1; k < len(rows) && k < i+17; k++ {
+		r := strings.TrimRight(rows[k], "\n\r")
+		if strings.TrimSpace(r) == "" {
+			return true, onlySpaces(r)
+		}
+		if strings.TrimSpace(lex.StripNotes(r)) != "" || !strings.Contains(r, "[[") {
+			return false, false
+		}
+	}
+	return true, false
+}
+
+// onlySpaces tells whether row is two spaces or more and nothing else:
+// within a speech, its blank line.
+func onlySpaces(row string) bool {
+	return len(row) >= 2 && strings.Trim(row, " ") == ""
 }
 
 // openNote is where the note ([[) that s opens and does not close (]])
@@ -485,6 +538,11 @@ func (state *ParseState) parseLine(originalRow, row, trimmedSpaceRow string) (le
 	var isCurrentLineDualSpeakerCandidate bool
 
 	if trimmedSpaceRow == "" {
+		// two spaces within a speech: its blank line, the speech goes on
+		// (not right after the name: a name with no speech is no cue)
+		if !state.loose && state.inDialogueContext && onlySpaces(row) && !state.afterSpeaker() {
+			return lex.Line{Type: lex.TypeDialog}, false
+		}
 		currentLine.Type = lex.TypeEmpty
 		currentLine.Contents = ""
 		return currentLine, false
@@ -510,10 +568,29 @@ func (state *ParseState) parseLine(originalRow, row, trimmedSpaceRow string) (le
 	return state.checkInferredTypes(row, trimmedSpaceRow)
 }
 
+// afterSpeaker tells whether the row read last, notes passed over, is
+// a character's name.
+func (state *ParseState) afterSpeaker() bool {
+	for k := len(state.out) - 1; k >= 0; k-- {
+		if state.out[k].Type != lex.TypeNote {
+			return state.out[k].Type == lex.TypeSpeaker
+		}
+	}
+	return false
+}
+
 func (state *ParseState) checkStructuralTypes(row string) lex.Line {
 	checkfuncs := []func(string) (bool, string, string){
-		func(row string) (bool, string, string) { return checkSceneWith(row, state.scenes) },
-		CheckCrow,
+		func(row string) (bool, string, string) {
+			ok, el, contents := checkSceneWith(row, state.scenes)
+			// a scene word starts a heading after a blank line only; a
+			// forced one (.) is one anywhere
+			if ok && !state.loose && !state.prevBlank && !strings.HasPrefix(row, ".") {
+				return false, "", ""
+			}
+			return ok, el, contents
+		},
+		state.checkCrow,
 		CheckEqual,
 		CheckSection,
 	}
@@ -530,12 +607,28 @@ func (state *ParseState) checkStructuralTypes(row string) lex.Line {
 	return lex.Line{}
 }
 
+// checkCrow is CheckCrow, where a transition not forced with > is in
+// capitals, ends in TO: and has blank lines around it.
+func (state *ParseState) checkCrow(row string) (bool, string, string) {
+	crow, el, contents := CheckCrow(row)
+	if !crow || state.loose || strings.HasPrefix(strings.TrimSpace(row), ">") {
+		return crow, el, contents
+	}
+	bare := strings.TrimSpace(row)
+	if !state.prevBlank || !state.nextBlank || !AllCaps(bare) || !strings.HasSuffix(bare, "TO:") {
+		return false, "", ""
+	}
+	return crow, el, contents
+}
+
 func (state *ParseState) checkInferredTypes(row, trimmedSpaceRow string) (lex.Line, bool) {
 	var currentLine lex.Line
 	var isCurrentLineDualSpeakerCandidate bool
 
 	charcheck := strings.Split(row, "(")
-	if !state.inDialogueContext && len(charcheck) > 0 && AllCaps(charcheck[0]) &&
+	// a name after a blank line only (and a speech after it: one followed
+	// by a blank line is action again, updateDialogueContext)
+	if !state.inDialogueContext && (state.loose || state.prevBlank) && len(charcheck) > 0 && AllCaps(charcheck[0]) &&
 		strings.TrimSpace(charcheck[0]) != "" {
 		// Speaker name (all caps); within a speech an all-caps line is
 		// dialogue (a shout, a sung lyric, SFX's KRAKOOM!)

@@ -62,6 +62,37 @@ lexington -help
 - **Pandoc Integration**: Seamless ebook generation with proper metadata
 - **Professional Formatting**: Industry-standard screenplay layout
 
+### Reading Fountain: the spec's rules
+
+Lexington reads Fountain as the spec ([fountain.io/syntax](https://fountain.io/syntax))
+has it. Since 1.19 that includes four points where it used to read more
+loosely:
+
+- a scene heading needs a blank line before it (`INT. HOUSE` right under
+  action is action);
+- so does a character cue (a line in capitals right under action is
+  action);
+- a transition is in capitals, ends in `TO:` and has blank lines around
+  it (`cut to:` and `... and DISSOLVE TO:` at the end of action are
+  action);
+- a line of two spaces within dialogue keeps the speech going, as a blank
+  line of it.
+
+Forced elements (`.` `@` `>` `!` `~`) are what they say anywhere, and the
+scene words are still each language's from the configuration. A script
+that relied on the old reading can be written so that it reads as it did,
+with blank lines and force marks added (`fountain.KeepLoose`; Accolade's
+*Keep It As It Was*):
+
+```bash
+lexington -keeploose -i old.fountain -o kept.fountain   # says how many places changed
+lexington -loose -i old.fountain -o old.pdf              # or read it the old way once
+```
+
+The Fountain writer writes what the spec reads back the same: a heading
+or a name without a blank line before it gets its force mark, a
+transition without blank lines around it `>`.
+
 ## Configuration
 
 Lexington supports extensive customization through TOML configuration files. You can control margins, fonts, alignment, and styling for all screenplay elements.

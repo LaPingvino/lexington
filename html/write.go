@@ -107,6 +107,9 @@ body {
 .empty {
     height: 1em;
 }
+.dialogue:empty {
+    min-height: 1em; /* a blank line within a speech (Fountain's two spaces) */
+}
 .title-page {
 	text-align: center;
 	height: 100vh;

@@ -20,6 +20,7 @@ type WriteState struct {
 	config    []string
 	dualNext  bool   // the next speaker is the second of dual dialogue (^)
 	titleKey  string // the title page field written last
+	nextBlank bool   // the row after this one is a blank line, or there is none
 }
 
 // Write converts the internal lex.Screenplay format to a Fountain file.
@@ -34,7 +35,8 @@ func (f *FountainWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		config:    f.SceneConfig,
 	}
 
-	for _, line := range screenplay {
+	for k, line := range screenplay {
+		state.nextBlank = k+1 >= len(screenplay) || screenplay[k+1].Type == lex.TypeEmpty
 		if err := state.writeLine(line); err != nil {
 			return err
 		}
@@ -94,10 +96,11 @@ func (state *WriteState) writeLine(line lex.Line) error {
 		_, err := fmt.Fprintf(state.writer, ">%s<\n", strings.TrimSpace(line.Contents))
 		return err
 	case lex.TypeTrans:
-		// only "... TO:" is a transition by itself; others need the ">"
+		// only "... TO:" in capitals with blank lines around it is a
+		// transition by itself; others need the ">"
 		t := strings.TrimSpace(line.Contents)
-		if bare := strings.TrimSpace(lex.StripNotes(t)); !strings.HasSuffix(strings.ToUpper(bare), "TO:") &&
-			!strings.HasPrefix(bare, ">") {
+		if bare := strings.TrimSpace(lex.StripNotes(t)); !strings.HasPrefix(bare, ">") &&
+			(!strings.HasSuffix(bare, "TO:") || !AllCaps(bare) || !state.afterBlank() || !state.nextBlank) {
 			t = "> " + t
 		}
 		_, err := fmt.Fprintln(state.writer, t)
@@ -141,7 +144,8 @@ func (state *WriteState) writeEmpty() error {
 
 func (state *WriteState) writeSpeaker(line lex.Line) error {
 	// the notes are no part of the name ("BOB [[note]]" is in capitals)
-	if name, _, _ := strings.Cut(lex.StripNotes(line.Contents), "("); !AllCaps(name) {
+	// a name is one by itself in capitals after a blank line
+	if name, _, _ := strings.Cut(lex.StripNotes(line.Contents), "("); !AllCaps(name) || !state.afterBlank() {
 		if _, err := fmt.Fprint(state.writer, "@"); err != nil {
 			return err
 		}
@@ -156,13 +160,21 @@ func (state *WriteState) writeSpeaker(line lex.Line) error {
 }
 
 func (state *WriteState) writeScene(line lex.Line) error {
-	if !state.isSceneSupported(lex.StripNotes(line.Contents)) {
+	// a heading is one by its word after a blank line
+	if !state.isSceneSupported(lex.StripNotes(line.Contents)) || !state.afterBlank() {
 		if _, err := fmt.Fprint(state.writer, "."); err != nil {
 			return err
 		}
 	}
 	_, err := fmt.Fprintln(state.writer, line.Contents)
 	return err
+}
+
+// afterBlank tells whether what is written so far ends with a blank line,
+// or is nothing yet.
+func (state *WriteState) afterBlank() bool {
+	t, ok := state.writer.(*tailWriter)
+	return !ok || len(t.tail) == 0 || t.blank()
 }
 
 func (state *WriteState) isSceneSupported(contents string) bool {
@@ -180,7 +192,8 @@ func (state *WriteState) writeLyrics(line lex.Line) error {
 }
 
 func (state *WriteState) writeAction(line lex.Line) error {
-	if AllCaps(lex.StripNotes(line.Contents)) {
+	// action that would read as a name, a transition or a heading
+	if bare := lex.StripNotes(line.Contents); AllCaps(bare) || (state.afterBlank() && state.isSceneSupported(bare)) {
 		if _, err := fmt.Fprint(state.writer, "!"); err != nil {
 			return err
 		}
@@ -190,6 +203,11 @@ func (state *WriteState) writeAction(line lex.Line) error {
 }
 
 func (state *WriteState) writeDefault(line lex.Line) error {
+	if line.Type == lex.TypeDialog && strings.TrimSpace(line.Contents) == "" {
+		// a blank line within a speech: two spaces, as Fountain has it
+		_, err := fmt.Fprintln(state.writer, "  ")
+		return err
+	}
 	_, err := fmt.Fprintln(state.writer, line.Contents)
 	return err
 }
