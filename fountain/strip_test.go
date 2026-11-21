@@ -37,7 +37,7 @@ kept here [[with a note]] */
 /* Omitted 2
 EXT. GARDEN - DAY #2#
 
-Rain.
+Rain. [[from: #:~:text=It rained]]
 */
 
 EXT. STREET - NIGHT #3#
@@ -224,6 +224,36 @@ She runs.
 	}
 	if _, err := ParseStrip("notes,nothing"); err == nil {
 		t.Error("an unknown key is no error")
+	}
+}
+
+// TestStripLinksEverywhere: a source link goes in every preset, inside a
+// kept boneyard (an omitted scene's) too.
+func TestStripLinksEverywhere(t *testing.T) {
+	for _, o := range presetOptions() {
+		if got := Strip(everyBlock, en, o); strings.Contains(got, "from:") {
+			t.Errorf("%s keeps a link:\n%s", o, got)
+		}
+	}
+}
+
+// TestStripBoneyardAsParsed: a boneyard is what the parser reads as one,
+// from a line starting with /* (a /* within a line is text), to the end
+// of the text when it is never closed.
+func TestStripBoneyardAsParsed(t *testing.T) {
+	for _, c := range []struct {
+		name, in, want string
+		o              StripOptions
+	}{
+		{"a /* within a line", "He/*she*/ waits.\n\nBOB\nHi.\n", "He/*she*/ waits.\n\nBOB\nHi.\n", StripOptions{Boneyard: true}},
+		{"text after the close", "Anna.\n\n/* old */ gone too\n\nBob.\n", "Anna.\n\nBob.\n", StripOptions{Boneyard: true}},
+		{"never closed: kept in clean", "Anna. [[from: x]]\n\n/* open\nBob. [[from: y]] [[n]]\n", "Anna.\n\n/* open\nBob. [[n]]\n", StripOptions{}},
+		{"never closed: all of it goes", "Anna.\n\n/* open\nBob.\n", "Anna.\n", StripOptions{Boneyard: true}},
+		{"notes in a kept boneyard stay", "Anna. [[n]]\n\n/* old [[m]] */\n", "Anna.\n\n/* old [[m]] */\n", StripOptions{Notes: true}},
+	} {
+		if got := Strip(c.in, en, c.o); got != c.want {
+			t.Errorf("%s:\n%q\nwant\n%q", c.name, got, c.want)
+		}
 	}
 }
 

@@ -11,8 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`-strip`: a clean copy of a Fountain script** (`fountain.Strip`). It
   always takes out Accolade's data — its end blocks (Notes, Source,
   Adaptation, Production, Characters), the language line after them and
-  the `[[from: …]]` source links — and, as a comma list says, more:
-  `notes`, `boneyard` (an omitted scene's kept text too), `numbers`,
+  the `[[from: …]]` source links, in a kept boneyard too — and, as a comma
+  list says, more: `notes`, `boneyard` (as Parse reads one: from a line
+  starting with `/*` to the line that closes it; an omitted scene's kept
+  text too), `numbers`,
   `omitted` (the OMITTED headings with the scenes kept under them),
   `titlepage`, `outline` (sections and synopses), or the presets `clean`
   (Accolade's data only), `reading` (notes, outline) and `writer` (scene

@@ -693,7 +693,7 @@ func PDFWarning(s lex.Screenplay) string {
 // names alone: script.en.fountain — a dot in a folder's name is no part of it.
 func detectFormats(o *Options) {
 	defer func() {
-		if o.Strip != "" && o.To == "" && o.Output == "-" {
+		if o.Strip != "" && o.To == "" {
 			o.To = internal.FormatFountain // a clean copy of the script
 		}
 	}()

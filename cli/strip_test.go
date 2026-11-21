@@ -34,6 +34,9 @@ func TestStripFlag(t *testing.T) {
 	if got := run(0, "-strip", "clean", "-to", "fountain", "-o", out); got != "Title: Rain\n\nINT. A - DAY #1#\n\nAnna waits. [[slow]]\n" {
 		t.Errorf("clean: %q", got)
 	}
+	if got := run(0, "-strip", "clean", "-o", out); got != "Title: Rain\n\nINT. A - DAY #1#\n\nAnna waits. [[slow]]\n" {
+		t.Errorf("no -to, a name without an extension: Fountain as is, got %q", got)
+	}
 	if got := run(0, "-strip", "writer,notes,titlepage", "-to", "fountain", "-o", out); got != "INT. A - DAY\n\nAnna waits.\n" {
 		t.Errorf("writer,notes,titlepage: %q", got)
 	}

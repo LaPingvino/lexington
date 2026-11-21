@@ -334,30 +334,33 @@ func stripSpans(ls []sline, o StripOptions) []sline {
 	return dropLines(out, drop)
 }
 
-// spansOf are the notes and boneyards of text to take out, in order:
-// notes within a boneyard are the boneyard's. A note does not go on over
-// a blank line (as Parse reads one), and an unclosed boneyard is left as
-// it is.
+// spansOf are the notes and boneyards of text to take out, in order. A
+// boneyard is what Parse reads as one: from a line that starts with "/*"
+// to the end of the line that closes it with "*/" (to the end of the
+// text if none does); a "/*" within a line is the line's text. A note
+// in a boneyard is the boneyard's, but for a source link: those go
+// wherever they are. A note does not go on over a blank line (as Parse
+// reads one).
 func spansOf(text string, o StripOptions) []span {
+	bones := boneyards(text)
+	in := func(at int) bool {
+		for _, b := range bones {
+			if at >= b.start && at < b.end {
+				return true
+			}
+		}
+		return false
+	}
 	var out []span
+	if o.Boneyard {
+		for _, b := range bones {
+			out = append(out, widen(text, b.start, b.end))
+		}
+	}
 	for i := 0; i < len(text); {
 		n := strings.Index(text[i:], "[[")
-		b := strings.Index(text[i:], "/*")
-		if n < 0 && b < 0 {
+		if n < 0 {
 			break
-		}
-		if b >= 0 && (n < 0 || b < n) {
-			start := i + b
-			e := strings.Index(text[start+2:], "*/")
-			if e < 0 {
-				break
-			}
-			end := start + 2 + e + 2
-			if o.Boneyard {
-				out = append(out, widen(text, start, end))
-			}
-			i = end
-			continue
 		}
 		start := i + n
 		end := noteEnd(text, start)
@@ -365,10 +368,53 @@ func spansOf(text string, o StripOptions) []span {
 			i = start + 2
 			continue
 		}
-		if o.Notes || IsSourceLink(text[start+2:end-2]) {
+		i = end
+		bone := in(start)
+		if bone && o.Boneyard {
+			continue // goes with it
+		}
+		if (o.Notes && !bone) || IsSourceLink(text[start+2:end-2]) {
 			out = append(out, widen(text, start, end))
 		}
-		i = end
+	}
+	sort.Slice(out, func(a, b int) bool { return out[a].start < out[b].start })
+	// a note over a boneyard's edge: the first wins
+	kept := out[:0]
+	for _, s := range out {
+		if len(kept) > 0 && s.start < kept[len(kept)-1].end {
+			continue
+		}
+		kept = append(kept, s)
+	}
+	return kept
+}
+
+// boneyards are the boneyards of text, as Parse reads them: each from
+// its "/*" to the end of the line that closes it.
+func boneyards(text string) []span {
+	var out []span
+	open := -1
+	for at := 0; at < len(text); {
+		end := strings.IndexByte(text[at:], '\n')
+		if end < 0 {
+			end = len(text)
+		} else {
+			end += at
+		}
+		t := strings.TrimSpace(text[at:end])
+		switch {
+		case open < 0 && strings.HasPrefix(t, "/*"):
+			open = at + strings.Index(text[at:end], "/*")
+			if strings.Contains(t[2:], "*/") {
+				out, open = append(out, span{open, end}), -1
+			}
+		case open >= 0 && strings.Contains(t, "*/"):
+			out, open = append(out, span{open, end}), -1
+		}
+		at = end + 1
+	}
+	if open >= 0 {
+		out = append(out, span{open, len(text)})
 	}
 	return out
 }

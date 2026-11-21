@@ -101,7 +101,7 @@ byte (with `-to pdf`, `html`, … it converts what is left). It always takes
 out Accolade's data: its end blocks (`/* Notes */` and, before it,
 `/* Source */`, `/* Adaptation */`, `/* Production */`, `/* Characters */`),
 the language line after them (`/* Language: eo */`) and the links to the
-source story (`[[from: …]]`). It takes a comma list of presets and
+source story (`[[from: …]]`, wherever they are, in a boneyard kept too). It takes a comma list of presets and
 options, which add up:
 
 | key | takes out |
@@ -110,7 +110,7 @@ options, which add up:
 | `reading` | a reading copy: `notes` and `outline` |
 | `writer` | the writer's version: `numbers` and `omitted` |
 | `notes` | every note `[[…]]` |
-| `boneyard` | every boneyard `/* … */`, an omitted scene's kept text too |
+| `boneyard` | every boneyard `/* … */` as the parser reads one (from a line starting with `/*` to the line that closes it), an omitted scene's kept text too |
 | `numbers` | the scene numbers `#12#` |
 | `omitted` | the OMITTED headings, with the scene kept under each |
 | `titlepage` | the title page |
