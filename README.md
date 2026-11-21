@@ -170,7 +170,17 @@ number — takes its language's direction, from `[Directions]`: `"rtl"` or
 `"ltr"`. The default configuration has `ar` and `he` right to left, and a
 language one's configuration does not name keeps the default's (so `he =
 "ltr"` turns Hebrew around); a custom language sets its own. The HTML
-writer uses it (`-scenein` names the script's language).
+and PDF writers use it (`-scenein` names the script's language).
+
+The PDF prints a right-to-left line from the right: its element's
+margins swapped and its alignment turned (a transition on the left, a
+scene's CONTINUEDs, a dual dialogue's first speaker on the right), its
+words in reading order by the Unicode bidi algorithm, numbers and Latin
+in it kept, brackets turned. Hebrew prints this way, points and all
+(Courier Badi has them; without shaping each point stands at its default
+place). Scripts whose letters join (Arabic, Syriac, N'Ko, Mongolian…)
+need shaping the PDF does not do yet: for them Lexington warns and
+suggests printing the HTML from a browser.
 
 ```toml
 [Directions]

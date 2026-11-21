@@ -66,6 +66,7 @@ type pageState struct {
 	// CONTINUED
 	inScene    bool   // a scene's text is being printed
 	scene      string // its number
+	rtl        bool   // its heading reads right to left: its CONTINUEDs mirrored
 	contd      int    // its pages so far after its first
 	continuing bool   // the page being made continues the scene
 	marks      []contMark
@@ -81,6 +82,7 @@ type contMark struct {
 	top   bool
 	scene string
 	nth   int
+	rtl   bool // mirrored, for a scene whose heading reads right to left
 }
 
 func (t *Tree) state() *pageState {
@@ -107,7 +109,7 @@ func (t *Tree) pageBegins() {
 	y := top
 	if t.continueds && s.continuing {
 		s.contd++
-		s.marks = append(s.marks, contMark{page: t.PDF.PageNo(), y: top, top: true, scene: s.scene, nth: s.contd})
+		s.marks = append(s.marks, contMark{page: t.PDF.PageNo(), y: top, top: true, scene: s.scene, nth: s.contd, rtl: s.rtl})
 		y += 2 * lineHeight
 	}
 	s.continuing = false
@@ -128,7 +130,7 @@ func (t *Tree) breaking(cont bool, y float64) {
 				y = s.lastBottom
 			}
 		}
-		s.marks = append(s.marks, contMark{page: t.PDF.PageNo(), y: y})
+		s.marks = append(s.marks, contMark{page: t.PDF.PageNo(), y: y, rtl: s.rtl})
 	}
 	s.continuing = cont
 }
@@ -391,13 +393,17 @@ func (t *Tree) drawPages() {
 		pdf.SetPage(m.page)
 		fontName, _ := t.Fonts.font(scene.Font, "CONTINUED")
 		pageFont(pdf, fontName, scene.Size)
+		scene, trans, align := scene, trans, "L"
+		if m.rtl { // from the other side, as its scene's heading
+			scene, trans, align = mirrored(scene), mirrored(trans), "R"
+		}
 		if m.top {
 			text := "CONTINUED:"
 			if m.nth > 1 {
 				text += " (" + strconv.Itoa(m.nth) + ")"
 			}
 			pdf.SetXY(scene.Left, m.y)
-			pdf.CellFormat(pageWidth-scene.Left-scene.Right, lineHeight, text, "", 0, "L", false, 0, "")
+			pdf.CellFormat(pageWidth-scene.Left-scene.Right, lineHeight, text, "", 0, align, false, 0, "")
 			if m.scene != "" {
 				_, n := t.Fonts.font(scene.Font, m.scene)
 				pdf.SetXY(scene.Left-0.85, m.y)
@@ -408,7 +414,11 @@ func (t *Tree) drawPages() {
 			continue
 		}
 		w := pdf.GetStringWidth("(CONTINUED)")
-		pdf.SetXY(pageWidth-trans.Right-w, m.y)
+		x := pageWidth - trans.Right - w
+		if m.rtl {
+			x = trans.Left
+		}
+		pdf.SetXY(x, m.y)
 		pdf.CellFormat(w, lineHeight, "(CONTINUED)", "", 0, "L", false, 0, "")
 	}
 }
@@ -475,7 +485,8 @@ func (t *Tree) bodyPrinted(row lex.Line, info rowInfo, spans []span) {
 	s := t.state()
 	switch row.Type {
 	case lex.TypeScene:
-		_, s.scene = lex.SceneNumber(row.Contents)
+		heading, number := lex.SceneNumber(row.Contents)
+		s.scene, s.rtl = number, t.lineRTL(heading)
 		s.inScene, s.contd = true, 0
 	case lex.TypeSection:
 		s.inScene = false

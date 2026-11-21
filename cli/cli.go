@@ -556,7 +556,7 @@ func makeReport(o Options, conf rules.TOMLConf, screenplay lex.Screenplay, ro re
 			}
 			elements = elements.WithPagination(p)
 		}
-		ro.PDF = &pdf.PDFWriter{Elements: elements, Page: pageFor(o), MergeOmitted: o.MergeOmitted}
+		ro.PDF = &pdf.PDFWriter{Elements: elements, Page: pageFor(o), MergeOmitted: o.MergeOmitted, RTL: conf.RTL(o.SceneIn)}
 	}
 	if ro.Scenes == nil {
 		ro.Scenes = conf.Scenes[o.SceneIn]
@@ -590,7 +590,7 @@ func lockWriter(o Options, conf rules.TOMLConf) (*pdf.PDFWriter, error) {
 		elements = elements.WithPagination(p)
 	}
 	return &pdf.PDFWriter{Elements: elements, Page: pageFor(o), Lock: o.Lock, Continueds: o.Continueds,
-		Revisions: o.Revisions, MergeOmitted: o.MergeOmitted}, nil
+		Revisions: o.Revisions, MergeOmitted: o.MergeOmitted, RTL: conf.RTL(o.SceneIn)}, nil
 }
 
 // LockPages are the pages of a screenplay as the PDF prints it with o's
@@ -653,7 +653,7 @@ func writeReport(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) erro
 // PDFWarning says what a PDF of the screenplay cannot print as written,
 // and what to do instead; "" when it prints well.
 func PDFWarning(s lex.Screenplay) string {
-	missing, rtl := pdf.Unsupported(s)
+	missing, shaping := pdf.Unsupported(s)
 	var why []string
 	if len(missing) > 0 {
 		shown := missing
@@ -662,8 +662,8 @@ func PDFWarning(s lex.Screenplay) string {
 		}
 		why = append(why, fmt.Sprintf("its font has no %s (%d characters), which show as boxes", string(shown), len(missing)))
 	}
-	if rtl {
-		why = append(why, "its right-to-left text (Hebrew, Arabic) comes out left to right")
+	if shaping {
+		why = append(why, "its letters that join (Arabic, Syriac…) would print unjoined, as the PDF does no shaping")
 	}
 	if len(why) == 0 {
 		return ""
@@ -864,7 +864,7 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 			return nil, errors.New("cannot write PDF to standard output: give an output file (-o output.pdf)")
 		}
 		return &pdf.PDFWriter{OutputFile: o.Output, Elements: elements, Page: pageFor(o), Revisions: o.Revisions,
-			Lock: o.Lock, Continueds: o.Continueds, MergeOmitted: o.MergeOmitted}, nil
+			Lock: o.Lock, Continueds: o.Continueds, MergeOmitted: o.MergeOmitted, RTL: conf.RTL(o.SceneIn)}, nil
 	case internal.FormatLex:
 		return &lex.LexWriter{}, nil
 	case internal.FormatFountain:

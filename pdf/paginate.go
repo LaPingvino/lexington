@@ -131,10 +131,7 @@ func (t *Tree) wrap(f rules.Format, text string, width float64) (string, []int) 
 	if strings.TrimSpace(s) == "" {
 		return s, []int{0}
 	}
-	pdf := t.PDF
-	pdf.SetFont(fontName, f.Style, f.Size)
-	_, size := pdf.GetFontSize()
-	wmax := int(math.Ceil((width - 2*pdf.GetCellMargin()) * 1000 / size))
+	t.PDF.SetFont(fontName, f.Style, f.Size)
 	var chars []string // as MultiCell takes them: runes, or bytes in a standard font
 	if fontName == "Helvetica" || fontName == "Times" {
 		for i := 0; i < len(s); i++ {
@@ -149,6 +146,20 @@ func (t *Tree) wrap(f rules.Format, text string, width float64) (string, []int) 
 	for k, c := range chars {
 		offsets[k+1] = offsets[k] + len(c)
 	}
+	starts := t.breaks(chars, width)
+	for k, i := range starts {
+		starts[k] = offsets[i]
+	}
+	return s, starts
+}
+
+// breaks are the chars each line starts at, of chars wrapped in width
+// in the PDF's font, as MultiCell wraps them: at the last space that
+// fits, or within a word that does not, and at each new line.
+func (t *Tree) breaks(chars []string, width float64) []int {
+	pdf := t.PDF
+	_, size := pdf.GetFontSize()
+	wmax := int(math.Ceil((width - 2*pdf.GetCellMargin()) * 1000 / size))
 	widths := map[string]int{}
 	starts := []int{0}
 	sep, i, j, l := -1, 0, 0, 0
@@ -157,7 +168,7 @@ func (t *Tree) wrap(f rules.Format, text string, width float64) (string, []int) 
 		if c == "\n" {
 			i++
 			sep, j, l = -1, i, 0
-			starts = append(starts, offsets[i])
+			starts = append(starts, i)
 			continue
 		}
 		if c == " " {
@@ -178,12 +189,12 @@ func (t *Tree) wrap(f rules.Format, text string, width float64) (string, []int) 
 				i = sep + 1
 			}
 			sep, j, l = -1, i, 0
-			starts = append(starts, offsets[i])
+			starts = append(starts, i)
 			continue
 		}
 		i++
 	}
-	return s, starts
+	return starts
 }
 
 // dualHeight is how many lines the dual dialogue that starts at row i
@@ -456,6 +467,13 @@ func (t *Tree) breakPage(rows lex.Screenplay, blocks []rowInfo, b breakAt) (lex.
 		if b.at > 0 {                            // the row split after a sentence
 			first, rest := r, r
 			first.Contents, rest.Contents = strings.TrimSpace(r.Contents[:b.at]), strings.TrimSpace(r.Contents[b.at:])
+			if rtl := t.lineRTL(r.Contents); t.lineRTL(rest.Contents) != rtl { // the speech's direction kept
+				mark := lex.LRM
+				if rtl {
+					mark = lex.RLM
+				}
+				rest.Contents = string(mark) + rest.Contents
+			}
 			add = append([]lex.Line{first}, add...)
 			addInfo = append([]rowInfo{blocks[i]}, addInfo...)
 			after = append(lex.Screenplay{rest}, rows[i+1:]...)

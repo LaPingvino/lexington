@@ -40,6 +40,10 @@ type PDFWriter struct {
 	// OMITTED 12-14" (lex.MergeOmittedRuns): in the PDF and in its pages,
 	// lock and measures alike.
 	MergeOmitted bool
+	// RTL is the script's language's direction (rules.TOMLConf.RTL): a
+	// line with no direction of its own (no strong letter, no direction
+	// mark) reads right to left in it (bidi.go).
+	RTL bool
 }
 
 // pages are the paper sizes by name, as gofpdf names them.
@@ -72,6 +76,7 @@ type Tree struct {
 	continueds   bool
 	paper        string
 	pages        *pageState
+	rtl          bool // the language's direction, for lines with none of their own
 }
 
 // span is where printed text is on a page: from its top to its foot.
@@ -150,14 +155,16 @@ func (t Tree) pr(a string, text string) []span {
 	f, printed := t.format(a, text)
 	if a == lex.TypeScene {
 		if _, number := lex.SceneNumber(text); number != "" {
-			t.sceneNumber(f, number)
+			t.sceneNumber(t.directed(f, printed), number)
 		}
 	}
 	return t.prf(f, printed, a == lex.TypeScene || a == lex.TypeSection)
 }
 
-// prf prints text in a format (see pr), a heading's or not.
+// prf prints text in a format (see pr), a heading's or not: mirrored if
+// it reads right to left.
 func (t Tree) prf(f rules.Format, text string, heading bool) []span {
+	f = t.directed(f, text)
 	if strings.TrimSpace(text) == "" {
 		t.linePrint(f, text)
 		return nil
@@ -284,6 +291,9 @@ func (t *Tree) Render() {
 		case typeMore:
 			f := t.Rules.Get(lex.TypeSpeaker)
 			f.Prefix, f.Postfix = "", ""
+			if i > 0 && t.lineRTL(rows[i-1].Contents) { // on the side of the speech it breaks
+				f = mirrored(f)
+			}
 			spans := t.prf(f, row.Contents, false)
 			t.extendBar(spans)
 			t.textPrinted(row, info[i], spans)
@@ -692,47 +702,39 @@ func (t *Tree) flushDualDialogue() {
 	rightColStart := 5.0 * sc
 	rightColWidth := 2.5 * sc
 
-	// Render left column using precise positioning
-	leftCurrentY := startY
-	for _, line := range leftElements {
-		lineType := line.Type
-		var format rules.Format
-		switch lineType {
-		case "speaker":
-			format = t.Rules.Get("dualspeaker")
-		case "dialog":
-			format = t.Rules.Get("dualdialog")
-		case "paren":
-			format = t.Rules.Get("dualparen")
-		default:
-			format = t.Rules.Get(lineType)
-		}
-
-		// Position text in left column
-		t.PDF.SetXY(leftColStart+format.Left-1.0*sc, leftCurrentY)
-		leftCurrentY += t.renderDualDialogueLine(format, line.Contents, leftColWidth-(format.Left-1.0*sc))
+	// A dual dialogue whose first speaker reads right to left is
+	// mirrored: its first column on the right; a right-to-left line is
+	// indented from its column's right edge, its alignment turned.
+	if len(leftElements) > 0 && t.lineRTL(leftElements[0].Contents) {
+		pageWidth, _ := t.PDF.GetPageSize()
+		leftColStart, rightColStart = pageWidth-leftColStart-leftColWidth, pageWidth-rightColStart-rightColWidth
 	}
-
-	// Render right column using precise positioning
-	rightCurrentY := startY
-	for _, line := range rightElements {
-		lineType := line.Type
-		var format rules.Format
-		switch lineType {
-		case "speaker":
-			format = t.Rules.Get("dualspeaker")
-		case "dialog":
-			format = t.Rules.Get("dualdialog")
-		case "paren":
-			format = t.Rules.Get("dualparen")
-		default:
-			format = t.Rules.Get(lineType)
+	column := func(elements []lex.Line, start, width float64) float64 {
+		y := startY
+		for _, line := range elements {
+			var format rules.Format
+			switch line.Type {
+			case "speaker":
+				format = t.Rules.Get("dualspeaker")
+			case "dialog":
+				format = t.Rules.Get("dualdialog")
+			case "paren":
+				format = t.Rules.Get("dualparen")
+			default:
+				format = t.Rules.Get(line.Type)
+			}
+			indent := format.Left - 1.0*sc
+			x := start + indent
+			if t.lineRTL(line.Contents) {
+				x, format.Align = start, mirrorAlign(format.Align)
+			}
+			t.PDF.SetXY(x, y)
+			y += t.renderDualDialogueLine(format, line.Contents, width-indent)
 		}
-
-		// Position text in right column
-		t.PDF.SetXY(rightColStart+format.Left-1.0*sc, rightCurrentY)
-		rightCurrentY += t.renderDualDialogueLine(format, line.Contents, rightColWidth-(format.Left-1.0*sc))
+		return y
 	}
+	leftCurrentY := column(leftElements, leftColStart, leftColWidth)
+	rightCurrentY := column(rightElements, rightColStart, rightColWidth)
 
 	// Set final position to the maximum of both columns
 	finalY := leftCurrentY
@@ -748,6 +750,14 @@ func (t *Tree) flushDualDialogue() {
 
 func (t Tree) linePrint(format rules.Format, text string) {
 	pdf := t.PDF
+	if rtl := t.lineRTL(text); strings.TrimSpace(text) != "" && needsBidi(text, rtl) {
+		pageWidth, _ := pdf.GetPageSize()
+		pdf.SetX(0)
+		pdf.SetLeftMargin(format.Left)
+		pdf.SetRightMargin(format.Right)
+		t.bidiPrint(format, text, rtl, format.Left, pageWidth-format.Left-format.Right)
+		return
+	}
 	fontName, spans := t.Fonts.spans(format.Font, strings.TrimRight(text, "\r\n"))
 	pdf.SetFont(fontName, format.Style, format.Size)
 	pdf.SetX(0)
@@ -809,9 +819,13 @@ func (t Tree) writeSpans(format rules.Format, fontName string, spans []lex.Span)
 
 // renderDualDialogueLine renders a single line of dual dialogue and returns the height consumed
 func (t Tree) renderDualDialogueLine(format rules.Format, text string, columnWidth float64) float64 {
+	currentY := t.PDF.GetY()
+	if rtl := t.lineRTL(text); strings.TrimSpace(text) != "" && needsBidi(text, rtl) {
+		t.bidiPrint(format, text, rtl, t.PDF.GetX(), columnWidth)
+		return t.PDF.GetY() - currentY
+	}
 	fontName, spans := t.Fonts.spans(format.Font, strings.TrimRight(text, "\r\n"))
 	t.PDF.SetFont(fontName, format.Style, format.Size)
-	currentY := t.PDF.GetY()
 	if len(spans) == 1 && !styled(spans[0]) {
 		t.PDF.MultiCell(columnWidth, lineHeight, spans[0].Text, "", format.Align, false)
 		return t.PDF.GetY() - currentY
@@ -894,6 +908,7 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 	pdf.SetXY(1, 1)
 	return &Tree{
 		revs:         p.Revisions,
+		rtl:          p.RTL,
 		lock:         p.Lock,
 		continueds:   continueds,
 		paper:        strings.ToLower(size),

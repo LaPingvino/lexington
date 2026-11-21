@@ -6,7 +6,6 @@ import (
 	"unicode"
 
 	"golang.org/x/image/font/sfnt"
-	"golang.org/x/text/unicode/bidi"
 
 	"github.com/LaPingvino/lexington/font"
 	"github.com/LaPingvino/lexington/lex"
@@ -17,12 +16,16 @@ var (
 	courierOnce sync.Once
 )
 
+//go:generate go run gen_joining.go
+
 // Unsupported is what the PDF cannot print of a script as it is written:
 // the characters its font (Courier Badi) lacks, which would show as
-// boxes, and whether it has right-to-left text (Hebrew, Arabic), which
-// the PDF lays out left to right with unjoined letters. Printing the HTML
+// boxes, and whether it has letters that join their neighbours (Arabic,
+// Syriac, N'Ko, Mongolian…: Joining_Type D, R or L), which need shaping
+// the PDF does not do, so they would print unjoined. Right to left alone
+// is no problem (Hebrew prints as written: bidi.go). Printing the HTML
 // (a browser's Print, Save as PDF) has neither problem.
-func Unsupported(s lex.Screenplay) (missing []rune, rtl bool) {
+func Unsupported(s lex.Screenplay) (missing []rune, shaping bool) {
 	courierOnce.Do(func() { courier, _ = sfnt.Parse(font.GetFont(font.CourierPrimeName, "")) })
 	var buf sfnt.Buffer
 	seen := map[rune]bool{}
@@ -32,8 +35,8 @@ func Unsupported(s lex.Screenplay) (missing []rune, rtl bool) {
 				continue
 			}
 			seen[r] = true
-			if p, _ := bidi.LookupRune(r); p.Class() == bidi.R || p.Class() == bidi.AL {
-				rtl = true
+			if unicode.Is(joining, r) {
+				shaping = true
 			}
 			if courier != nil {
 				if g, err := courier.GlyphIndex(&buf, r); err == nil && g == 0 {
@@ -43,5 +46,5 @@ func Unsupported(s lex.Screenplay) (missing []rune, rtl bool) {
 		}
 	}
 	sort.Slice(missing, func(i, j int) bool { return missing[i] < missing[j] })
-	return missing, rtl
+	return missing, shaping
 }

@@ -29,7 +29,12 @@ func TestLinesAsPrinted(t *testing.T) {
 		texts = append(texts, strings.Join(words[:n], " "))
 	}
 	texts = append(texts, "He says *hello* to **everyone** in _the room_, and then *some more words* go on and on and on.",
-		"One line\nand another\n\nand one after a blank", strings.Repeat("x", 150), "Ça va? Schöne Grüße, señor.")
+		"One line\nand another\n\nand one after a blank", strings.Repeat("x", 150), "Ça va? Schöne Grüße, señor.",
+		// right to left (bidiPrint), wrapped as counted: points add no width
+		"כאן יש שורה ארוכה מאוד שצריכה להישבר לכמה שורות כדי לבדוק שהגלישה עובדת כמו שצריך גם בעברית.",
+		"שָׁלוֹם, דָּנִי! מָה שְׁלוֹמְךָ הַיּוֹם? אֲנִי בְּסֵדֶר גָּמוּר, תּוֹדָה רַבָּה לְךָ עַל הַשְּׁאֵלָה הַזֹּאת.",
+		"He says שלום to everyone in the room, and then שלום עולם again, on and on and on, 120 times.",
+		"עם *הדגשה* ו**מודגש** ו_קו תחתון_ באמצע של שורה ארוכה שנשברת לשתיים או לשלוש שורות בעמוד.")
 	for _, key := range []string{"action", "dialog", "paren", "lyrics", "trans"} {
 		f := rules.Default.Get(key)
 		for _, text := range texts {

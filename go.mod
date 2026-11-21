@@ -2,12 +2,10 @@ module github.com/LaPingvino/lexington
 
 require (
 	github.com/BurntSushi/toml v1.5.0
+	github.com/go-text/typesetting v0.3.5
 	github.com/phpdave11/gofpdf v1.4.3
-)
-
-require (
-	golang.org/x/image v0.46.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/image v0.46.0
+	golang.org/x/text v0.42.0
 )
 
 go 1.26.0

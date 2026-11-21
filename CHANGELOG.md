@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **The PDF prints right to left** (scripts that need no shaping:
+  Hebrew). A line reads right to left by its own direction mark or first
+  strong letter, a line with neither (`…`, `12.`) by its language's
+  `[Directions]` (`pdf.PDFWriter.RTL`, set from `-scenein`). Its levels
+  are resolved over the whole row by the Unicode bidi algorithm
+  (go-text/typesetting's `bidi`, a new dependency, already Fyne's), each
+  wrapped line reordered (L2) with brackets and `<>«»` mirrored, so mixed
+  Hebrew/Latin lines and numbers read right both ways; a Latin line with
+  Hebrew words in it keeps its side. Points stay with their letters (a
+  point is reversed with its letter, and Courier Badi draws a point over
+  the cell after it). A right-to-left line's element is mirrored: its
+  margins swapped and its alignment turned (action and dialogue end at
+  the right margin, a transition starts at the left, the scene numbers
+  follow the heading), a speech's (MORE) on its side, a scene's
+  CONTINUEDs mirrored, a dual dialogue whose first speaker reads right to
+  left mirrored with that speaker on the right. Lines wrap where the
+  pagination counts them, so pages, locks and scene lengths are the same
+  in either direction (a speech broken after a sentence keeps its
+  direction on the next page). Direction marks and other bidi controls
+  on a reordered line set the order and print as nothing (Courier Badi
+  gives them a blank cell). Scripts with no right-to-left text print as
+  before (the examples' text, positions and page images unchanged). The
+  page number, the revision marks and the color bar stay where they are.
+  GPOS mark positioning is not applied: each point stands at its default
+  place, so the shin and sin dots both sit over the letter's middle (the
+  sin dot a little higher) and are hard to tell apart, a holam stands
+  over the vav's stem, a dagesh in a vav (shuruk) is hidden in its
+  stroke.
+
+### Changed
+- **`pdf.Unsupported` reports shaping, not direction**: its second result
+  is true for letters that join (Unicode Joining_Type D, R or L, from
+  ArabicShaping.txt: Arabic, Syriac, N'Ko, Mongolian…; `pdf/joining.go`,
+  `go generate`), and `cli.PDFWarning` says those print unjoined. A
+  Hebrew script no longer warns, so it makes its PDF natively.
+
 ## [1.20.0] - 2026-11-21
 
 ### Changed
