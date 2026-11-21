@@ -93,6 +93,43 @@ The Fountain writer writes what the spec reads back the same: a heading
 or a name without a blank line before it gets its force mark, a
 transition without blank lines around it `>`.
 
+### A clean copy: -strip
+
+`-strip` takes out of a Fountain script what one hands on without — for
+another app, an actor, a reader — and writes the rest as it was, byte for
+byte (with `-to pdf`, `html`, … it converts what is left). It always takes
+out Accolade's data: its end blocks (`/* Notes */` and, before it,
+`/* Source */`, `/* Adaptation */`, `/* Production */`, `/* Characters */`),
+the language line after them (`/* Language: eo */`) and the links to the
+source story (`[[from: …]]`). It takes a comma list of presets and
+options, which add up:
+
+| key | takes out |
+|---|---|
+| `clean` | Accolade's data only |
+| `reading` | a reading copy: `notes` and `outline` |
+| `writer` | the writer's version: `numbers` and `omitted` |
+| `notes` | every note `[[…]]` |
+| `boneyard` | every boneyard `/* … */`, an omitted scene's kept text too |
+| `numbers` | the scene numbers `#12#` |
+| `omitted` | the OMITTED headings, with the scene kept under each |
+| `titlepage` | the title page |
+| `outline` | sections `#` and synopses `=` |
+
+```bash
+lexington -strip clean -i film.fountain -o film-clean.fountain
+lexington -strip writer,notes -i film.fountain -o draft.fountain
+lexington -strip reading -i film.fountain -o reading.pdf
+```
+
+A line that held only what went goes with it (and a blank line, where
+two would be left); a line that would read as another element without it
+gets its force mark, so what is left reads as it did. It never writes over
+its input. In Go: `fountain.Strip(text, scenes, fountain.StripOptions{…})`,
+`fountain.ParseStrip("writer,notes")`, `fountain.StripPresets`; where
+Accolade's blocks are, `fountain.EndBlocks` (Accolade finds them with it
+too).
+
 ## Configuration
 
 Lexington supports extensive customization through TOML configuration files. You can control margins, fonts, alignment, and styling for all screenplay elements.

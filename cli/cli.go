@@ -158,6 +158,11 @@ type Options struct {
 	// under the spec as Lexington before 1.19 read it (fountain.KeepLoose:
 	// blank lines and force marks added), instead of converting it.
 	KeepLoose bool
+	// Strip is what to take out of the Fountain input before anything
+	// else (fountain.ParseStrip: a comma list of options and presets,
+	// "clean" for Accolade's data only); "" takes nothing out. Fountain
+	// out is the stripped text as it is, not rewritten.
+	Strip string
 	// Colors prints scene headings and sections in their notes' colors
 	// (rules.Set.WithColors).
 	Colors bool
@@ -330,6 +335,9 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 		"Read Fountain as Lexington before 1.19 did: a scene word starts a heading anywhere, capitals after action are a name, any line ending in \" TO:\" is a transition, a line of spaces ends a speech.")
 	fs.BoolVar(&o.KeepLoose, "keeploose", false,
 		"Write the Fountain input so that it reads under the spec as Lexington before 1.19 read it (blank lines and force marks added), instead of converting it; says how many places changed.")
+	fs.StringVar(&o.Strip, "strip", "",
+		"Take out of the Fountain input, as a comma list: Accolade's data always (its end blocks, the language line, [[from: …]] links), and "+
+			stripHelp()+". Fountain out (the default with -strip) is the text as it was, less what went.")
 	fs.BoolVar(&o.Colors, "colors", false,
 		"Print scene headings and sections in the colors of their notes ([[red]], [[COLOR BLUE]], [[#3366ff]]).")
 	fs.StringVar(&o.ColorStyle, "colorstyle", "",
@@ -412,7 +420,16 @@ func Convert(ctx context.Context, o Options) error {
 			log.Printf("Closing the input: %v", cerr)
 		}
 	}()
-	if o.KeepLoose {
+	if o.Strip != "" {
+		stripped, err := stripInput(o, conf, in)
+		if err != nil {
+			return err
+		}
+		if o.KeepLoose || o.To == internal.FormatFountain {
+			return writeFountain(o, conf, stripped)
+		}
+		in = strings.NewReader(stripped)
+	} else if o.KeepLoose {
 		return keepLoose(o, conf, in)
 	}
 	screenplay, err := parseInput(o, conf, in)
@@ -675,6 +692,11 @@ func PDFWarning(s lex.Screenplay) string {
 // detectFormats reads the formats (and scene languages) from the file
 // names alone: script.en.fountain — a dot in a folder's name is no part of it.
 func detectFormats(o *Options) {
+	defer func() {
+		if o.Strip != "" && o.To == "" && o.Output == "-" {
+			o.To = internal.FormatFountain // a clean copy of the script
+		}
+	}()
 	if ins := strings.Split(filepath.Base(o.Input), "."); len(ins) > 1 {
 		if o.From == "" {
 			o.From = ins[len(ins)-1]
@@ -768,6 +790,73 @@ func keepLoose(o Options, conf rules.TOMLConf, in io.Reader) error {
 		log.Printf("Changed %d places so the script reads as before 1.19", places)
 	}
 	return closeOut()
+}
+
+// stripInput is the Fountain input as fountain.Strip has it, with what
+// o.Strip says taken out.
+func stripInput(o Options, conf rules.TOMLConf, in io.Reader) (string, error) {
+	if o.From != internal.FormatFountain {
+		return "", fmt.Errorf("-strip reads Fountain, not %s", o.From)
+	}
+	so, err := fountain.ParseStrip(o.Strip)
+	if err != nil {
+		return "", err
+	}
+	data, err := io.ReadAll(in)
+	if err != nil {
+		return "", err
+	}
+	return fountain.Strip(string(data), conf.Scenes[o.SceneIn], so), nil
+}
+
+// writeFountain writes the stripped input to o.Output as it is (with
+// -keeploose as fountain.KeepLoose has it): a copy, never over the input.
+func writeFountain(o Options, conf rules.TOMLConf, text string) error {
+	if o.Output == "" || (o.Input != "-" && o.Output != "-" && sameFile(o.Input, o.Output)) {
+		return errors.New("-strip writes a copy: give -o another file than the input")
+	}
+	if o.KeepLoose {
+		crlf := strings.Contains(text, "\r\n")
+		kept, places := fountain.KeepLoose(strings.ReplaceAll(text, "\r\n", "\n"), conf.Scenes[o.SceneIn])
+		if crlf {
+			kept = strings.ReplaceAll(kept, "\n", "\r\n")
+		}
+		text = kept
+		log.Printf("Changed %d places so the script reads as before 1.19", places)
+	}
+	out, closeOut, err := openOutput(o.Output)
+	if err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, text); err != nil {
+		return errors.Join(err, closeOut())
+	}
+	return closeOut()
+}
+
+// sameFile reports whether two names are one file.
+func sameFile(a, b string) bool {
+	if fa, err := os.Stat(a); err == nil {
+		if fb, err := os.Stat(b); err == nil {
+			return os.SameFile(fa, fb)
+		}
+	}
+	aa, _ := filepath.Abs(a)
+	ab, _ := filepath.Abs(b)
+	return aa == ab
+}
+
+// stripHelp lists -strip's presets and options for -help.
+func stripHelp() string {
+	var parts []string
+	for _, p := range fountain.StripPresets {
+		parts = append(parts, p.Key+" ("+p.Help+")")
+	}
+	var keys []string
+	for _, k := range fountain.StripKeys {
+		keys = append(keys, k.Key+" ("+k.Help+")")
+	}
+	return "the presets " + strings.Join(parts, ", ") + "; or the options " + strings.Join(keys, ", ") + ". They add up: writer,notes"
 }
 
 func parseInput(o Options, conf rules.TOMLConf, input io.Reader) (lex.Screenplay, error) {

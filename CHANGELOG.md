@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`-strip`: a clean copy of a Fountain script** (`fountain.Strip`). It
+  always takes out Accolade's data — its end blocks (Notes, Source,
+  Adaptation, Production, Characters), the language line after them and
+  the `[[from: …]]` source links — and, as a comma list says, more:
+  `notes`, `boneyard` (an omitted scene's kept text too), `numbers`,
+  `omitted` (the OMITTED headings with the scenes kept under them),
+  `titlepage`, `outline` (sections and synopses), or the presets `clean`
+  (Accolade's data only), `reading` (notes, outline) and `writer` (scene
+  numbers, OMITTED); they add up (`writer,notes`). Fountain out (the
+  default with `-strip`) is the text as it was, byte for byte where
+  nothing went; other formats convert what is left. A line left with
+  nothing goes, with a blank line where two would be left; a line that
+  would read as another element gets its force mark. Never over the
+  input. `fountain.StripOptions`, `StripKeys`, `StripPresets`,
+  `ParseStrip`.
+- **Accolade's end blocks in one place**: `fountain.EndBlocks` (the
+  blocks a script ends with, from the notes back, in any order, and where
+  the script proper ends), `EndBlockNames`, `EndBlockMarks` /
+  `BlockMarks.At` (the plain scan Accolade used), `LanguageLine` and
+  `IsSourceLink`. Accolade finds its blocks with them, so what counts as
+  one is said once.
+
 ## [1.21.0] - 2026-11-21
 
 ### Added
