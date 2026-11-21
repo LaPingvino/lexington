@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-11-21
+
+### Changed
+- **Courier Badi 1.100** is the embedded font (Regular, Italic, Bold,
+  Bold Italic): Hebrew letters, final forms, points and cantillation
+  (from Cousine, fitted to Courier Badi's width), U+05EF and Bold
+  anchors for the marks. Hebrew no longer counts as missing from the
+  font in `pdf.Unsupported`; the PDF still warns that right-to-left
+  text prints left to right (native PDF bidi comes next).
+
 ## [1.19.0] - 2026-11-21
 
 ### Changed

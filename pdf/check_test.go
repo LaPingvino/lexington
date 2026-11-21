@@ -11,8 +11,8 @@ func TestUnsupported(t *testing.T) {
 	if m, rtl := Unsupported(line("Ĉu vi parolas? Tiếng Việt, Русский.")); len(m) != 0 || rtl {
 		t.Errorf("Latin, Vietnamese, Cyrillic: missing %q, rtl %v", string(m), rtl)
 	}
-	if m, rtl := Unsupported(line("‏שלום")); len(m) != 4 || !rtl {
-		t.Errorf("Hebrew: missing %q, rtl %v", string(m), rtl)
+	if m, rtl := Unsupported(line("‏שָׁלוֹם ׯ")); len(m) != 0 || !rtl {
+		t.Errorf("Hebrew (in the font since Courier Badi 1.100): missing %q, rtl %v", string(m), rtl)
 	}
 	if m, rtl := Unsupported(line("مرحبا")); len(m) != 0 || !rtl {
 		t.Errorf("Arabic (in the font): missing %q, rtl %v", string(m), rtl)
