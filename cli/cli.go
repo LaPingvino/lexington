@@ -233,6 +233,9 @@ type Options struct {
 	// Record, writing a PDF, is filled with its pages as drawn
 	// (pdf.Recorder): what a program shows of it without reading it.
 	Record *pdf.Drawing
+	// Resume, writing a PDF, draws its pages into Record from a page's
+	// start (pdf.Resume): no PDF is made, Output is not written.
+	Resume *pdf.Resume
 }
 
 // colorScheme is the color scheme o asks for, on the settings' own.
@@ -533,6 +536,9 @@ func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.S
 		for _, l := range lw.Measure(screenplay) {
 			fw.Scenes = append(fw.Scenes, fdx.SceneProperty{Page: l.Page, Length: l.Eighths})
 		}
+	}
+	if o.Resume != nil && o.To == internal.FormatPDF {
+		return w.Write(nil, screenplay) // the drawing only
 	}
 	out, closeOut, err := openOutput(o.Output)
 	if err != nil {
@@ -952,12 +958,12 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 	elements := conf.Elements[o.Elements]
 	switch o.To {
 	case internal.FormatPDF:
-		if o.Output == "-" {
+		if o.Output == "-" && o.Resume == nil {
 			return nil, errors.New("cannot write PDF to standard output: give an output file (-o output.pdf)")
 		}
 		return &pdf.PDFWriter{OutputFile: o.Output, Elements: elements, Page: pageFor(o), Revisions: o.Revisions,
 			Lock: o.Lock, Continueds: o.Continueds, MergeOmitted: o.MergeOmitted, RTL: conf.RTL(o.SceneIn),
-			Record: o.Record}, nil
+			Record: o.Record, Resume: o.Resume}, nil
 	case internal.FormatLex:
 		return &lex.LexWriter{}, nil
 	case internal.FormatFountain:

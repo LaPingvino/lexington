@@ -76,6 +76,9 @@ type Drawing struct {
 	// lower case and the style, "B", "I" or "BI" ("courierprimeBI"). The
 	// standard fonts (courier, helvetica, times) have none.
 	Fonts map[string][]byte
+	// Next, in a drawing a Resume stopped, is the start of the page it
+	// stopped before.
+	Next *PageStart
 }
 
 // DrawnPage is a page: its size and what is drawn on it, in the order
@@ -86,6 +89,12 @@ type DrawnPage struct {
 	Number        int
 	Width, Height float64
 	Marks         []Mark
+	// Start is where the page's text starts in the script: a screenplay's
+	// pages can be drawn again from it (Resume). First and Last are the
+	// script's lines printed on it (lex.Line.Source: the script parsed
+	// with fountain.ParseLines; 0 if none is known).
+	Start       PageStart
+	First, Last int
 }
 
 // A Mark is a Text or a Box.
@@ -142,6 +151,18 @@ type Recorder struct {
 	upos, uthick       map[string]float64 // underline position and thickness, in 1/1000 em
 	cp1252             func(string) string
 	defaultW, defaultH float64
+	// lazy: a font file is read into gofpdf when it is first set (a
+	// drawing made again from a page uses few of them; no PDF is made of
+	// it, whose fonts would come in another order); pending are those not
+	// read yet, by key
+	lazy    bool
+	pending map[string]lazyFont
+}
+
+// lazyFont is a font file added, not read yet.
+type lazyFont struct {
+	family, style string
+	b             []byte
 }
 
 // NewRecorder records what is drawn on f from now on: make it before
@@ -171,8 +192,17 @@ func fontKey(family, style string) string {
 }
 
 func (r *Recorder) AddUTF8FontFromBytes(family, style string, b []byte) {
-	r.Fpdf.AddUTF8FontFromBytes(family, style, b)
 	key := fontKey(family, style)
+	if r.lazy {
+		if r.pending == nil {
+			r.pending = map[string]lazyFont{}
+		}
+		if _, ok := r.drawing.Fonts[key]; !ok {
+			r.pending[key] = lazyFont{family, style, b}
+		}
+	} else {
+		r.Fpdf.AddUTF8FontFromBytes(family, style, b)
+	}
 	if _, ok := r.drawing.Fonts[key]; ok || r.Err() {
 		return
 	}
@@ -188,6 +218,17 @@ func (r *Recorder) AddUTF8FontFromBytes(family, style string, b []byte) {
 }
 
 func (r *Recorder) SetFont(family, style string, size float64) {
+	if len(r.pending) > 0 {
+		f := family
+		if f == "" {
+			f = r.family
+		}
+		key := fontKey(f, strings.NewReplacer("U", "", "u", "", "S", "", "s", "").Replace(style))
+		if l, ok := r.pending[key]; ok {
+			delete(r.pending, key)
+			r.Fpdf.AddUTF8FontFromBytes(l.family, l.style, l.b)
+		}
+	}
 	r.Fpdf.SetFont(family, style, size)
 	if r.Err() {
 		return

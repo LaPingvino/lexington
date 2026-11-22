@@ -70,8 +70,11 @@ var standard = map[string][]byte{
 
 // Page is page i (from 0) at scale pixels a point: white paper, what is
 // drawn on it in its order.
-func (r *Rasterizer) Page(i int, scale float64) *image.RGBA {
-	p := r.d.Pages[i]
+func (r *Rasterizer) Page(i int, scale float64) *image.RGBA { return r.Paint(r.d.Pages[i], scale) }
+
+// Paint paints a page in the drawing's fonts (a page of another drawing
+// with those fonts too: one made again from a page, Reflow), as Page.
+func (r *Rasterizer) Paint(p DrawnPage, scale float64) *image.RGBA {
 	w, h := int(math.Ceil(p.Width*scale)), int(math.Ceil(p.Height*scale))
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	for k := range img.Pix {

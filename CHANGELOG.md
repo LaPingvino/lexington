@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Drawing again from a page (what an edit invalidated, as OpenLoco
+  redraws its dirty rectangles).** Each recorded page has its start,
+  `DrawnPage.Start` (a `pdf.PageStart`: the page's number, the script's
+  line and word its text starts at, and, unexported, what the pages before
+  leave to it — the scene it continues and its CONTINUEDs so far, the page
+  numbers, the rows pagination looks back at), and the script's lines
+  printed on it, `First` and `Last` (`Drawing.PageOf(line)` is the page a
+  line prints on; the script parsed with `fountain.ParseLines`).
+  `PDFWriter.Resume` / `cli.Options.Resume` (a `pdf.Resume`) draws the
+  screenplay as it is now from such a start — refused with
+  `pdf.ErrNotResumable` when the rows up to it changed — asking at each
+  later page's start whether to go on (`Drawing.Next` is where it
+  stopped); it makes no PDF, and reads only the fonts it sets.
+  `PageStart.Same` tells that the pages drawn from two starts are the
+  same (the same page number, the same carried over, the same script from
+  there). `pdf.Reflow` makes a drawing again after an edit: from the page
+  before the edited one (pagination looks ahead), stopping where a page
+  starts as before, the old pages kept after it (their starts and lines
+  moved), cancelled by its context between pages. `pdf.Redraw` draws the
+  edited page alone, as if the pages after it started where they did (for
+  a view to show at once). `DrawnPage.Equal` compares two pages' looks;
+  `Rasterizer.Paint` paints any page in the drawing's fonts. A page can be
+  started from when it is in the body and not in a dual dialogue, nor
+  within a row that prints otherwise from its words (a heading, a row with
+  a prefix or emphasis, a line reordered for its direction): on a made-up
+  feature of 113 pages 109 can. Locked pages and revisions are drawn
+  whole. Tested: from every start, the pages are the whole drawing's
+  (default, CONTINUEDs with numbers, A4, Keep only, no pagination, colour
+  bars with tint, markers over blocks, colour backgrounds, Hebrew); twelve
+  edits in a row (a word, a line, a line deleted, a heading that moves
+  the scene numbers after it, a paragraph that adds a page, a speaker's
+  name deleted, a page's first line), each reflowed from the drawing
+  before, are the whole drawing of the script as edited; a word typed
+  redraws its page in some 30 ms (the two fonts it reads are most of it),
+  where the whole feature takes 400.
+
+### Fixed
+- A dual dialogue's opening row has its line (`fountain.ParseLines`): it
+  had none.
+
 ## [1.24.0] - 2026-11-22
 
 ### Added

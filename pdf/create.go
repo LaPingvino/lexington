@@ -48,6 +48,9 @@ type PDFWriter struct {
 	// Record, when set, is filled with the pages as Write draws them
 	// (Recorder): what a program shows of the PDF without reading it.
 	Record *Drawing
+	// Resume, when set, draws the pages from a page's start (resume.go)
+	// into Record, and makes no PDF.
+	Resume *Resume
 }
 
 // fixedDate, when set (by the tests), is every PDF's creation date, so
@@ -98,6 +101,14 @@ type Tree struct {
 	paper        string
 	pages        *pageState
 	rtl          bool // the language's direction, for lines with none of their own
+	// the pages' starts (resume.go): where Render is, each page's start
+	// by PDF page, the script's lines on each page
+	loop      loopState
+	starts    map[int]PageStart
+	pageLines map[int][2]int
+	resume    *Resume
+	stopAt    int // the page the Resume stopped before (0: none)
+	offset    int // the document's pages before the PDF's first (a Resume's)
 }
 
 // span is where printed text is on a page: from its top to its foot.
@@ -233,9 +244,7 @@ func (t Tree) sceneNumber(f rules.Format, number string) {
 }
 
 func (t *Tree) Render() {
-	var block string
-	var lastsection int
-
+	block, lastsection := &t.loop.block, &t.loop.lastsection
 	if t.bar == nil {
 		t.bar = &colorBar{}
 	}
@@ -272,21 +281,35 @@ func (t *Tree) Render() {
 	}
 	rows := t.F
 	info, colorOf := rowInfos(rows), map[int]string{} // the color block of each row, its color
-	if t.lock != nil {
-		rows, info, t.found = t.lockRows(rows, info)
-	}
 	for _, row := range rows {
 		if row.Block != 0 && colorOf[row.Block] == "" {
 			colorOf[row.Block] = row.Color
 		}
 	}
+	if t.lock != nil {
+		rows, info, t.found = t.lockRows(rows, info)
+	}
+	first := 0
+	if t.resume != nil && t.resume.From.at != nil { // from a page's start (resume.go)
+		rows, info, first, _ = t.resumeRows(rows, info) // (PDFWriter.Render checked it)
+		t.loop.rows, t.loop.info, t.loop.i, t.loop.next = rows, info, first, first
+		t.resumeState()
+	} else {
+		t.loop.rows, t.loop.info = rows, info
+		t.pageStarted() // the first page's
+	}
 	var dualInfo rowInfo
-	for i := 0; i < len(rows); i++ {
-		if block == "" && !t.DualDialogue {
+	for i := first; i < len(rows) && t.stopAt == 0; i++ {
+		t.loop.rows, t.loop.info, t.loop.i, t.loop.next = rows, info, i, i
+		if *block == "" && !t.DualDialogue {
 			rows, info = t.paginate(rows, info, i)
+			t.loop.rows, t.loop.info = rows, info
+			if t.stopAt != 0 {
+				break
+			}
 		}
 		row := rows[i]
-		if row.Type == lex.TypeEmpty && block == "" && !t.DualDialogue && (t.atTop() || t.room() < 1) {
+		if row.Type == lex.TypeEmpty && *block == "" && !t.DualDialogue && (t.atTop() || t.room() < 1) {
 			continue // no blank line at a page's top (nor one that would make a page)
 		}
 		// the block of a color (a scene, a section whole) the row is in;
@@ -301,6 +324,7 @@ func (t *Tree) Render() {
 		s.heading = row.Type == lex.TypeScene || row.Type == lex.TypeSection
 		switch row.Type {
 		case typeBreak:
+			t.loop.next = i + 1
 			t.newPage(true)
 			continue
 		case typeLock:
@@ -324,22 +348,23 @@ func (t *Tree) Render() {
 		}
 		if row.Type == lex.TypeNewPage {
 			t.measure.forcedBreak(t.PDF)
-			t.breaking(block == "" && !headingAhead(rows, i+1), 0)
+			t.breaking(*block == "" && !headingAhead(rows, i+1), 0)
+			t.loop.next = i + 1
 		}
 		if row.Type == lex.TypeDualClose && !t.DualDialogue {
 			continue
 		}
 		if row.Type == lex.TypeDualClose {
 			blank := t.dualEndsBlank()
-			spans := t.printed(func() { t.handleSpecialCases(row, &block, &lastsection) })
+			spans := t.printed(func() { t.handleSpecialCases(row, block, lastsection) })
 			t.revised(lex.Line{Type: lex.TypeDialog, Revision: t.revising.dual}, withoutLastLine(spans, blank))
 			t.textPrinted(lex.Line{Type: lex.TypeDualOpen, Revision: t.revising.dual}, dualInfo, spans)
 			t.revising.dual = ""
 			t.extendBar(spans)
 			continue
 		}
-		wasTitle := block != ""
-		if t.handleSpecialCases(row, &block, &lastsection) {
+		wasTitle := *block != ""
+		if t.handleSpecialCases(row, block, lastsection) {
 			if row.Type == lex.TypeNewPage && wasTitle {
 				s.bodyFirst = t.PDF.PageNo()
 			}
@@ -352,20 +377,20 @@ func (t *Tree) Render() {
 			continue
 		}
 
-		contents, level := t.processBookmarkContent(row, lastsection)
+		contents, level := t.processBookmarkContent(row, *lastsection)
 		if contents != "" && (t.revs == nil || !t.revs.PagesOnly) { // (a page left out would be marked)
 			t.PDF.Bookmark(contents, level, -1)
 		}
 
-		if row.Type == lex.TypeScene && block == "" {
+		if row.Type == lex.TypeScene && *block == "" {
 			t.measure.scene(t.PDF)
 		}
-		if t.shouldSkipElement(row, block) {
+		if t.shouldSkipElement(row, *block) {
 			continue
 		}
 
-		if block == internal.ElementTitle || block == elementMeta {
-			row.Type = block
+		if *block == internal.ElementTitle || *block == elementMeta {
+			row.Type = *block
 		}
 		if c, ok := lex.ColorFor(lex.ColorText, row.Color); ok && style == lex.ColorText &&
 			(row.Type == lex.TypeScene || row.Type == lex.TypeSection) {
@@ -375,7 +400,7 @@ func (t *Tree) Render() {
 				t.measure.heading(spans)
 			}
 			t.PDF.SetTextColor(0, 0, 0)
-			if block == "" {
+			if *block == "" {
 				t.revised(row, spans)
 				t.bodyPrinted(row, info[i], spans)
 			}
@@ -389,14 +414,14 @@ func (t *Tree) Render() {
 			t.PDF.SetTextColor(int(c[0]), int(c[1]), int(c[2]))
 		}
 		spans := t.pr(row.Type, row.Contents)
-		if row.Type == lex.TypeScene && block == "" {
+		if row.Type == lex.TypeScene && *block == "" {
 			t.measure.heading(spans)
 		}
 		if blockText {
 			t.PDF.SetTextColor(0, 0, 0)
 		}
 		t.restoreFoot()
-		if block == "" {
+		if *block == "" {
 			t.revised(row, spans)
 			t.bodyPrinted(row, info[i], spans)
 			t.extendBar(spans)
@@ -404,7 +429,7 @@ func (t *Tree) Render() {
 	}
 
 	// Flush any remaining dual dialogue at the end
-	if t.DualDialogue {
+	if t.DualDialogue && t.stopAt == 0 {
 		blank := t.dualEndsBlank()
 		spans := t.printed(t.flushDualDialogue)
 		t.revised(lex.Line{Type: lex.TypeDialog, Revision: t.revising.dual}, withoutLastLine(spans, blank))
@@ -868,7 +893,7 @@ func (t Tree) renderDualDialogueLine(format rules.Format, text string, columnWid
 // requires a file path for output. The output file path is taken from PDFWriter.OutputFile.
 func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	data, err := p.Render(screenplay)
-	if err != nil {
+	if err != nil || p.Resume != nil {
 		return err
 	}
 	return os.WriteFile(p.OutputFile, data, 0o644)
@@ -876,9 +901,26 @@ func (p *PDFWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 
 // Render is the screenplay's PDF, made as Write makes it (OutputFile
 // aside), and its drawing in p.Record if set.
+// With a Resume it makes no PDF (nil), only the drawing.
 func (p *PDFWriter) Render(screenplay lex.Screenplay) ([]byte, error) {
+	if p.Resume != nil && p.Record == nil {
+		p.Record = &Drawing{}
+		defer func() { p.Record = nil }()
+	}
 	f := p.tree(screenplay)
+	if r := p.Resume; r != nil {
+		f.resume = r
+		if r.From.at != nil {
+			if _, _, _, err := f.resumeRows(f.F, rowInfos(f.F)); err != nil {
+				return nil, err
+			}
+		}
+	}
 	f.Render()
+	if p.Resume != nil {
+		*p.Record = f.drawing()
+		return nil, nil
+	}
 	var buf bytes.Buffer
 	if err := f.PDF.Output(&buf); err != nil {
 		return nil, err
@@ -893,8 +935,8 @@ func (p *PDFWriter) Render(screenplay lex.Screenplay) ([]byte, error) {
 			return nil, err
 		}
 	}
-	if r, ok := f.PDF.(*Recorder); ok && p.Record != nil {
-		d := r.Drawing()
+	if p.Record != nil {
+		d := f.drawing()
 		kept := d.Pages[:0:0]
 		for _, page := range d.Pages {
 			if keep(page.Number) {
@@ -926,8 +968,10 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 	}
 	fpdf := NewFpdf("P", "in", size)
 	var pdf Drawer = fpdf
-	if p.Record != nil {
-		pdf = NewRecorder(fpdf)
+	if p.Record != nil || p.Resume != nil {
+		r := NewRecorder(fpdf)
+		r.lazy = p.Resume != nil
+		pdf = r
 	}
 	width, height := pdf.GetPageSize()
 	elements := p.Elements
@@ -954,7 +998,7 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 	pdf.AddPage()
 	pdf.SetMargins(1, 1, 1)
 	pdf.SetXY(1, 1)
-	return &Tree{
+	t := &Tree{
 		revs:         p.Revisions,
 		rtl:          p.RTL,
 		lock:         p.Lock,
@@ -970,4 +1014,34 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 		Scale:        width / 8.5,
 		VScale:       height / 11,
 	}
+	if _, ok := pdf.(*Recorder); ok {
+		t.starts, t.pageLines = map[int]PageStart{}, map[int][2]int{}
+	}
+	return t
+}
+
+// drawing is what the tree's Recorder drew, each page with its start and
+// lines, numbered in the document (a Resume's from its first page), the
+// pages from the one a Resume stopped before left out.
+func (t *Tree) drawing() Drawing {
+	r, ok := t.PDF.(*Recorder)
+	if !ok {
+		return Drawing{}
+	}
+	d := r.Drawing()
+	if t.stopAt > 0 {
+		d.Pages = d.Pages[:t.stopAt-1]
+		next := t.starts[t.stopAt]
+		d.Next = &next
+	}
+	for i := range d.Pages {
+		p := &d.Pages[i]
+		n := p.Number
+		p.Start, p.First, p.Last = t.starts[n], t.pageLines[n][0], t.pageLines[n][1]
+		p.Number += t.offset
+		if p.Start.Page == 0 {
+			p.Start.Page = p.Number
+		}
+	}
+	return d
 }
