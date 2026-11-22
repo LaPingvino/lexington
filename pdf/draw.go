@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"io"
 	"math"
+	"slices"
 	"strings"
 
 	"github.com/phpdave11/gofpdf"
@@ -59,6 +60,10 @@ type Drawer interface {
 	SetHeaderFuncMode(f func(), home bool)
 	SetAcceptPageBreakFunc(f func() bool)
 	Bookmark(text string, level int, y float64)
+	AddLink() int
+	SetLink(link int, y float64, page int)
+	Link(x, y, w, h float64, link int)
+	LinkString(x, y, w, h float64, url string)
 	SetTitle(title string, utf8 bool)
 	Output(w io.Writer) error
 }
@@ -95,6 +100,21 @@ type DrawnPage struct {
 	// with fountain.ParseLines; 0 if none is known).
 	Start       PageStart
 	First, Last int
+	// Links are the page's links, in the order made: not marks (a link
+	// does not change how the page looks).
+	Links []Link
+}
+
+// Link is a clickable area of a page (X, Y its top left corner, in
+// points from the page's): to an address (URL), or a place in the
+// document (Page, from 1, and Y down it, in points; DestY). Page is 0
+// for an address, and for a place never set (SetLink).
+type Link struct {
+	X, Y, W, H float64
+	URL        string
+	Page       int
+	DestY      float64
+	id         int // the internal link's (AddLink), resolved by Drawing
 }
 
 // A Mark is a Text or a Box.
@@ -157,6 +177,9 @@ type Recorder struct {
 	// read yet, by key
 	lazy    bool
 	pending map[string]lazyFont
+	// dests are the internal links' places (SetLink), by their id: the
+	// page and y in points
+	dests map[int]Link
 }
 
 // lazyFont is a font file added, not read yet.
@@ -179,7 +202,56 @@ func (r *Recorder) Drawing() Drawing {
 	r.page(r.PageCount())
 	d := r.drawing
 	d.Pages = d.Pages[:r.PageCount()]
+	for i := range d.Pages {
+		links := slices.Clone(d.Pages[i].Links)
+		for j, l := range links {
+			if l.id != 0 {
+				dest := r.dests[l.id]
+				links[j].Page, links[j].DestY = dest.Page, dest.DestY
+			}
+		}
+		d.Pages[i].Links = links
+	}
 	return d
+}
+
+// SetLink sets where an internal link goes (y -1: where the text has got
+// to; page -1: this page), as gofpdf's.
+func (r *Recorder) SetLink(link int, y float64, page int) {
+	if y == -1 {
+		y = r.GetY()
+	}
+	if page == -1 {
+		page = r.PageNo()
+	}
+	r.Fpdf.SetLink(link, y, page)
+	if r.dests == nil {
+		r.dests = map[int]Link{}
+	}
+	r.dests[link] = Link{Page: page, DestY: y * r.GetConversionRatio()}
+}
+
+// Link puts an internal link (AddLink's) over a rectangle.
+func (r *Recorder) Link(x, y, w, h float64, link int) {
+	r.Fpdf.Link(x, y, w, h, link)
+	r.link(x, y, w, h, link, "")
+}
+
+// LinkString puts a link to url over a rectangle.
+func (r *Recorder) LinkString(x, y, w, h float64, url string) {
+	r.Fpdf.LinkString(x, y, w, h, url)
+	r.link(x, y, w, h, 0, url)
+}
+
+// link records a link over a rectangle in the document's unit.
+func (r *Recorder) link(x, y, w, h float64, id int, url string) {
+	if r.Err() {
+		return
+	}
+	if p := r.page(r.PageNo()); p != nil {
+		k := r.GetConversionRatio()
+		p.Links = append(p.Links, Link{X: x * k, Y: y * k, W: w * k, H: h * k, URL: url, id: id})
+	}
 }
 
 // fontKey is gofpdf's key for a font.
@@ -401,6 +473,9 @@ func (r *Recorder) CellFormat(w, h float64, text, border string, ln int, align s
 			descent = float64(d.Descent) * size / float64(d.Ascent-d.Descent)
 		}
 		dy = (h-size)/2 - descent
+	}
+	if link > 0 || linkURL != "" { // gofpdf's link over the text, as it puts it
+		r.link(x+dx, y+dy+.5*h-.5*size, sw, size, link, linkURL)
 	}
 	base := y + dy + .5*h + .3*size
 	k := r.GetConversionRatio()

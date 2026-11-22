@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Links in a drawing.** `pdf.Drawer` has gofpdf's link calls (`AddLink`,
+  `SetLink`, `Link`, `LinkString`; `CellFormat`'s link and address
+  already were), and the Recorder keeps each page's links,
+  `DrawnPage.Links` (a `pdf.Link`: its rectangle in points, an address,
+  or a place in the document — the page and how far down it, known once
+  `SetLink` sets it, before the link or after). A link is not a mark: a
+  page's look (`Equal`, the Rasterizer) is the same with or without one.
+  The PDF is the same byte for byte through a Recorder (tested with
+  links); a screenplay's PDF has no links and is as before.
+
 ## [1.25.0] - 2026-11-22
 
 ### Added
