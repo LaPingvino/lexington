@@ -21,7 +21,7 @@ func action(n int) string {
 }
 
 func parseScript(text string) lex.Screenplay {
-	return fountain.Parse(rules.DefaultConf().Scenes["en"], strings.NewReader(text))
+	return fountain.Parse(rules.DefaultConf().Scenes("en"), strings.NewReader(text))
 }
 
 // A Letter page holds 55 lines. A scene is measured from its heading to

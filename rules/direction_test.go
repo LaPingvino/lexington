@@ -30,11 +30,10 @@ func TestDirections(t *testing.T) {
 
 func TestDirectionsTravel(t *testing.T) {
 	c := DefaultConf()
-	c.Scenes["xx"] = []string{"A"}
-	c.Directions["xx"] = "rtl"
+	c.Languages["xx"] = Language{Scenes: []string{"A"}, Direction: "rtl"}
 	part := c.Part([]string{"xx", "en"}, nil)
-	if part.Directions["xx"] != "rtl" || part.Directions["en"] != "ltr" {
-		t.Fatalf("part's Directions: %v", part.Directions)
+	if part.Languages["xx"].Direction != "rtl" || part.Languages["en"].Direction != "ltr" {
+		t.Fatalf("part's directions: %v", part.Languages)
 	}
 	text, err := part.Encode()
 	if err != nil {
@@ -50,7 +49,7 @@ func TestDirectionsTravel(t *testing.T) {
 	if !got.RTL("xx") || !got.RTL("he") || got.RTL("en") {
 		t.Errorf("layered: xx %v he %v en %v", got.RTL("xx"), got.RTL("he"), got.RTL("en"))
 	}
-	if machine.Directions != nil {
+	if machine.Knows("xx") {
 		t.Error("With changed the machine's configuration")
 	}
 	// an old bundle's language reads the same as the machine's default
@@ -59,15 +58,15 @@ func TestDirectionsTravel(t *testing.T) {
 	a, _ := old.Of(it)
 	b, _ := DefaultConf().Of(it)
 	if !Same(a, b) {
-		t.Errorf("an old bundle's Hebrew differs from the default's: %v / %v", a.Directions, b.Directions)
+		t.Errorf("an old bundle's Hebrew differs from the default's: %v / %v", a.Languages, b.Languages)
 	}
 	// renamed (keep both), the direction goes along
 	r, err := Renamed(part, Item{"language", "xx"}, "yy")
-	if err != nil || r.Directions["yy"] != "rtl" {
-		t.Errorf("renamed: %v %v", r.Directions, err)
+	if err != nil || !r.RTL("yy") {
+		t.Errorf("renamed: %v %v", r.Languages, err)
 	}
 	// a language only named in Directions is a language
-	only := TOMLConf{Directions: map[string]string{"zz": "rtl"}}
+	only, _ := Decode([]byte("[Directions]\nzz = \"rtl\"\n"))
 	if items := only.Items(); len(items) != 1 || items[0] != (Item{"language", "zz"}) {
 		t.Errorf("items: %v", items)
 	}

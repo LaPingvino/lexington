@@ -41,7 +41,7 @@ func printRTL(t *testing.T, src string, rtl bool) [][]pdfin.PageLine {
 
 func printRTLWith(t *testing.T, src string, rtl bool, set rules.Set) [][]pdfin.PageLine {
 	t.Helper()
-	s := fountain.Parse(rules.DefaultConf().Scenes["he"], strings.NewReader(src))
+	s := fountain.Parse(rules.DefaultConf().Scenes("he"), strings.NewReader(src))
 	file := filepath.Join(t.TempDir(), "rtl.pdf")
 	if err := (&pdf.PDFWriter{OutputFile: file, Elements: set, RTL: rtl}).Write(nil, s); err != nil {
 		t.Fatal(err)
@@ -253,7 +253,7 @@ func TestHebrewPresentationForms(t *testing.T) {
 	const hebrew = "שָׁלוֹם וּבְשׁוּבוֹ שׂ\u05BC תּוֹרָה"
 	src := "INT. ROOM - DAY\n\n" + line + "\n\n" + hebrew + "\n"
 	file := filepath.Join(t.TempDir(), "forms.pdf")
-	s := fountain.Parse(rules.DefaultConf().Scenes["he"], strings.NewReader(src))
+	s := fountain.Parse(rules.DefaultConf().Scenes("he"), strings.NewReader(src))
 	if err := (&pdf.PDFWriter{OutputFile: file, Elements: rules.Default}).Write(nil, s); err != nil {
 		t.Fatal(err)
 	}

@@ -38,7 +38,7 @@ func TestReportFlag(t *testing.T) {
 
 // A4 holds more lines than Letter: the report measures the paper asked.
 func TestReportPaper(t *testing.T) {
-	s := fountain.Parse(rules.DefaultConf().Scenes["en"], strings.NewReader(strings.Repeat("INT. A - DAY\n\n"+strings.Repeat("Line.\n\n", 20), 3)))
+	s := fountain.Parse(rules.DefaultConf().Scenes("en"), strings.NewReader(strings.Repeat("INT. A - DAY\n\n"+strings.Repeat("Line.\n\n", 20), 3)))
 	letter, err := Report(s, Options{ConfigFile: filepath.Join(t.TempDir(), "none.toml")}, report.Options{})
 	if err != nil {
 		t.Fatal(err)

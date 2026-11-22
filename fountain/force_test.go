@@ -25,10 +25,11 @@ func forceSample(conf rules.TOMLConf, lang string) string {
 	}
 	var b strings.Builder
 	b.WriteString("Title: A Test\nContact:\n    Someone\n    Street 1\n\n")
-	for _, w := range conf.Scenes[lang] {
+	for _, w := range conf.Scenes(lang) {
 		b.WriteString(heading(w, "PLACE - DAY") + "\n\nSomething happens.\n\n")
 	}
-	for other, words := range conf.Scenes {
+	for other, ol := range conf.Languages {
+		words := ol.Scenes
 		if other == lang {
 			continue
 		}
@@ -37,8 +38,8 @@ func forceSample(conf rules.TOMLConf, lang string) string {
 			b.WriteString(strings.ToUpper(heading(w, "BOB")) + "\nHello.\n\n")
 		}
 	}
-	b.WriteString("[[a note]] " + heading(conf.Scenes[lang][0], "GARDEN") + "\n\n/* Notes\n" +
-		heading(conf.Scenes[lang][0], "in the boneyard") + "\n*/\n\n>THE END<\n")
+	b.WriteString("[[a note]] " + heading(conf.Scenes(lang)[0], "GARDEN") + "\n\n/* Notes\n" +
+		heading(conf.Scenes(lang)[0], "in the boneyard") + "\n*/\n\n>THE END<\n")
 	return b.String()
 }
 
@@ -54,14 +55,14 @@ func elementList(text string, scenes []string) string {
 // same elements with the other's words, and Unforce gives the text back.
 func TestForceEveryLanguage(t *testing.T) {
 	conf := rules.DefaultConf()
-	for from := range conf.Scenes {
-		for to := range conf.Scenes {
+	for from := range conf.Languages {
+		for to := range conf.Languages {
 			text := forceSample(conf, from)
-			f := Force(text, conf.Scenes[from], conf.Scenes[to])
-			if a, b := elementList(text, conf.Scenes[from]), elementList(f, conf.Scenes[to]); a != b {
+			f := Force(text, conf.Scenes(from), conf.Scenes(to))
+			if a, b := elementList(text, conf.Scenes(from)), elementList(f, conf.Scenes(to)); a != b {
 				t.Errorf("%s→%s reads otherwise:\n%s\n%s\n%s", from, to, a, b, f)
 			}
-			if back := Unforce(f, conf.Scenes[from], conf.Scenes[to]); back != text {
+			if back := Unforce(f, conf.Scenes(from), conf.Scenes(to)); back != text {
 				t.Errorf("%s→%s→%s:\n%s\n---\n%s", from, to, from, text, back)
 			}
 			if from == to && f != text {
@@ -75,7 +76,7 @@ func TestForceEveryLanguage(t *testing.T) {
 // need, or one the writer put that they need too, stays on the way back.
 func TestForceMarks(t *testing.T) {
 	conf := rules.DefaultConf()
-	eo, en, de := conf.Scenes["eo"], conf.Scenes["en"], conf.Scenes["de"]
+	eo, en, de := conf.Scenes("eo"), conf.Scenes("en"), conf.Scenes("de")
 	text := "EN. DOMO - TAGO\n\nINT. is English for inside.\n\nINT. BOB\nSaluton.\n\n!EN. needed in Esperanto too\n\n.INT. ON PURPOSE\n\nen. domo - nokto\n"
 	want := ".EN. DOMO - TAGO\n\n!INT. is English for inside.\n\n@INT. BOB\nSaluton.\n\n!EN. needed in Esperanto too\n\n.INT. ON PURPOSE\n\n.en. domo - nokto\n"
 	if got := Force(text, eo, en); got != want {

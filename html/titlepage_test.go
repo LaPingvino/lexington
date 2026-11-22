@@ -11,7 +11,7 @@ import (
 
 func render(t *testing.T, src string) string {
 	t.Helper()
-	screenplay := fountain.Parse(rules.DefaultConf().Scenes["en"], strings.NewReader(src))
+	screenplay := fountain.Parse(rules.DefaultConf().Scenes("en"), strings.NewReader(src))
 	var buf bytes.Buffer
 	if err := (&HTMLWriter{Elements: rules.Default}).Write(&buf, screenplay); err != nil {
 		t.Fatal(err)

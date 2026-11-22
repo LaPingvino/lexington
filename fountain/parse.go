@@ -9,6 +9,7 @@ import (
 
 	"github.com/LaPingvino/lexington/internal"
 	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // Scene contains all the prefixes the scene detection looks for.
@@ -122,11 +123,13 @@ func CheckForce(row string) (bool, string, string) {
 
 // ParseState holds the state needed during parsing
 type ParseState struct {
-	scenes                []string
-	loose                 bool // the reading before 1.19 (ParseLoose)
-	prevBlank             bool // the line before was blank, or there was none
-	nextBlank             bool // the line after is blank, or there is none (notes passed over)
-	nextSpaces            bool // the line after is only spaces: within a speech, its blank line
+	d                     *Dialect
+	cast                  *Cast  // the script's names, for the list and repeat rules
+	next                  string // the row after this one, notes taken out
+	loose                 bool   // the reading before 1.19 (ParseLoose)
+	prevBlank             bool   // the line before was blank, or there was none
+	nextBlank             bool   // the line after is blank, or there is none (notes passed over)
+	nextSpaces            bool   // the line after is only spaces: within a speech, its blank line
 	titlepage             bool
 	inDialogueContext     bool
 	inBoneyard            bool // within /* ... */
@@ -150,7 +153,18 @@ const TypeBoneyard = lex.TypeBoneyard
 // (. @ > ! ~) are what they say anywhere. ParseLoose is the old reading,
 // KeepLoose writes a script that relied on it so that it reads the same.
 func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
-	return parse(scenes, file, false, false)
+	return parse(rules.Words(scenes), file, false, false)
+}
+
+// ParseIn is Parse with a language's rules (rules.Language: its scene
+// words and heading patterns, cue and transition rules, title keys).
+func ParseIn(lang rules.Language, file io.Reader) lex.Screenplay {
+	return parse(lang, file, false, false)
+}
+
+// ParseLinesIn is ParseLines with a language's rules.
+func ParseLinesIn(lang rules.Language, file io.Reader) lex.Screenplay {
+	return parse(lang, file, true, false)
 }
 
 // ParseLoose is Parse as Lexington read Fountain before 1.19: a line
@@ -158,12 +172,12 @@ func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 // capitals right after action a character cue, any line ending in " TO:"
 // (in any case) a transition, and a line of spaces ends a speech.
 func ParseLoose(scenes []string, file io.Reader) lex.Screenplay {
-	return parse(scenes, file, false, true)
+	return parse(rules.Words(scenes), file, false, true)
 }
 
 // ParseLinesLoose is ParseLines with ParseLoose's reading.
 func ParseLinesLoose(scenes []string, file io.Reader) lex.Screenplay {
-	return parse(scenes, file, true, true)
+	return parse(rules.Words(scenes), file, true, true)
 }
 
 // ParseLines is Parse with each row's Source: the line of the text it
@@ -172,14 +186,21 @@ func ParseLinesLoose(scenes []string, file io.Reader) lex.Screenplay {
 // were added at). With it a caller that knows things per line of its
 // text (a revision's changed lines) can put them on the rows.
 func ParseLines(scenes []string, file io.Reader) lex.Screenplay {
-	return parse(scenes, file, true, false)
+	return parse(rules.Words(scenes), file, true, false)
 }
 
-func parse(scenes []string, file io.Reader, lines, loose bool) (out lex.Screenplay) {
+func parse(lang rules.Language, file io.Reader, lines, loose bool) (out lex.Screenplay) {
 	toParse := readAllLines(file)
+	d := NewDialect(lang)
+	rows := make([]string, len(toParse))
+	for i, r := range toParse {
+		rows[i] = strings.TrimRight(r, "\n\r")
+	}
+	text := strings.Join(rows, "\n")
 
 	state := &ParseState{
-		scenes:    scenes,
+		d:         d,
+		cast:      d.castOf(rows, ListedNames(text)),
 		loose:     loose,
 		prevBlank: true,
 		titlepage: true,
@@ -241,6 +262,10 @@ func parse(scenes []string, file io.Reader, lines, loose bool) (out lex.Screenpl
 			}
 		}
 		state.nextBlank, state.nextSpaces = nextBlank(toParse, i)
+		state.next = ""
+		if i+1 < len(toParse) {
+			state.next = strings.TrimSpace(lex.StripNotes(strings.TrimRight(toParse[i+1], "\n\r")))
+		}
 
 		// Parse screenplay body
 		currentLine, isCurrentLineDualSpeakerCandidate = state.parseScreenplayLine(originalRow, row, trimmedSpaceRow)
@@ -253,6 +278,9 @@ func parse(scenes []string, file io.Reader, lines, loose bool) (out lex.Screenpl
 			state.out = append(state.out, currentLine)
 		}
 
+		if currentLine.Type == lex.TypeSpeaker && d.Lang.Has(rules.CueList) {
+			state.cast.Add(currentLine.Contents) // Hekaya's registry: a later bare name is a cue
+		}
 		// Update dialogue context for next iteration
 		state.updateDialogueContext(currentLine)
 		state.prevBlank = currentLine.Type == lex.TypeEmpty
@@ -400,7 +428,7 @@ func readAllLines(file io.Reader) []string {
 
 func (state *ParseState) handleTitlePage(row, trimmedSpaceRow, next string, currentLine *lex.Line) bool {
 	// a note is no field's value, nor its colon ("Action [[todo: x]]")
-	isKeyValLine := isTitleKeyValue(lex.StripNotes(row), lex.StripNotes(next), state.scenes)
+	isKeyValLine := isTitleKeyValue(lex.StripNotes(row), lex.StripNotes(next), state.d)
 	isContinuation := isIndented(row) && trimmedSpaceRow != "" && state.titletag != ""
 
 	if isContinuation {
@@ -464,7 +492,7 @@ func isIndented(row string) bool {
 // Script text that happens to contain a colon is not: a scene heading, or
 // an uppercase cue with nothing after the colon and no indented value on
 // the next line, such as "FADE IN:" opening the script.
-func isTitleKeyValue(row, next string, scenes []string) bool {
+func isTitleKeyValue(row, next string, d *Dialect) bool {
 	if isIndented(row) {
 		return false
 	}
@@ -477,7 +505,7 @@ func isTitleKeyValue(row, next string, scenes []string) bool {
 	if r, _ := utf8.DecodeRuneInString(key); !unicode.IsLetter(r) && !unicode.IsDigit(r) {
 		return false
 	}
-	if isScene, _, _ := checkSceneWith(row, scenes); isScene {
+	if d.Heading(row) {
 		return false
 	}
 	if strings.TrimSpace(value) != "" || key != strings.ToUpper(key) {
@@ -490,7 +518,7 @@ func (state *ParseState) parseTitlePageKeyValue(row string, currentLine *lex.Lin
 	masked, notes := maskNotes(row)
 	split := strings.SplitN(masked, ":", 2)
 	split[0], split[1] = unmask(split[0], notes), unmask(split[1], notes)
-	currentMetaTag := split[0]
+	currentMetaTag := state.d.TitleKey(split[0])
 
 	switch strings.ToLower(currentMetaTag) {
 	case "title":
@@ -580,7 +608,7 @@ func (state *ParseState) afterSpeaker() bool {
 func (state *ParseState) checkStructuralTypes(row string) lex.Line {
 	checkfuncs := []func(string) (bool, string, string){
 		func(row string) (bool, string, string) {
-			ok, el, contents := checkSceneWith(row, state.scenes)
+			ok, el, contents := state.checkScene(row)
 			// a scene word starts a heading after a blank line only; a
 			// forced one (.) is one anywhere
 			if ok && !state.loose && !state.prevBlank && !strings.HasPrefix(row, ".") {
@@ -605,18 +633,26 @@ func (state *ParseState) checkStructuralTypes(row string) lex.Line {
 	return lex.Line{}
 }
 
-// checkCrow is CheckCrow, where a transition not forced with > is in
-// capitals, ends in TO: and has blank lines around it.
-func (state *ParseState) checkCrow(row string) (bool, string, string) {
-	crow, el, contents := CheckCrow(row)
-	if !crow || state.loose || strings.HasPrefix(strings.TrimSpace(row), ">") {
-		return crow, el, contents
+// checkScene is checkSceneWith by the dialect: its words, its patterns.
+func (state *ParseState) checkScene(row string) (bool, string, string) {
+	if state.d.Heading(row) {
+		return true, internal.ElementScene, strings.ToUpper(row)
 	}
+	return checkSceneWith(row, nil)
+}
+
+// checkCrow is CheckCrow, where a transition not forced with > is one by
+// the language's rules (Dialect.Transition: in capitals, ending in " TO:"
+// in English) and has blank lines around it.
+func (state *ParseState) checkCrow(row string) (bool, string, string) {
 	bare := strings.TrimSpace(row)
-	if !state.prevBlank || !state.nextBlank || !AllCaps(bare) || !strings.HasSuffix(bare, "TO:") {
+	if strings.HasPrefix(bare, ">") || state.loose {
+		return CheckCrow(row)
+	}
+	if !state.prevBlank || !state.nextBlank || !state.d.Transition(bare) {
 		return false, "", ""
 	}
-	return crow, el, contents
+	return true, lex.TypeTrans, strings.ToUpper(bare)
 }
 
 func (state *ParseState) checkInferredTypes(row, trimmedSpaceRow string) (lex.Line, bool) {
@@ -626,8 +662,15 @@ func (state *ParseState) checkInferredTypes(row, trimmedSpaceRow string) (lex.Li
 	charcheck := strings.Split(row, "(")
 	// a name after a blank line only (and a speech after it: one followed
 	// by a blank line is action again, updateDialogueContext)
-	if !state.inDialogueContext && (state.loose || state.prevBlank) && len(charcheck) > 0 && AllCaps(charcheck[0]) &&
-		strings.TrimSpace(charcheck[0]) != "" {
+	cue := false
+	if !state.inDialogueContext && (state.loose || state.prevBlank) {
+		if state.loose {
+			cue = len(charcheck) > 0 && AllCaps(charcheck[0]) && strings.TrimSpace(charcheck[0]) != ""
+		} else {
+			cue = state.d.Cue(trimmedSpaceRow, state.next, state.cast)
+		}
+	}
+	if cue {
 		// Speaker name (all caps); within a speech an all-caps line is
 		// dialogue (a shout, a sung lyric, SFX's KRAKOOM!)
 		currentLine.Type = lex.TypeSpeaker

@@ -101,7 +101,7 @@ type Report struct {
 func Make(s lex.Screenplay, o Options) Report {
 	starts := o.Scenes
 	if starts == nil {
-		starts = rules.DefaultConf().Scenes["en"]
+		starts = rules.DefaultConf().Scenes("en")
 	}
 	w := o.PDF
 	if w == nil {

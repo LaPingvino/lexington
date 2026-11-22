@@ -1,0 +1,155 @@
+package fountain
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/rules"
+)
+
+// typeOf is the element the row holding want is read as, in lang.
+func typeOf(t *testing.T, lang, text, want string) string {
+	t.Helper()
+	for _, l := range ParseIn(rules.DefaultConf().Language(lang), strings.NewReader(text)) {
+		if strings.Contains(strings.ToUpper(l.Contents), strings.ToUpper(want)) {
+			return l.Type
+		}
+	}
+	t.Fatalf("%s: no row with %q in %q", lang, want, text)
+	return ""
+}
+
+func TestCueRules(t *testing.T) {
+	list := "\n\n/* Characters\n张三: 主角\n  age: 30\nبيتر\n*/\n"
+	for _, c := range []struct {
+		lang, text, row, want string
+	}{
+		// caps: English
+		{"en", "Rain.\n\nANNA\nHello.\n", "ANNA", lex.TypeSpeaker},
+		{"en", "Rain.\n\nAnna\nHello.\n", "Anna", lex.TypeAction},
+		{"en", "Rain.\n\n@Anna\nHello.\n", "Anna", lex.TypeSpeaker},
+		// list: the Characters block
+		{"zh", "下雨。\n\n张三\n你好。" + list, "张三", lex.TypeSpeaker},
+		{"zh", "下雨。\n\n李四\n你好。\n", "李四", lex.TypeAction},
+		// parenthetical
+		{"zh", "下雨。\n\n李四\n（笑）\n你好。\n", "李四", lex.TypeSpeaker},
+		{"he", "גשם.\n\nדנה\n(בשקט)\nשלום.\n", "דנה", lex.TypeSpeaker},
+		// extension
+		{"zh", "下雨。\n\n王五（画外音）\n你好。\n", "王五", lex.TypeSpeaker},
+		{"zh", "下雨。\n\n王五（大笑）\n你好。\n", "王五", lex.TypeAction},
+		{"ja", "雨。\n\n太郎（ＯＦＦ）\nこんにちは。\n", "太郎", lex.TypeSpeaker},
+		// repeat: twice shaped like a name
+		{"zh", "下雨。\n\n赵六\n你好。\n\n赵六\n再见。\n", "赵六", lex.TypeSpeaker},
+		// shape alone is not one of zh's rules, and a sentence is no name
+		{"zh", "下雨。\n\n赵六走了。\n他哭。\n\n赵六走了。\n他笑。\n", "赵六走了", lex.TypeAction},
+		// Hekaya's registry: a later bare name, not an earlier one
+		{"ar", "مطر.\n\nسمير\nأهلا.\n\n@سمير\nقهوة.\n", "أهلا", lex.TypeAction},
+		{"ar", "مطر.\n\n@سَمير\nقهوة.\n\nسمير\nكلام.\n", "كلام", lex.TypeDialog},
+		{"ar", "مطر.\n\nبيتر\nكلام." + list, "كلام", lex.TypeDialog},
+		// a registered name followed by a blank line is action (Fountain)
+		{"ar", "@سمير\nقهوة.\n\nسمير\n\nكلام.\n", "كلام", lex.TypeAction},
+		// English capitals in Hekaya
+		{"ar", "مطر.\n\nJOHN\nHello.\n", "Hello", lex.TypeDialog},
+	} {
+		if got := typeOf(t, c.lang, c.text, c.row); got != c.want {
+			t.Errorf("%s %q: %s, want %s", c.lang, c.row, got, c.want)
+		}
+	}
+}
+
+func TestTransitionRules(t *testing.T) {
+	for _, c := range []struct {
+		lang, line, want string
+	}{
+		{"en", "CUT TO:", lex.TypeTrans},
+		{"en", "Cut to:", lex.TypeAction},
+		{"en", "FADE OUT.", lex.TypeAction}, // Fountain: forced only
+		{"ar", "- قطع -", lex.TypeTrans},
+		{"ar", "قطع إلى:", lex.TypeTrans},
+		{"ar", "- اختفاء تدريجي -", lex.TypeTrans},
+		{"ar", "مزج إلى", lex.TypeTrans},
+		{"ar", "قطع الخبز", lex.TypeAction},
+		{"he", "דיזולב ל:", lex.TypeTrans},
+		{"de", "SCHNITT AUF:", lex.TypeTrans},
+		{"it", "STACCO SU:", lex.TypeTrans},
+		{"zh", "淡出", lex.TypeTrans},
+	} {
+		if got := typeOf(t, c.lang, "Rain.\n\n"+c.line+"\n\nMore.\n", c.line); got != c.want {
+			t.Errorf("%s %q: %s, want %s", c.lang, c.line, got, c.want)
+		}
+	}
+	// blank lines around it, as Fountain has them
+	if got := typeOf(t, "ar", "مطر.\n- قطع -\n\nأكثر.\n", "قطع"); got != lex.TypeAction {
+		t.Errorf("a keyword without a blank line before: %s", got)
+	}
+}
+
+func TestHeadingPatterns(t *testing.T) {
+	for _, c := range []struct {
+		lang, line string
+		heading    bool
+	}{
+		{"zh", "场景1 小区楼下 日 外", true},
+		{"zh", "13. 街道  黄昏  外  夏", true},
+		{"zh", "1.日  外  清晨的田野间", true},
+		{"zh", "1. 內景 阿強家客廳 夜", true},
+		{"zh", "2. 大华宾馆房间   夜   内", true},
+		{"zh", "内景 咖啡馆 夜", true},
+		{"zh", "场景很美 他走了", false},
+		{"de", "18. GERICHTSSAAL INNEN/TAG", true},
+		{"de", "HOTEL DAVOR AUSSEN/NACHT", true},
+		{"de", "Sie geht nach draußen.", false},
+		{"fr", "5 - CHU GRENOBLE – INT/JOUR", true},
+		{"fr", "2- BOIS (PRÈS DU CHALET) – EXT/JOUR", true},
+		{"fr", "SÉQUENCE 1 – INT. JOUR", true},
+		{"ar", "مشهد 12 خارج شقة إنجي/البسطة ن/د", true},
+		{"ar", "مشهد (1) غرفة الضيوف ليل / داخلي", true},
+		{"ar", "داخلي - قهوة بلدي - نهار", true},
+		{"ar", "مشهد جميل في الليل", false},
+		{"ru", "1. НАТ. ГОРОДСКАЯ ПЛОЩАДЬ. НОЧЬ", true},
+		{"he", "1. פנים. משרד דפנה – יום.", true},
+		{"it", "1. INT - CASA DI MATILDE - CUCINA - GIORNO", true},
+		{"en", "1. INT. HOUSE - DAY", false}, // Fountain numbers with #1#
+	} {
+		got := typeOf(t, c.lang, "x\n\n"+c.line+"\n\ny\n", strings.ToUpper(strings.Fields(c.line)[0]))
+		if (got == lex.TypeScene) != c.heading {
+			t.Errorf("%s %q: %s, heading %v", c.lang, c.line, got, c.heading)
+		}
+	}
+}
+
+func TestTitleKeys(t *testing.T) {
+	s := ParseIn(rules.DefaultConf().Language("ar"), strings.NewReader("العنوان: آخر أيام الصيف\nسيناريو: سمير\nDirection: rtl\n\nداخلي - قهوة - نهار\n"))
+	got := map[string]string{}
+	for _, l := range s {
+		got[l.Type] = l.Contents
+	}
+	if got["Title"] != "آخر أيام الصيف" || got["Author"] != "سمير" || got["Direction"] != "rtl" {
+		t.Errorf("title page: %v", got)
+	}
+}
+
+func TestHekayaFixed(t *testing.T) {
+	c := rules.DefaultConf()
+	c.Languages["ar"] = rules.Language{Scenes: []string{"XX"}, Cues: []string{"caps"}}
+	if got := c.Language("ar"); len(got.Scenes) != 1 || got.Has(rules.CueList) {
+		t.Fatalf("ar as the writer set it: %+v", got)
+	}
+	h := c.Language(rules.Hekaya)
+	if !h.RTL() || !h.Has(rules.CueList) || h.Scenes[0] != "داخلي" {
+		t.Errorf("hekaya follows the writer's ar: %+v", h)
+	}
+}
+
+func TestListedNames(t *testing.T) {
+	text := "INT. HOUSE - DAY\n\n/* Characters\nANNA: the lead\n  age: 34\nben\n小明\n*/\n\n/* Notes\nx\n*/\n"
+	// the Characters block before the notes is not at the end: only the
+	// last block is read by At; EndBlocks finds the others
+	if got := strings.Join(ListedNames("x\n\n/* Characters\nANNA: the lead\n  age: 34\nben\n小明\n*/\n"), ","); got != "ANNA,ben,小明" {
+		t.Errorf("listed: %q", got)
+	}
+	if got := strings.Join(ListedNames(text), ","); got != "ANNA,ben,小明" {
+		t.Errorf("listed before the notes: %q", got)
+	}
+}

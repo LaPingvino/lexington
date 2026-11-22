@@ -16,7 +16,7 @@ func TestTitlePageMetaFieldsArePrinted(t *testing.T) {
 	}
 	src := "Title: The Barn\nAuthor: Jane Smith\nContact:\n    Jane Smith\n" +
 		"    1 Writer's Lane\nDraft date: 1 May\n\nFADE IN:\n\nINT. BARN - DAY\n"
-	screenplay := fountain.Parse(rules.DefaultConf().Scenes["en"], strings.NewReader(src))
+	screenplay := fountain.Parse(rules.DefaultConf().Scenes("en"), strings.NewReader(src))
 
 	out := filepath.Join(t.TempDir(), "barn.pdf")
 	w := &PDFWriter{OutputFile: out, Elements: rules.Default}

@@ -21,7 +21,7 @@ func script(t *testing.T) lex.Screenplay {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	return fountain.Parse(rules.DefaultConf().Scenes["en"], f)
+	return fountain.Parse(rules.DefaultConf().Scenes("en"), f)
 }
 
 // parts writes the document and returns its zip's parts, checking that
@@ -138,7 +138,7 @@ func TestPresetStyles(t *testing.T) {
 func TestOfficeColors(t *testing.T) {
 	rgb, _ := lex.ColorFor(lex.ColorText, "blue")
 	blue := lex.HexOf(rgb)
-	s := fountain.Parse(rules.DefaultConf().Scenes["en"], strings.NewReader("INT. HOUSE - DAY [[blue]]\n\nRain.\n"))
+	s := fountain.Parse(rules.DefaultConf().Scenes("en"), strings.NewReader("INT. HOUSE - DAY [[blue]]\n\nRain.\n"))
 	for _, c := range []struct {
 		w interface {
 			Write(io.Writer, lex.Screenplay) error

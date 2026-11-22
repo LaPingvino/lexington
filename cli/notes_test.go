@@ -159,7 +159,7 @@ func TestNotesAreNeverPrinted(t *testing.T) {
 			var out string
 			if format == "markdown" { // with pandoc it is an intermediate; the writer itself
 				var b bytes.Buffer
-				s := fountain.Parse(rules.DefaultConf().Scenes["en"], strings.NewReader(c.script))
+				s := fountain.Parse(rules.DefaultConf().Scenes("en"), strings.NewReader(c.script))
 				if err := (&markdown.MarkdownWriter{}).Write(&b, s); err != nil {
 					t.Fatal(err)
 				}
@@ -219,7 +219,7 @@ func TestNotesAreNeverPrinted(t *testing.T) {
 // navigator (Accolade's), from the parsed script.
 func TestNoteColorsOfAScript(t *testing.T) {
 	var got []string
-	for _, l := range fountain.Parse(rules.DefaultConf().Scenes["en"], strings.NewReader(colorScript)) {
+	for _, l := range fountain.Parse(rules.DefaultConf().Scenes("en"), strings.NewReader(colorScript)) {
 		switch l.Type {
 		case lex.TypeScene:
 			h, n := lex.SceneNumber(l.Contents)

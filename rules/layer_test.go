@@ -7,11 +7,10 @@ import (
 
 func TestPartEncodeDecodeWith(t *testing.T) {
 	c := DefaultConf()
-	c.Scenes["xx"] = []string{"ENA", "EKA"}
-	c.Matchups["xx"] = []string{"ENA.", "EKA.", "", "", ""}
+	c.Languages["xx"] = Language{Scenes: []string{"ENA", "EKA"}, Matchup: []string{"ENA.", "EKA.", "", "", ""}}
 	c.Elements["mine"] = Set{"action": {Style: "b"}}
 	part := c.Part([]string{"xx", "en"}, []string{"mine", "nothere"})
-	if len(part.Scenes) != 2 || len(part.Elements) != 1 || part.Standard != "en" {
+	if len(part.Languages) != 2 || len(part.Elements) != 1 || part.Standard != "en" {
 		t.Fatalf("part: %+v", part)
 	}
 	text, err := part.Encode()
@@ -26,12 +25,16 @@ func TestPartEncodeDecodeWith(t *testing.T) {
 		t.Fatalf("round trip differs:\n%s", text)
 	}
 	machine := DefaultConf()
-	machine.Scenes["en"] = []string{"INT"}
+	machine.Languages["en"] = Language{Scenes: []string{"INT"}}
 	got := machine.With(back)
-	if !slices.Equal(got.Scenes["xx"], []string{"ENA", "EKA"}) || len(got.Scenes["en"]) != len(DefaultConf().Scenes["en"]) {
-		t.Fatalf("with: %v", got.Scenes)
+	if !slices.Equal(got.Scenes("xx"), []string{"ENA", "EKA"}) || len(got.Scenes("en")) != len(DefaultConf().Scenes("en")) {
+		t.Fatalf("with: %v", got.Languages)
 	}
-	if len(machine.Scenes["en"]) != 1 || machine.Scenes["xx"] != nil {
+	// every language travels in full
+	if l := back.Languages["xx"]; len(l.Cues) == 0 || len(l.TransitionEnds) == 0 || l.Direction == "" {
+		t.Fatalf("xx not in full: %+v", l)
+	}
+	if len(machine.Scenes("en")) != 1 || machine.Knows("xx") {
 		t.Fatal("With changed its receiver")
 	}
 	if _, ok := got.Elements["mine"]; !ok {
@@ -40,7 +43,7 @@ func TestPartEncodeDecodeWith(t *testing.T) {
 }
 
 func TestItemsOfRenamed(t *testing.T) {
-	c := TOMLConf{Scenes: map[string][]string{"xx": {"A"}}, Matchups: map[string][]string{"xx": {"A."}}, Elements: map[string]Set{"s": {}}, Standard: "en"}
+	c := TOMLConf{Languages: map[string]Language{"xx": {Scenes: []string{"A"}, Matchup: []string{"A."}}}, Elements: map[string]Set{"s": {}}, Standard: "en"}
 	items := c.Items()
 	want := []Item{{"language", "xx"}, {"elements", "s"}, {"standard", ""}}
 	if !slices.Equal(items, want) {
@@ -51,7 +54,7 @@ func TestItemsOfRenamed(t *testing.T) {
 		t.Fatalf("of: %+v", one)
 	}
 	r, err := Renamed(one, Item{"language", "xx"}, "xx2")
-	if err != nil || r.Scenes["xx2"][0] != "A" || r.Matchups["xx2"][0] != "A." {
+	if err != nil || r.Scenes("xx2")[0] != "A" || r.Language("xx2").Matchup[0] != "A." {
 		t.Fatalf("renamed: %+v %v", r, err)
 	}
 	if _, err := Renamed(one, Item{"language", "xx"}, "a.b"); err == nil {

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // Lexington before 1.19 read Fountain more loosely than the spec
@@ -23,13 +24,18 @@ import (
 //
 // It decides by parsing both ways, line by line, as Force does.
 
-// KeepLoose is text, read with the scene words scenes, written so that
+// KeepLoose is text, read with the scene words lang, written so that
 // Parse reads each of its lines as ParseLoose reads them; places is how
 // many lines it added or changed (0: the text is as it was, both read it
 // alike).
 func KeepLoose(text string, scenes []string) (kept string, places int) {
-	want := elementsOf(text, scenes, true)
-	if sameElements(want, elementsOf(text, scenes, false)) {
+	return KeepLooseIn(text, rules.Words(scenes))
+}
+
+// KeepLooseIn is KeepLoose with a language's rules.
+func KeepLooseIn(text string, lang rules.Language) (kept string, places int) {
+	want := elementsOf(text, lang, true)
+	if sameElements(want, elementsOf(text, lang, false)) {
 		return text, 0
 	}
 	was := strings.Split(text, "\n")
@@ -41,7 +47,7 @@ func KeepLoose(text string, scenes []string) (kept string, places int) {
 	// line of each run that reads otherwise is changed, then all is read
 	// again, until nothing changes
 	for range len(lines) + 1 {
-		got := elementsOf(joinKept(lines), scenes, false)
+		got := elementsOf(joinKept(lines), lang, false)
 		changed, inRun := false, false
 		next := make([]keptLine, 0, len(lines)+1)
 		for k := 0; k < len(lines); k++ {
@@ -126,12 +132,12 @@ func joinKept(lines []keptLine) string {
 var keepMarks = map[string]byte{lex.TypeScene: '.', lex.TypeAction: '!', lex.TypeSpeaker: '@', lex.TypeTrans: '>'}
 
 // elementsOf are the elements text is read as with the scene words
-// scenes, by line (from 1): each line's first row; the rows the parser
+// lang, by line (from 1): each line's first row; the rows the parser
 // adds (dual dialogue's, the title page's) left out. loose: as ParseLoose
 // reads it.
-func elementsOf(text string, scenes []string, loose bool) map[int]string {
+func elementsOf(text string, lang rules.Language, loose bool) map[int]string {
 	out := map[int]string{}
-	for _, row := range parse(scenes, strings.NewReader(text), true, loose) {
+	for _, row := range parse(lang, strings.NewReader(text), true, loose) {
 		switch row.Type {
 		case lex.TypeDualOpen, lex.TypeDualNext, lex.TypeDualClose, lex.TypeTitlePage, lex.TypeNewPage, "metasection":
 			continue

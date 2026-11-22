@@ -18,7 +18,7 @@ import (
 	"github.com/LaPingvino/lexington/rules"
 )
 
-var scenes = rules.DefaultConf().Scenes["en"]
+var scenes = rules.DefaultConf().Scenes("en")
 
 // fountainOf writes a screenplay as Fountain, without what a PDF cannot
 // give back: sections, page breaks and the blank lines around them.

@@ -28,7 +28,7 @@ func TestTranslate(t *testing.T) {
 		t.Errorf("EST en->ja: %q, want none", got)
 	}
 	// without matchups, the slash trick
-	c.Scenes["xx"] = []string{"IN", "UT", "IN/UT"}
+	c.Languages["xx"] = Language{Scenes: []string{"IN", "UT", "IN/UT"}}
 	if got, ok := c.Translate("INT.", "en", "xx"); !ok || got != "IN" {
 		t.Errorf("en->xx: %q %v", got, ok)
 	}

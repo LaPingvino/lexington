@@ -94,7 +94,7 @@ func featureScript(seed uint64, scenes int) string {
 
 // drawer draws a script with o: from a Resume, or whole (nil).
 func drawer(t testing.TB, text string, o cli.Options) func(*pdf.Resume) (pdf.Drawing, error) {
-	s := fountain.ParseLines(rules.DefaultConf().Scenes["en"], strings.NewReader(text))
+	s := fountain.ParseLines(rules.DefaultConf().Scenes("en"), strings.NewReader(text))
 	dir := t.TempDir()
 	return func(r *pdf.Resume) (pdf.Drawing, error) {
 		var d pdf.Drawing

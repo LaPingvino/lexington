@@ -97,7 +97,7 @@ func drawnCases(t *testing.T) []drawnCase {
 			f.Font = face
 			set[k] = f
 		}
-		s := fountain.Parse(rules.DefaultConf().Scenes["en"], strings.NewReader(colourScript+"\nANNA\nCafé, naïve — “quoted” and a very long line of dialogue that wraps over the margin.\n"))
+		s := fountain.Parse(rules.DefaultConf().Scenes("en"), strings.NewReader(colourScript+"\nANNA\nCafé, naïve — “quoted” and a very long line of dialogue that wraps over the margin.\n"))
 		cs = append(cs, drawnCase{name: "font-" + face, script: s, w: &pdf.PDFWriter{Elements: set}, substitute: true})
 	}
 	return append(cs, reportCases(t)...)
@@ -110,7 +110,7 @@ func reportCases(t *testing.T) []drawnCase {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := report.Make(fountain.Parse(rules.DefaultConf().Scenes["en"], bytes.NewReader(data)), report.Options{})
+	r := report.Make(fountain.Parse(rules.DefaultConf().Scenes("en"), bytes.NewReader(data)), report.Options{})
 	b := report.Breakdown{Elements: map[int][]report.Element{
 		1: {{Category: "Props", Name: "revolver"}, {Category: "Cast Members", Name: "Carl"}, {Category: "Wardrobe", Name: "raincoat"}},
 		2: {{Category: "Vehicles", Name: "taxi"}, {Category: "Animals", Name: "dog"}, {Category: "Background Actors", Name: "neighbours"}},

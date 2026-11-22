@@ -585,7 +585,7 @@ func makeReport(o Options, conf rules.TOMLConf, screenplay lex.Screenplay, ro re
 		ro.PDF = &pdf.PDFWriter{Elements: elements, Page: pageFor(o), MergeOmitted: o.MergeOmitted, RTL: conf.RTL(o.SceneIn)}
 	}
 	if ro.Scenes == nil {
-		ro.Scenes = conf.Scenes[o.SceneIn]
+		ro.Scenes = conf.Scenes(o.SceneIn)
 	}
 	return report.Make(screenplay, ro), nil
 }
@@ -706,7 +706,15 @@ func detectFormats(o *Options) {
 			o.To = internal.FormatFountain // a clean copy of the script
 		}
 	}()
-	if ins := strings.Split(filepath.Base(o.Input), "."); len(ins) > 1 {
+	if ins := strings.Split(filepath.Base(o.Input), "."); len(ins) > 1 && ins[len(ins)-1] == "hekaya" {
+		// Hekaya's file is Fountain in Arabic, read with its fixed rules
+		if o.From == "" {
+			o.From = internal.FormatFountain
+		}
+		if o.SceneIn == "" {
+			o.SceneIn = rules.Hekaya
+		}
+	} else if len(ins) > 1 {
 		if o.From == "" {
 			o.From = ins[len(ins)-1]
 		}
@@ -714,7 +722,14 @@ func detectFormats(o *Options) {
 			o.SceneIn = ins[len(ins)-2]
 		}
 	}
-	if outs := strings.Split(filepath.Base(o.Output), "."); len(outs) > 1 {
+	if outs := strings.Split(filepath.Base(o.Output), "."); len(outs) > 1 && outs[len(outs)-1] == "hekaya" {
+		if o.To == "" {
+			o.To = internal.FormatFountain
+		}
+		if o.SceneOut == "" {
+			o.SceneOut = rules.Hekaya
+		}
+	} else if len(outs) > 1 {
 		if o.To == "" {
 			o.To = outs[len(outs)-1]
 		}
@@ -779,7 +794,7 @@ func keepLoose(o Options, conf rules.TOMLConf, in io.Reader) error {
 	}
 	text := string(data)
 	crlf := strings.Contains(text, "\r\n") // the lines added end as the others do
-	kept, places := fountain.KeepLoose(strings.ReplaceAll(text, "\r\n", "\n"), conf.Scenes[o.SceneIn])
+	kept, places := fountain.KeepLooseIn(strings.ReplaceAll(text, "\r\n", "\n"), conf.Language(o.SceneIn))
 	if crlf {
 		kept = strings.ReplaceAll(kept, "\n", "\r\n")
 	}
@@ -815,7 +830,7 @@ func stripInput(o Options, conf rules.TOMLConf, in io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fountain.Strip(string(data), conf.Scenes[o.SceneIn], so), nil
+	return fountain.StripIn(string(data), conf.Language(o.SceneIn), so), nil
 }
 
 // writeFountain writes the stripped input to o.Output as it is (with
@@ -826,7 +841,7 @@ func writeFountain(o Options, conf rules.TOMLConf, text string) error {
 	}
 	if o.KeepLoose {
 		crlf := strings.Contains(text, "\r\n")
-		kept, places := fountain.KeepLoose(strings.ReplaceAll(text, "\r\n", "\n"), conf.Scenes[o.SceneIn])
+		kept, places := fountain.KeepLooseIn(strings.ReplaceAll(text, "\r\n", "\n"), conf.Language(o.SceneIn))
 		if crlf {
 			kept = strings.ReplaceAll(kept, "\n", "\r\n")
 		}
@@ -874,9 +889,9 @@ func parseInput(o Options, conf rules.TOMLConf, input io.Reader) (lex.Screenplay
 		return lex.Parse(input), nil
 	case internal.FormatFountain:
 		if o.Loose {
-			return fountain.ParseLoose(conf.Scenes[o.SceneIn], input), nil
+			return fountain.ParseLoose(conf.Scenes(o.SceneIn), input), nil
 		}
-		return fountain.Parse(conf.Scenes[o.SceneIn], input), nil
+		return fountain.ParseIn(conf.Language(o.SceneIn), input), nil
 	case internal.FormatFDX:
 		s, err := fdx.ParseWithError(input)
 		if err != nil {
@@ -890,7 +905,7 @@ func parseInput(o Options, conf rules.TOMLConf, input io.Reader) (lex.Screenplay
 			return nil, fmt.Errorf("could not read the PDF: %w", err)
 		}
 		// scanned pages are OCRed with tesseract, if it is installed
-		opts := pdfin.Options{Scenes: conf.Scenes[o.SceneIn]}
+		opts := pdfin.Options{Scenes: conf.Scenes(o.SceneIn)}
 		if t, ok := pdfin.InstalledTesseract(); ok {
 			if o.SceneIn != "en" && !t.UseLanguage(o.SceneIn) {
 				log.Printf("Tesseract has no %s: scanned pages are read as English (install its traineddata)", o.SceneIn)
@@ -967,7 +982,7 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 	case internal.FormatLex:
 		return &lex.LexWriter{}, nil
 	case internal.FormatFountain:
-		return &fountain.FountainWriter{SceneConfig: conf.Scenes[o.SceneOut]}, nil
+		return &fountain.FountainWriter{SceneConfig: conf.Scenes(o.SceneOut)}, nil
 	case internal.FormatFDX:
 		return &fdx.FDXWriter{TemplatePath: o.TemplatePath, Revisions: o.Revisions, Lock: o.Lock,
 			Tags: o.Breakdown, LineTags: o.LineTags}, nil

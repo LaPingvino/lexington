@@ -22,7 +22,7 @@ func shoot(t *testing.T) Report {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := fountain.Parse(rules.DefaultConf().Scenes["en"], bytes.NewReader(data))
+	s := fountain.Parse(rules.DefaultConf().Scenes("en"), bytes.NewReader(data))
 	return Make(s, Options{Aliases: map[string]string{"Annie": "ANNA"}})
 }
 
@@ -156,7 +156,7 @@ func TestCSVGolden(t *testing.T) {
 }
 
 func TestHeading(t *testing.T) {
-	starts := rules.DefaultConf().Scenes["en"]
+	starts := rules.DefaultConf().Scenes("en")
 	for _, c := range []struct{ in, place, location, time, number string }{
 		{"INT. HOUSE - DAY #12A#", "INT", "HOUSE", "DAY", "12A"},
 		{"INT./EXT. CAR - MOVING - NIGHT", "INT./EXT", "CAR - MOVING", "NIGHT", ""},

@@ -15,7 +15,7 @@ func TestScenesOtherScripts(t *testing.T) {
 	for lang, heading := range map[string]string{
 		"he": "פנים. סדנה. יום.", "zh": "内景 客厅 - 日", "ja": "○喫茶店・店内（夜）", "ar": "داخلي - منزل - نهار",
 	} {
-		s := Parse(conf.Scenes[lang], strings.NewReader(heading+"\n\nSomething happens.\n"))
+		s := Parse(conf.Scenes(lang), strings.NewReader(heading+"\n\nSomething happens.\n"))
 		if len(s) == 0 || s[0].Type != "scene" {
 			t.Errorf("%s: %q read as %+v", lang, heading, s)
 		}

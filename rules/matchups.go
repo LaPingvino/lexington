@@ -22,19 +22,20 @@ func norm(s string) string {
 // without them its Scenes' first word with a slash split in two (INT./EXT.
 // into INT. and EXT.), as the statistics read them.
 func (c TOMLConf) Matchup(lang string) []string {
-	if m := c.Matchups[lang]; len(m) > 0 {
+	l := c.Language(lang)
+	if m := l.Matchup; len(m) > 0 {
 		out := make([]string, Roles)
 		copy(out, m)
 		return out
 	}
 	out := make([]string, Roles)
 	dot := ""
-	for _, s := range c.Scenes[lang] {
+	for _, s := range l.Scenes {
 		if strings.Contains(s, ".") {
 			dot = "."
 		}
 	}
-	for _, s := range c.Scenes[lang] {
+	for _, s := range l.Scenes {
 		if i, o, ok := strings.Cut(s, "/"); ok {
 			i, o = strings.Trim(i, ". "), strings.Trim(o, ". ")
 			out[Inside], out[Outside] = i+dot, o+dot

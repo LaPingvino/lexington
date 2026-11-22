@@ -38,7 +38,7 @@ func taggedSet() *lex.TagSet {
 }
 
 func TestTagsWrittenAndRead(t *testing.T) {
-	s := fountain.ParseLines(rules.DefaultConf().Scenes["en"], strings.NewReader(taggedScript))
+	s := fountain.ParseLines(rules.DefaultConf().Scenes("en"), strings.NewReader(taggedScript))
 	tags := map[int][]lex.LineTag{
 		1: {{Text: "KITCHEN", Elements: []string{"e4"}}},                                                       // a numbered heading
 		3: {{Text: "revolver", Elements: []string{"e1"}}, {Text: "revolver", At: 1, Elements: []string{"e1"}}}, // after emphasis and a note
@@ -106,7 +106,7 @@ func TestTagsWrittenAndRead(t *testing.T) {
 
 // An OMITTED scene has its page but no length.
 func TestOmittedHasNoLength(t *testing.T) {
-	s := fountain.ParseLines(rules.DefaultConf().Scenes["en"], strings.NewReader("INT. A - DAY #1#\n\nRain.\n\n.OMITTED #2#\n\nEXT. B - DAY #3#\n\nSun.\n"))
+	s := fountain.ParseLines(rules.DefaultConf().Scenes("en"), strings.NewReader("INT. A - DAY #1#\n\nRain.\n\n.OMITTED #2#\n\nEXT. B - DAY #3#\n\nSun.\n"))
 	var buf bytes.Buffer
 	scenes := []SceneProperty{{Page: 1, Length: 2}, {Page: 1, Length: 1}, {Page: 1, Length: 2}}
 	if err := (&FDXWriter{Scenes: scenes}).Write(&buf, s); err != nil {
@@ -120,7 +120,7 @@ func TestOmittedHasNoLength(t *testing.T) {
 // Without tags or lengths, nothing of either is written (the other
 // goldens stay as they are).
 func TestNoTagData(t *testing.T) {
-	s := fountain.ParseLines(rules.DefaultConf().Scenes["en"], strings.NewReader(taggedScript))
+	s := fountain.ParseLines(rules.DefaultConf().Scenes("en"), strings.NewReader(taggedScript))
 	var buf bytes.Buffer
 	if err := (&FDXWriter{}).Write(&buf, s); err != nil {
 		t.Fatal(err)

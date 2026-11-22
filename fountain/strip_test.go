@@ -1,6 +1,8 @@
 package fountain
 
 import (
+	"github.com/LaPingvino/lexington/rules"
+
 	"os"
 	"path/filepath"
 	"strings"
@@ -348,13 +350,13 @@ func TestStripKeepsReading(t *testing.T) {
 func checkReadsAsBefore(t *testing.T, name, in, got string) {
 	t.Helper()
 	before := map[string]string{}
-	el := elementsOf(strings.TrimSuffix(in, "\n"), en, false)
+	el := elementsOf(strings.TrimSuffix(in, "\n"), rules.Words(en), false)
 	for i, l := range strings.Split(strings.TrimSuffix(in, "\n"), "\n") {
 		if strings.TrimSpace(l) != "" {
 			before[strings.TrimSpace(l)] = el[i+1]
 		}
 	}
-	now := elementsOf(strings.TrimSuffix(got, "\n"), en, false)
+	now := elementsOf(strings.TrimSuffix(got, "\n"), rules.Words(en), false)
 	for i, l := range strings.Split(strings.TrimSuffix(got, "\n"), "\n") {
 		if w, ok := before[strings.TrimSpace(l)]; ok && now[i+1] != w {
 			t.Errorf("%s: %q reads as %s, was %s", name, l, now[i+1], w)

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // Strip is a script without what one hands on without: a clean Fountain
@@ -24,12 +25,17 @@ import (
 // gets its force mark, as KeepLoose gives them, so the script reads as
 // it did. scenes are the scene words the text is read with.
 func Strip(text string, scenes []string, o StripOptions) string {
+	return StripIn(text, rules.Words(scenes), o)
+}
+
+// StripIn is Strip with a language's rules.
+func StripIn(text string, lang rules.Language, o StripOptions) string {
 	crlf := strings.Contains(text, "\r\n")
 	in := text
 	if crlf {
 		in = strings.ReplaceAll(text, "\r\n", "\n")
 	}
-	out := strip(in, scenes, o)
+	out := strip(in, lang, o)
 	if out == in {
 		return text
 	}
@@ -152,7 +158,7 @@ type sline struct {
 	origin int
 }
 
-func strip(text string, scenes []string, o StripOptions) string {
+func strip(text string, lang rules.Language, o StripOptions) string {
 	// Accolade's end blocks and the language line after them
 	if at, _ := LanguageLine(text); at >= 0 {
 		text = text[:at]
@@ -169,25 +175,25 @@ func strip(text string, scenes []string, o StripOptions) string {
 	if body == "" {
 		return text
 	}
-	want := elementsOf(body, scenes, false)
+	want := elementsOf(body, lang, false)
 	var ls []sline
 	for i, l := range strings.Split(body, "\n") {
 		ls = append(ls, sline{l, i + 1})
 	}
 	if o.Omitted {
-		ls = stripOmitted(ls, scenes)
+		ls = stripOmitted(ls, lang)
 	}
 	ls = stripSpans(ls, o)
 	if o.SceneNumbers {
-		ls = stripNumbers(ls, scenes)
+		ls = stripNumbers(ls, lang)
 	}
 	if o.Outline {
-		ls = stripOutline(ls, scenes)
+		ls = stripOutline(ls, lang)
 	}
 	if o.TitlePage {
-		ls = stripTitlePage(ls, scenes)
+		ls = stripTitlePage(ls, lang)
 	}
-	ls = keepReading(ls, want, scenes)
+	ls = keepReading(ls, want, lang)
 	out := joinS(ls)
 	if final && out != "" {
 		out += "\n"
@@ -238,8 +244,8 @@ func dropLines(ls []sline, drop []bool) []sline {
 }
 
 // typesOf are the elements ls are read as, by index.
-func typesOf(ls []sline, scenes []string) []string {
-	got := elementsOf(joinS(ls), scenes, false)
+func typesOf(ls []sline, lang rules.Language) []string {
+	got := elementsOf(joinS(ls), lang, false)
 	out := make([]string, len(ls))
 	for i := range ls {
 		out[i] = got[i+1]
@@ -249,8 +255,8 @@ func typesOf(ls []sline, scenes []string) []string {
 
 // stripOmitted drops each OMITTED heading, and the boneyard right under
 // it that keeps the scene (OmitScene's).
-func stripOmitted(ls []sline, scenes []string) []sline {
-	types := typesOf(ls, scenes)
+func stripOmitted(ls []sline, lang rules.Language) []sline {
+	types := typesOf(ls, lang)
 	drop := make([]bool, len(ls))
 	for i, l := range ls {
 		if types[i] != lex.TypeScene {
@@ -451,8 +457,8 @@ func widen(text string, start, end int) span {
 }
 
 // stripNumbers takes the scene numbers off the headings.
-func stripNumbers(ls []sline, scenes []string) []sline {
-	types := typesOf(ls, scenes)
+func stripNumbers(ls []sline, lang rules.Language) []sline {
+	types := typesOf(ls, lang)
 	for i, l := range ls {
 		if types[i] != lex.TypeScene {
 			continue
@@ -465,8 +471,8 @@ func stripNumbers(ls []sline, scenes []string) []sline {
 }
 
 // stripOutline drops the sections and synopses.
-func stripOutline(ls []sline, scenes []string) []sline {
-	types := typesOf(ls, scenes)
+func stripOutline(ls []sline, lang rules.Language) []sline {
+	types := typesOf(ls, lang)
 	drop := make([]bool, len(ls))
 	for i := range ls {
 		drop[i] = types[i] == lex.TypeSection || types[i] == lex.TypeSynopsis
@@ -475,8 +481,8 @@ func stripOutline(ls []sline, scenes []string) []sline {
 }
 
 // stripTitlePage drops the title page, and the blank lines after it.
-func stripTitlePage(ls []sline, scenes []string) []sline {
-	rows := ParseLines(scenes, strings.NewReader(joinS(ls)))
+func stripTitlePage(ls []sline, lang rules.Language) []sline {
+	rows := ParseLinesIn(lang, strings.NewReader(joinS(ls)))
 	if len(rows) == 0 || rows[0].Type != lex.TypeTitlePage {
 		return ls
 	}
@@ -495,10 +501,10 @@ func stripTitlePage(ls []sline, scenes []string) []sline {
 // did (want, by their origin) their force mark, where Fountain has one:
 // the first line of each run of them, then all is read again, until
 // nothing changes (as KeepLoose).
-func keepReading(ls []sline, want map[int]string, scenes []string) []sline {
+func keepReading(ls []sline, want map[int]string, lang rules.Language) []sline {
 	marked := make([]bool, len(ls))
 	for range len(ls) + 1 {
-		types := typesOf(ls, scenes)
+		types := typesOf(ls, lang)
 		changed, inRun := false, false
 		for i, l := range ls {
 			w, ok := want[l.origin]

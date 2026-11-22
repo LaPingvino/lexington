@@ -1,6 +1,8 @@
 package fountain
 
 import (
+	"github.com/LaPingvino/lexington/rules"
+
 	"bytes"
 	"os"
 	"path/filepath"
@@ -13,7 +15,7 @@ import (
 // kinds is what each line of text is read as (line from 1), "" for one
 // with no row of its own.
 func kinds(text string, loose bool) []string {
-	got := elementsOf(text, Scene, loose)
+	got := elementsOf(text, rules.Words(Scene), loose)
 	out := make([]string, strings.Count(text, "\n")+1)
 	for i := range out {
 		out[i] = got[i+1]
@@ -101,8 +103,8 @@ func TestStrictReading(t *testing.T) {
 // (the blank lines KeepLoose added passed over).
 func assertKept(t *testing.T, text, kept string) {
 	t.Helper()
-	want := elementsOf(text, Scene, true)
-	got := elementsOf(kept, Scene, false)
+	want := elementsOf(text, rules.Words(Scene), true)
+	got := elementsOf(kept, rules.Words(Scene), false)
 	was := strings.Split(text, "\n")
 	j := 0
 	for i, l := range strings.Split(kept, "\n") {
