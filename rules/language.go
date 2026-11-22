@@ -4,6 +4,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"sync"
 )
 
 // A Language is how scripts in one language are written in Fountain:
@@ -258,7 +259,7 @@ func (c TOMLConf) Language(lang string) Language {
 	if lang == Hekaya {
 		return hekaya()
 	}
-	base, ok := defaultLanguages()[lang]
+	base, ok := defaultLanguage(lang)
 	if !ok {
 		base = custom()
 	}
@@ -295,6 +296,9 @@ func (c TOMLConf) Scenes(lang string) []string {
 	if !c.Knows(lang) {
 		return nil
 	}
+	if l, ok := c.Languages[lang]; ok && l.Scenes != nil {
+		return l.Scenes // asked often (per key): the words alone, not the whole language
+	}
 	return c.Language(lang).Scenes
 }
 
@@ -330,4 +334,16 @@ func (c TOMLConf) normalized() TOMLConf {
 	}
 	out.LegacyScenes, out.LegacyMatchups, out.LegacyDirections = nil, nil, nil
 	return out
+}
+
+// defaults are the default languages, made once (defaultLanguage).
+var defaults = sync.OnceValue(defaultLanguages)
+
+// defaultLanguage is the default configuration's lang, a copy.
+func defaultLanguage(lang string) (Language, bool) {
+	l, ok := defaults()[lang]
+	if !ok {
+		return Language{}, false
+	}
+	return l.clone(), true
 }
