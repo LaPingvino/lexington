@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.27.0] - 2026-11-22
+
+### Reads differently (check your scripts)
+- Hebrew, Chinese and Japanese character cues no longer need `@`: a name in
+  the script's character list, followed by a parenthetical or an extension,
+  or one that keeps recurring is read as a cue (each language's `Cues`).
+- Each language's transition words are read as transitions (e.g. Arabic
+  `قطع إلى`, German `SCHNITT AUF:`), not only English " TO:" lines.
+- Numbered headings are read in Italian, Russian, Hebrew, Chinese and
+  Arabic, and place-first headings in German and French (`Headings`
+  patterns); a German line starting `INNEN`/`AUSSEN` after a blank line is a
+  heading.
+- Breaking for library users: `rules.TOMLConf.Scenes` is a method now and
+  the old table fields are `Legacy*` (Accolade is the only known user).
+
 ### Added
 - **Language rules in the configuration** (`[Languages.xx]`, docs/LANGUAGES.md):
   every language carries its whole definition — scene words, heading
