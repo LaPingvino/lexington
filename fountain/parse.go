@@ -677,7 +677,7 @@ func (state *ParseState) handleDualDialogue(currentLine lex.Line, isCurrentLineD
 			return
 		}
 		if start, ok := state.previousDialogueBlock(); ok {
-			state.out = append(state.out[:start], append(lex.Screenplay{{Type: lex.TypeDualOpen}}, state.out[start:]...)...)
+			state.out = append(state.out[:start], append(lex.Screenplay{{Type: lex.TypeDualOpen, Source: state.out[start].Source}}, state.out[start:]...)...)
 			state.out = append(state.out, lex.Line{Type: lex.TypeDualNext})
 			state.inDualDialogue = true
 		}
