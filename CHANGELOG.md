@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.24.0] - 2026-11-22
+
 ### Added
 - **The PDF's pages as drawn, to show without a PDF reader.** The PDF
   writers draw through `pdf.Drawer`, the gofpdf calls they make (which
