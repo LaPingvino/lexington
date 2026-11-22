@@ -183,3 +183,33 @@ func TestKeepLoose(t *testing.T) {
 		}
 	}
 }
+
+// A file with a language's own extension is read with it: Hekaya's by
+// default, one's own from [Extensions]; written back with it, it keeps it.
+func TestExtensionLanguages(t *testing.T) {
+	dir := t.TempDir()
+	script := "مطر.\n\n@سمير\nأهلا.\n\nسمير\nكلام.\n\n- قطع -\n\nخارجي - شارع - ليل\n"
+	conf := filepath.Join(dir, "lexington.toml")
+	os.WriteFile(conf, []byte("[Extensions]\nkissa = \"ar\"\n"), 0o644)
+	for _, name := range []string{"film.hekaya", "film.kissa"} {
+		in := filepath.Join(dir, name)
+		os.WriteFile(in, []byte(script), 0o644)
+		out := filepath.Join(dir, name+".lex")
+		o := Options{Input: in, Output: out, To: "lex", ConfigFile: conf}
+		if err := Convert(context.Background(), o); err != nil {
+			t.Fatal(err)
+		}
+		b, _ := os.ReadFile(out)
+		if got := string(b); !strings.Contains(got, "speaker: سمير\ndialog: كلام") || !strings.Contains(got, "trans: - قطع -") {
+			t.Errorf("%s not read with its language:\n%s", name, got)
+		}
+		// written back to the same extension: Fountain as typed, the cues as they were
+		again := filepath.Join(dir, "again-"+name)
+		if err := Convert(context.Background(), Options{Input: in, Output: again, ConfigFile: conf}); err != nil {
+			t.Fatal(err)
+		}
+		if b, err := os.ReadFile(again); err != nil || !strings.Contains(string(b), "سمير") {
+			t.Errorf("%s written back: %v\n%s", name, err, b)
+		}
+	}
+}

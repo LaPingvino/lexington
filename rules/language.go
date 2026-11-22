@@ -209,8 +209,47 @@ func Words(scenes []string) Language {
 // Lexington's choices are in docs/LANGUAGES.md.
 const Hekaya = "hekaya"
 
-// HekayaExt is the extension of Hekaya's files.
-const HekayaExt = ".hekaya"
+// DefaultExtensions are the file extensions the default configuration
+// knows, each with its language: Hekaya's own .hekaya.
+func DefaultExtensions() map[string]string { return map[string]string{"hekaya": Hekaya} }
+
+// FileExtensions are the extensions c knows (the default's, c's over
+// them), without their dot, each with its language.
+func (c TOMLConf) FileExtensions() map[string]string {
+	out := DefaultExtensions()
+	for k, v := range c.Extensions {
+		out[strings.ToLower(strings.TrimPrefix(k, "."))] = v
+	}
+	return out
+}
+
+// ExtensionLanguage is the language of a file named name by its
+// extension ("film.hekaya": hekaya), "" and false for an extension no
+// language has (.fountain, .txt: the name's language part says, if any).
+func (c TOMLConf) ExtensionLanguage(name string) (string, bool) {
+	i := strings.LastIndex(name, ".")
+	if i < 0 || strings.ContainsAny(name[i:], `/\`) {
+		return "", false
+	}
+	l, ok := c.FileExtensions()[strings.ToLower(name[i+1:])]
+	return l, ok && l != ""
+}
+
+// ExtensionOf is the extension (with its dot) c gives a file in lang of
+// its own, "" for none: ".hekaya" for Hekaya.
+func (c TOMLConf) ExtensionOf(lang string) string {
+	var exts []string
+	for e, l := range c.FileExtensions() {
+		if l == lang {
+			exts = append(exts, e)
+		}
+	}
+	if len(exts) == 0 {
+		return ""
+	}
+	slices.Sort(exts)
+	return "." + exts[0]
+}
 
 // Language is lang as c reads it, in full: c's definition over the
 // default configuration's (English's rules, with no scene words, for a

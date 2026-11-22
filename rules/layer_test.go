@@ -105,3 +105,30 @@ func TestEveryLanguageInFull(t *testing.T) {
 		}
 	}
 }
+
+func TestExtensions(t *testing.T) {
+	c := DefaultConf()
+	if l, ok := c.ExtensionLanguage("Film.HEKAYA"); !ok || l != Hekaya {
+		t.Errorf("hekaya: %q %v", l, ok)
+	}
+	if _, ok := c.ExtensionLanguage("film.ar.fountain"); ok {
+		t.Error(".fountain has a language")
+	}
+	mine, err := Decode([]byte("[Extensions]\nkissa = \"ar\"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l, ok := mine.ExtensionLanguage("x.kissa"); !ok || l != "ar" || mine.ExtensionOf("ar") != ".kissa" {
+		t.Errorf("own: %q %v %q", l, ok, mine.ExtensionOf("ar"))
+	}
+	if _, ok := mine.ExtensionLanguage("x.hekaya"); !ok {
+		t.Error("the default's extension went")
+	}
+	// carried with its language, laid over a machine that lacks it
+	part := mine.Part([]string{"ar"}, nil)
+	text, _ := part.Encode()
+	back, _ := Decode(text)
+	if l, ok := DefaultConf().With(back).ExtensionLanguage("x.kissa"); !ok || l != "ar" {
+		t.Errorf("carried:\n%s", text)
+	}
+}

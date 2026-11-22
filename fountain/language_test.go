@@ -1,6 +1,8 @@
 package fountain
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -190,6 +192,54 @@ func TestHekayaOpenSpec(t *testing.T) {
 	for _, l := range ParseIn(h, strings.NewReader("x\n\nداخلي - قهوة بلدي - نهار #١٢#\n")) {
 		if _, n := lex.SceneNumber(string(l.Contents)); l.Type == lex.TypeScene && n != "١٢" {
 			t.Errorf("number %q", n)
+		}
+	}
+}
+
+// ForceIn and UnforceIn with the language rules: Hekaya's samples, a
+// Chinese script and the registry read the same in standard Fountain,
+// and come back as written.
+func TestForceWithRules(t *testing.T) {
+	conf := rules.DefaultConf()
+	std := conf.Language("en")
+	texts := map[string]string{
+		"registry": "مطر.\n\n@سمير\nأهلا.\n\nسمير\nكلام.\n\n- قطع -\n\nخارجي - شارع - ليل\n",
+		"zh":       "场景1 咖啡馆 日 内\n\n张三坐在窗边。\n\n李四\n（笑）\n你来了。\n\n王五（画外音）\n我在。\n\n李四\n真的？\n\n淡出\n\n内景 家 夜\n",
+	}
+	langs := map[string]string{"registry": rules.Hekaya, "zh": "zh"}
+	files, _ := filepath.Glob("../testdata/hekaya/*.hekaya")
+	for _, f := range files {
+		b, _ := os.ReadFile(f)
+		texts[f], langs[f] = string(b), rules.Hekaya
+	}
+	types := func(text string, l rules.Language) string {
+		var out []string
+		body := !strings.Contains(text, ":") // the title page's keys are named by language: left out
+		for _, r := range ParseIn(l, strings.NewReader(text)) {
+			if body {
+				out = append(out, r.Type)
+			}
+			body = body || r.Type == lex.TypeNewPage
+		}
+		return strings.Join(out, " ")
+	}
+	for name, text := range texts {
+		l := conf.Language(langs[name])
+		forced := ForceIn(text, l, std)
+		if a, b := types(text, l), types(forced, std); a != b {
+			t.Errorf("%s: standard Fountain reads otherwise:\n%s\n%s\n%s", name, a, b, forced)
+		}
+		back := UnforceIn(forced, l, std)
+		if name == "registry" {
+			// a later bare name forced with @ cannot be told from one the
+			// writer forced: it stays, and reads the same
+			if types(back, l) != types(text, l) || !strings.Contains(back, "\n@سمير\nكلام") {
+				t.Errorf("registry: %s", back)
+			}
+			continue
+		}
+		if back != text {
+			t.Errorf("%s: not back as written:\n%s", name, back)
 		}
 	}
 }

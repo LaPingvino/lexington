@@ -61,6 +61,15 @@ func (c TOMLConf) With(layer TOMLConf) TOMLConf {
 	if layer.Standard != "" {
 		out.Standard = layer.Standard
 	}
+	if len(layer.Extensions) > 0 {
+		out.Extensions = maps.Clone(c.Extensions)
+		if out.Extensions == nil {
+			out.Extensions = map[string]string{}
+		}
+		maps.Copy(out.Extensions, layer.Extensions)
+	} else {
+		out.Extensions = maps.Clone(c.Extensions)
+	}
 	return out
 }
 
@@ -78,6 +87,14 @@ func (c TOMLConf) Part(langs, sets []string) TOMLConf {
 				out.Languages = map[string]Language{}
 			}
 			out.Languages[l] = c.Language(l) // the language in full
+		}
+	}
+	for e, l := range c.Extensions { // one's own extensions for these languages
+		if slices.Contains(langs, l) {
+			if out.Extensions == nil {
+				out.Extensions = map[string]string{}
+			}
+			out.Extensions[e] = l
 		}
 	}
 	for _, s := range sets {
@@ -108,6 +125,9 @@ func (c TOMLConf) Items() []Item {
 	for _, s := range slices.Sorted(maps.Keys(c.Elements)) {
 		out = append(out, Item{"elements", s})
 	}
+	for _, e := range slices.Sorted(maps.Keys(c.Extensions)) {
+		out = append(out, Item{"extension", e})
+	}
 	if c.Standard != "" {
 		out = append(out, Item{"standard", ""})
 	}
@@ -128,6 +148,9 @@ func (c TOMLConf) Of(it Item) (TOMLConf, bool) {
 		return p, p.Elements != nil
 	case "standard":
 		return TOMLConf{Standard: c.Standard}, c.Standard != ""
+	case "extension":
+		l, ok := c.Extensions[it.Key]
+		return TOMLConf{Extensions: map[string]string{it.Key: l}}, ok
 	}
 	return TOMLConf{}, false
 }

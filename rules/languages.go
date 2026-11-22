@@ -52,8 +52,10 @@ func latin(scenes, matchup []string, extensions, transitions []string, ends ...s
 
 // noCaps are the cue rules of a language written without capitals
 // (Joop, LOOP.md 2026-11-20): a name in the list, before a
-// parenthetical, with an extension, or one that comes back.
-var noCaps = []string{CueForced, CueList, CueParenthetical, CueExtension, CueRepeat}
+// parenthetical, with an extension, or one that comes back; and caps,
+// which never reads a name without capitals but keeps a Latin cue in
+// capitals (ANNA in a Hebrew script) reading as before.
+var noCaps = []string{CueForced, CueCaps, CueList, CueParenthetical, CueExtension, CueRepeat}
 
 // hekaya is Hekaya's Arabic in full: its keywords.ts and spec v0.1
 // (michaelkmalak/hekaya, MIT), with English Fountain beside it as

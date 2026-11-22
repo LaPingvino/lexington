@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`lex.TitleDirection`, `cli.Options.Direction`). Where Hekaya's spec is
   open, Lexington's choices are documented and tested; drafts of issues
   for Hekaya in docs/hekaya-issues.
+- **File extensions of a language** (`[Extensions]`, Hekaya's `hekaya` by
+  default; one's own in lexington.toml, carried with a script's language):
+  `TOMLConf.ExtensionLanguage`, `ExtensionOf`, `FileExtensions`; the
+  command line reads `-i`/`-o` by them.
 - **Arabic prints shaped in the PDF**, through Courier Badi's own OpenType
   features (go-text's HarfBuzz port, Arabic runs only): joining forms and
   lam-alef as the characters the font maps them to, before wrapping and

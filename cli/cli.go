@@ -412,9 +412,12 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 // line does. Formats and scene languages missing from o are taken from
 // the file names (script.fr.fountain: French scene headings).
 func Convert(ctx context.Context, o Options) error {
-	detectFormats(&o)
-	setDefaults(&o)
+	if o.ConfigFile == "" {
+		o.ConfigFile = "lexington.toml"
+	}
 	conf := confOf(o)
+	detectFormats(&o, conf)
+	setDefaults(&o)
 	if _, ok := conf.Elements[o.Elements]; !ok {
 		return fmt.Errorf("no element settings %q in %s or the presets (see -presets)", o.Elements, o.ConfigFile)
 	}
@@ -704,21 +707,22 @@ func PDFWarning(s lex.Screenplay) string {
 
 // detectFormats reads the formats (and scene languages) from the file
 // names alone: script.en.fountain — a dot in a folder's name is no part of it.
-func detectFormats(o *Options) {
+func detectFormats(o *Options, conf rules.TOMLConf) {
 	defer func() {
 		if o.Strip != "" && o.To == "" {
 			o.To = internal.FormatFountain // a clean copy of the script
 		}
 	}()
-	if ins := strings.Split(filepath.Base(o.Input), "."); len(ins) > 1 && ins[len(ins)-1] == "hekaya" {
-		// Hekaya's file is Fountain in Arabic, read with its fixed rules
+	if lang, ok := conf.ExtensionLanguage(filepath.Base(o.Input)); ok {
+		// a language's own extension ([Extensions]: film.hekaya is
+		// Fountain in Hekaya's Arabic)
 		if o.From == "" {
 			o.From = internal.FormatFountain
 		}
 		if o.SceneIn == "" {
-			o.SceneIn = rules.Hekaya
+			o.SceneIn = lang
 		}
-	} else if len(ins) > 1 {
+	} else if ins := strings.Split(filepath.Base(o.Input), "."); len(ins) > 1 {
 		if o.From == "" {
 			o.From = ins[len(ins)-1]
 		}
@@ -726,14 +730,14 @@ func detectFormats(o *Options) {
 			o.SceneIn = ins[len(ins)-2]
 		}
 	}
-	if outs := strings.Split(filepath.Base(o.Output), "."); len(outs) > 1 && outs[len(outs)-1] == "hekaya" {
+	if lang, ok := conf.ExtensionLanguage(filepath.Base(o.Output)); ok {
 		if o.To == "" {
 			o.To = internal.FormatFountain
 		}
 		if o.SceneOut == "" {
-			o.SceneOut = rules.Hekaya
+			o.SceneOut = lang
 		}
-	} else if len(outs) > 1 {
+	} else if outs := strings.Split(filepath.Base(o.Output), "."); len(outs) > 1 {
 		if o.To == "" {
 			o.To = outs[len(outs)-1]
 		}

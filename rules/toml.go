@@ -20,6 +20,12 @@ type TOMLConf struct {
 	// other Fountain apps read. A script in another language is a dialect
 	// of Fountain, written for them with fountain.Force.
 	Standard string `toml:"Standard,omitempty"`
+	// Extensions are file extensions (without the dot) whose files are in
+	// a language: [Extensions] hekaya = "hekaya" reads film.hekaya with
+	// Hekaya's rules, as film.ar.fountain is read with Arabic's. The
+	// default's (DefaultExtensions) are known in every configuration; one
+	// of one's own adds to them or changes one.
+	Extensions map[string]string `toml:"Extensions,omitempty"`
 	// The tables of configuration files from before Languages: by
 	// language its scene words, its matchup and its direction. Reading a
 	// file moves them into Languages (normalized); they are never
@@ -62,8 +68,9 @@ func DefaultConf() TOMLConf {
 		Elements: map[string]Set{
 			"default": Default,
 		},
-		Languages: defaultLanguages(),
-		Standard:  "en",
+		Languages:  defaultLanguages(),
+		Standard:   "en",
+		Extensions: DefaultExtensions(),
 	}
 }
 

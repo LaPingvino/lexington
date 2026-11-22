@@ -130,13 +130,9 @@ func choices(settings string) (out struct{ Elements, Scenes []choice }) {
 	for _, k := range own {
 		out.Elements = append(out.Elements, choice{Key: k, Name: k + " (your settings)"})
 	}
-	var langs []string
-	for k := range conf.Scenes {
-		langs = append(langs, k)
-	}
-	sort.Strings(langs)
+	langs := conf.LanguageNames()
 	for _, k := range langs {
-		out.Scenes = append(out.Scenes, choice{Key: k, Name: k + ": " + strings.Join(conf.Scenes[k], ", ")})
+		out.Scenes = append(out.Scenes, choice{Key: k, Name: k + ": " + strings.Join(conf.Scenes(k), ", ")})
 	}
 	return out
 }
