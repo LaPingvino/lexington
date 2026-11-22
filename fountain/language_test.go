@@ -1,6 +1,7 @@
 package fountain
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -240,6 +241,31 @@ func TestForceWithRules(t *testing.T) {
 		}
 		if back != text {
 			t.Errorf("%s: not back as written:\n%s", name, back)
+		}
+	}
+}
+
+// The cache's cast after each edit is the one read anew.
+func TestCastCache(t *testing.T) {
+	d := NewDialect(rules.DefaultConf().Language("zh"))
+	c := d.NewCastCache()
+	text := "场景1 咖啡馆 日 内\n\n李四\n你好。\n\n王五\n再见。\n\n李四\n真的？\n\n/* Characters\n张三: 主角\n*/\n"
+	edits := []func(string) string{
+		func(s string) string { return s },
+		func(s string) string { return strings.Replace(s, "王五\n再见。", "李四\n再见。", 1) },
+		func(s string) string { return strings.Replace(s, "\n\n李四\n真的？", "", 1) },
+		func(s string) string { return strings.Replace(s, "张三: 主角", "张三: 主角\n赵六", 1) },
+		func(s string) string { return "x\n\n" + s },
+		func(s string) string {
+			return strings.Replace(s, "\n\n/* Characters", "\n\n赵六\n嗯。\n\n/* Characters", 1)
+		},
+	}
+	for i, e := range edits {
+		text = e(text)
+		lines := strings.Split(text, "\n")
+		got, want := c.Cast(lines), d.CastOfLines(lines)
+		if !maps.Equal(got.shaped, want.shaped) || !maps.Equal(got.listed, want.listed) {
+			t.Errorf("edit %d: cached %v %v, anew %v %v", i, got.shaped, got.listed, want.shaped, want.listed)
 		}
 	}
 }

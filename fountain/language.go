@@ -2,6 +2,7 @@ package fountain
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"unicode"
@@ -21,7 +22,13 @@ type Dialect struct {
 	headings []*regexp.Regexp
 	ext      map[string]bool
 	trans    map[string]bool
+	maxWord  int // the longest scene word, in bytes
 }
+
+// maxShort is how long (in bytes) a line read as a heading by a pattern,
+// a transition or a cue can be: a paragraph is none of them, and is not
+// read through for them on every key.
+const maxShort = 240
 
 var dialects sync.Map // a language's rules, as text, to its *Dialect
 
@@ -39,6 +46,9 @@ func NewDialect(l rules.Language) *Dialect {
 	}
 	for _, e := range l.Extensions {
 		d.ext[squash(e)] = true
+	}
+	for _, w := range l.Scenes {
+		d.maxWord = max(d.maxWord, len(strings.ToUpper(w)))
 	}
 	for _, t := range l.Transitions {
 		d.trans[squash(t)] = true
@@ -127,21 +137,31 @@ func headingPattern(p string, l rules.Language) *regexp.Regexp {
 	return re
 }
 
+// HasPatterns tells whether the language has heading patterns.
+func (d *Dialect) HasPatterns() bool { return len(d.headings) > 0 }
+
 // sceneNumberAtEnd is a scene number written at a heading's end (#12#).
 var sceneNumberAtEnd = regexp.MustCompile(`\s*#[^#\s]+#\s*$`)
 
 // Heading tells whether a line (forced or not: a leading . is no word)
 // is a scene heading by the language's words or patterns.
 func (d *Dialect) Heading(row string) bool {
-	upper := strings.ToUpper(strings.TrimSpace(row))
+	row = strings.TrimSpace(row)
+	// a scene word is at the start: only so much of the line is read
+	head := row
+	if len(head) > d.maxWord+8 {
+		head = head[:d.maxWord+8]
+	}
+	upper := strings.ToUpper(head)
 	for _, w := range d.Lang.Scenes {
 		if StartsScene(upper, w) {
 			return true
 		}
 	}
-	if len(d.headings) == 0 {
-		return false
+	if len(d.headings) == 0 || len(row) > maxShort {
+		return false // a paragraph is no heading
 	}
+	upper = strings.ToUpper(row)
 	bare := squash(sceneNumberAtEnd.ReplaceAllString(upper, ""))
 	for _, re := range d.headings {
 		if re.MatchString(bare) {
@@ -158,7 +178,7 @@ func (d *Dialect) Heading(row string) bool {
 // reader's to see.
 func (d *Dialect) Transition(row string) bool {
 	bare := strings.TrimSpace(row)
-	if bare == "" || bare != strings.ToUpper(bare) || strings.HasPrefix(bare, ">") {
+	if bare == "" || len(bare) > maxShort || bare != strings.ToUpper(bare) || strings.HasPrefix(bare, ">") {
 		return false
 	}
 	for _, e := range d.Lang.TransitionEnds {
@@ -257,23 +277,50 @@ func (d *Dialect) CastOf(text string) *Cast {
 	return d.castOf(strings.Split(text, "\n"), ListedNames(text))
 }
 
+// CastOfLines is CastOf of a text as its lines: no rule that needs the
+// cast, no work; the Characters block found from the end.
+func (d *Dialect) CastOfLines(lines []string) *Cast {
+	if !d.Lang.Has(rules.CueList) && !d.Lang.Has(rules.CueRepeat) {
+		return nil
+	}
+	return d.castOf(lines, listedInLines(lines))
+}
+
+// listedInLines are ListedNames of a text as its lines: the last
+// "/* Characters" block, read from the end (Accolade's end blocks).
+func listedInLines(lines []string) []string {
+	open := EndBlockMarks(EndCharacters).Open
+	for i := len(lines) - 1; i >= 0; i-- {
+		if lines[i] != open {
+			continue
+		}
+		var out []string
+		for _, line := range lines[i+1:] {
+			if strings.HasPrefix(strings.TrimSpace(line), "*/") {
+				break
+			}
+			if line == "" || line[0] == ' ' || line[0] == '\t' {
+				continue
+			}
+			name, _, _ := strings.Cut(line, ":")
+			if name = strings.TrimSpace(name); name != "" {
+				out = append(out, name)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
 func (d *Dialect) castOf(rows []string, listed []string) *Cast {
 	c := &Cast{listed: map[string]bool{}, shaped: map[string]int{}}
 	for _, n := range listed {
 		c.Add(n)
 	}
 	if d.Lang.Has(rules.CueRepeat) {
-		body := rows
-		if _, end := EndBlocks(strings.Join(rows, "\n")); end >= 0 {
-			body = strings.Split(strings.Join(rows, "\n")[:end], "\n")
-		}
-		for i, r := range body {
-			t := strings.TrimSpace(lex.StripNotes(r))
-			if t == "" || i > 0 && strings.TrimSpace(body[i-1]) != "" || i+1 >= len(body) || strings.TrimSpace(body[i+1]) == "" {
-				continue
-			}
-			if d.shaped(t) {
-				c.shaped[CueName(t)]++
+		for i := range rows[:bodyLines(rows)] {
+			if k := d.shapedKey(rows, i); k != "" {
+				c.shaped[k]++
 			}
 		}
 	}
@@ -300,7 +347,7 @@ func (c *Cast) Listed(name string) bool { return c != nil && c.listed[CueName(na
 // see, as are the blank lines.
 func (d *Dialect) Cue(row, next string, c *Cast) bool {
 	t := strings.TrimSpace(row)
-	if t == "" || strings.TrimSpace(next) == "" {
+	if t == "" || len(t) > maxShort || strings.TrimSpace(next) == "" {
 		return false
 	}
 	bare := strings.TrimSpace(strings.TrimSuffix(t, "^"))
@@ -371,4 +418,121 @@ func ListedNames(text string) []string {
 		}
 	}
 	return out
+}
+
+// A CastCache keeps a text's Cast between edits (an editor's, per key):
+// the names each line gives the repeat rule, their counts, and the
+// character list, updated from the lines that changed (and their
+// neighbours) rather than read again over the whole text.
+type CastCache struct {
+	mu     sync.Mutex
+	d      *Dialect
+	lines  []string
+	keys   []string // per line: the name it passes shape with, or ""
+	body   int      // the lines before the first end block
+	counts map[string]int
+	listed []string
+}
+
+// NewCastCache is an empty cache for texts in a dialect.
+func (d *Dialect) NewCastCache() *CastCache { return &CastCache{d: d} }
+
+// Dialect is the dialect the cache reads with.
+func (c *CastCache) Dialect() *Dialect { return c.d }
+
+// Cast is the cast of a text as its lines: CastOfLines, kept up to date
+// from the last text's.
+func (c *CastCache) Cast(lines []string) *Cast {
+	d := c.d
+	if !d.Lang.Has(rules.CueList) && !d.Lang.Has(rules.CueRepeat) {
+		return nil
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	body := bodyLines(lines)
+	p, n, o := 0, len(lines), len(c.lines)
+	for p < n && p < o && lines[p] == c.lines[p] {
+		p++
+	}
+	s := 0
+	for s < n-p && s < o-p && lines[n-1-s] == c.lines[o-1-s] {
+		s++
+	}
+	full := c.keys == nil || body != c.body+(n-o) && body != c.body || o == 0
+	repeat := d.Lang.Has(rules.CueRepeat)
+	if full {
+		c.keys = make([]string, n)
+		c.counts = map[string]int{}
+		if repeat {
+			for i := range lines {
+				c.keys[i] = d.shapedKey(lines, i)
+				if i < body && c.keys[i] != "" {
+					c.counts[c.keys[i]]++
+				}
+			}
+		}
+		c.listed = listedInLines(lines)
+	} else {
+		// the changed lines and one on each side (a blank line around
+		// a name is part of its shape)
+		from, oldTo, newTo := max(p-1, 0), min(o-s+1, o), min(n-s+1, n)
+		if repeat {
+			for i := from; i < oldTo; i++ {
+				if i < c.body && c.keys[i] != "" {
+					c.counts[c.keys[i]]--
+				}
+			}
+		}
+		keys := make([]string, 0, n)
+		keys = append(keys, c.keys[:from]...)
+		for i := from; i < newTo; i++ {
+			k := ""
+			if repeat {
+				k = d.shapedKey(lines, i)
+			}
+			keys = append(keys, k)
+			if i < body && k != "" {
+				c.counts[k]++
+			}
+		}
+		keys = append(keys, c.keys[oldTo:]...)
+		c.keys = keys
+		if newTo >= body-1 || oldTo >= c.body-1 { // the end blocks changed
+			c.listed = listedInLines(lines)
+		}
+	}
+	c.lines, c.body = slices.Clone(lines), body
+	out := &Cast{listed: map[string]bool{}, shaped: map[string]int{}}
+	for _, name := range c.listed {
+		out.Add(name)
+	}
+	for k, v := range c.counts {
+		if v > 0 {
+			out.shaped[k] = v
+		}
+	}
+	return out
+}
+
+// bodyLines is how many of a text's lines come before its first end block.
+func bodyLines(lines []string) int {
+	for i, r := range lines {
+		if strings.HasPrefix(r, "/* ") && slices.Contains(append(EndBlockNames, EndNotes), strings.TrimPrefix(r, "/* ")) {
+			return i
+		}
+	}
+	return len(lines)
+}
+
+// shapedKey is the name line i passes shape with in its place (a blank
+// line before it, text after it), "" for none.
+func (d *Dialect) shapedKey(rows []string, i int) string {
+	t := strings.TrimSpace(lex.StripNotes(rows[i]))
+	if t == "" || len(t) > maxShort || i > 0 && strings.TrimSpace(rows[i-1]) != "" || i+1 >= len(rows) || strings.TrimSpace(rows[i+1]) == "" {
+		return ""
+	}
+	if d.shaped(t) {
+		return CueName(t)
+	}
+	return ""
 }

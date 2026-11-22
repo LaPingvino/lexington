@@ -192,15 +192,18 @@ func ParseLines(scenes []string, file io.Reader) lex.Screenplay {
 func parse(lang rules.Language, file io.Reader, lines, loose bool) (out lex.Screenplay) {
 	toParse := readAllLines(file)
 	d := NewDialect(lang)
-	rows := make([]string, len(toParse))
-	for i, r := range toParse {
-		rows[i] = strings.TrimRight(r, "\n\r")
+	var cast *Cast
+	if d.Lang.Has(rules.CueList) || d.Lang.Has(rules.CueRepeat) { // the whole text read for its names only then
+		rows := make([]string, len(toParse))
+		for i, r := range toParse {
+			rows[i] = strings.TrimRight(r, "\n\r")
+		}
+		cast = d.castOf(rows, listedInLines(rows))
 	}
-	text := strings.Join(rows, "\n")
 
 	state := &ParseState{
 		d:         d,
-		cast:      d.castOf(rows, ListedNames(text)),
+		cast:      cast,
 		loose:     loose,
 		prevBlank: true,
 		titlepage: true,

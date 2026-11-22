@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`lex.TitleDirection`, `cli.Options.Direction`). Where Hekaya's spec is
   open, Lexington's choices are documented and tested; drafts of issues
   for Hekaya in docs/hekaya-issues.
+- `fountain.CastCache` (`Dialect.NewCastCache`): a text's cast kept
+  between edits for an editor, updated from the changed lines;
+  `Dialect.CastOfLines`, `Dialect.HasPatterns`. A paragraph (over 240
+  bytes) is read as no pattern heading, transition or cue.
 - **File extensions of a language** (`[Extensions]`, Hekaya's `hekaya` by
   default; one's own in lexington.toml, carried with a script's language):
   `TOMLConf.ExtensionLanguage`, `ExtensionOf`, `FileExtensions`; the
