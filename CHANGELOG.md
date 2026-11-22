@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.25.0] - 2026-11-22
+
 ### Added
 - **Drawing again from a page (what an edit invalidated, as OpenLoco
   redraws its dirty rectangles).** Each recorded page has its start,
