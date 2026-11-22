@@ -689,7 +689,7 @@ func PDFWarning(s lex.Screenplay) string {
 		why = append(why, fmt.Sprintf("its font has no %s (%d characters), which show as boxes", string(shown), len(missing)))
 	}
 	if shaping {
-		why = append(why, "its letters that join (Arabic, Syriac…) would print unjoined, as the PDF does no shaping")
+		why = append(why, "its letters that join (Syriac, N'Ko…, or Arabic letters whose joined forms the font has only as glyphs) would print unjoined, as the PDF shapes Arabic only")
 	}
 	if len(why) == 0 {
 		return ""

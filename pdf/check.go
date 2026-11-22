@@ -20,22 +20,29 @@ var (
 
 // Unsupported is what the PDF cannot print of a script as it is written:
 // the characters its font (Courier Badi) lacks, which would show as
-// boxes, and whether it has letters that join their neighbours (Arabic,
-// Syriac, N'Ko, Mongolian…: Joining_Type D, R or L), which need shaping
-// the PDF does not do, so they would print unjoined. Right to left alone
-// is no problem (Hebrew prints as written: bidi.go). Printing the HTML
-// (a browser's Print, Save as PDF) has neither problem.
+// boxes, and whether it has letters that join their neighbours that the
+// PDF cannot shape (Syriac, N'Ko, Mongolian…: Joining_Type D, R or L; of
+// Arabic only the letters whose joined forms Courier Badi has no
+// character for, arabic.go), so they would print unjoined. Arabic is
+// shaped, right to left is no problem (bidi.go). Printing the HTML (a
+// browser's Print, Save as PDF) has neither problem.
 func Unsupported(s lex.Screenplay) (missing []rune, shaping bool) {
 	courierOnce.Do(func() { courier, _ = sfnt.Parse(font.GetFont(font.CourierPrimeName, "")) })
 	var buf sfnt.Buffer
 	seen := map[rune]bool{}
+	shaper := shaperFor(font.CourierPrimeName, font.GetFont(font.CourierPrimeName, ""))
 	for _, l := range lex.Printable(s, nil) {
+		if shaper != nil && !shaping && hasArabic(string(l.Contents)) {
+			if _, n := shaper.shape(string(l.Contents)); n > 0 {
+				shaping = true
+			}
+		}
 		for _, r := range string(l.Contents) {
 			if seen[r] || unicode.IsSpace(r) || unicode.IsControl(r) || unicode.Is(unicode.Cf, r) { // marks print as nothing
 				continue
 			}
 			seen[r] = true
-			if unicode.Is(joining, r) {
+			if unicode.Is(joining, r) && !unicode.Is(unicode.Arabic, r) {
 				shaping = true
 			}
 			if courier != nil {

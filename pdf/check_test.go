@@ -15,8 +15,12 @@ func TestUnsupported(t *testing.T) {
 	if m, shaping := Unsupported(line("‏שָׁלוֹם ׯ")); len(m) != 0 || shaping {
 		t.Errorf("Hebrew (in the font since Courier Badi 1.100): missing %q, shaping %v", string(m), shaping)
 	}
-	if m, shaping := Unsupported(line("مرحبا")); len(m) != 0 || !shaping {
-		t.Errorf("Arabic (in the font, its letters join): missing %q, shaping %v", string(m), shaping)
+	if m, shaping := Unsupported(line("مرحبا، لا إله إلا الله")); len(m) != 0 || shaping {
+		t.Errorf("Arabic (shaped since 1.27): missing %q, shaping %v", string(m), shaping)
+	}
+	// a letter whose joined form the font has only as a glyph
+	if _, shaping := Unsupported(line("بڠب")); !shaping {
+		t.Errorf("an extended Arabic letter's medial form: shaping %v", shaping)
 	}
 	if _, shaping := Unsupported(line("ܫܠܡܐ")); !shaping {
 		t.Errorf("Syriac joins: shaping %v", shaping)

@@ -24,15 +24,17 @@ type fonts struct {
 	translate func(string) string
 	files     map[string]string          // a file's path to its name in the PDF
 	has       map[string]func(rune) bool // a font's name to its glyph test
+	data      map[string][]byte          // a file font's name to its regular face
 }
 
 func newFonts(pdf Drawer) *fonts {
 	return &fonts{pdf: pdf, translate: pdf.UnicodeTranslatorFromDescriptor(""),
-		files: map[string]string{}, has: map[string]func(rune) bool{}}
+		files: map[string]string{}, has: map[string]func(rune) bool{}, data: map[string][]byte{}}
 }
 
 // compose is text as the (embedded or file) font name prints it: Hebrew
-// letters with points as the presentation forms it has.
+// letters with points as the presentation forms it has, Arabic shaped
+// by the font's own features (arabic.go).
 func (f *fonts) compose(name, text string) string {
 	has, ok := f.has[name]
 	if !ok {
@@ -42,7 +44,17 @@ func (f *fonts) compose(name, text string) string {
 	if has == nil {
 		return text
 	}
-	return composeHebrew(text, has)
+	text = composeHebrew(text, has)
+	if hasArabic(text) {
+		data, ok := f.data[name]
+		if !ok {
+			data = font.GetFont(name, "")
+		}
+		if s := shaperFor(name, data); s != nil {
+			text, _ = s.shape(text)
+		}
+	}
+	return text
 }
 
 // core are the standard fonts by the names one can give them.
@@ -118,6 +130,7 @@ func (f *fonts) file(path string) string {
 	AddFont(f.pdf, name, "", regular)
 	f.files[path] = name
 	f.has[name] = glyphTest(regular)
+	f.data[name] = regular
 	return name
 }
 

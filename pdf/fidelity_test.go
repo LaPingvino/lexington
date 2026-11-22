@@ -74,6 +74,8 @@ func drawnCases(t *testing.T) []drawnCase {
 		drawnCase{name: "a4", input: "../testdata/input/complex_screenplay.fountain", o: cli.Options{Page: "a4", Number: "count"}},
 		drawnCase{name: "continueds", input: "../examples/tv-episode.fountain", o: cli.Options{Continueds: true, Number: "count"}},
 		drawnCase{name: "hebrew", input: hebrewFidelity, o: cli.Options{SceneIn: "he"}},
+		drawnCase{name: "hekaya", input: "../testdata/hekaya/آخر-أيام-الصيف.hekaya",
+			o: cli.Options{Input: "../testdata/hekaya/آخر-أيام-الصيف.hekaya"}},
 		drawnCase{name: "hebrew-a5", input: hebrewFidelity + "\n" + hebrewFidelity, o: cli.Options{SceneIn: "he", Page: "a5"}},
 	)
 	for _, style := range []string{"line", "marker", "background", "text"} {
