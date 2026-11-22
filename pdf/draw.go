@@ -270,7 +270,15 @@ func fontKey(family, style string) string {
 // slice has room), so handing it a font shared by the program (the embedded
 // Courier Badi, a UI's font) corrupts that font for every later use, and two
 // documents made at once race on it.
+//
+// A Recorder copies for gofpdf itself and keeps b as the font's identity in
+// its drawing (pages drawn with the same font compare equal and keep their
+// paintings), so it gets b as it is.
 func AddFont(d Drawer, family, style string, b []byte) {
+	if r, ok := d.(*Recorder); ok {
+		r.AddUTF8FontFromBytes(family, style, b)
+		return
+	}
 	d.AddUTF8FontFromBytes(family, style, bytes.Clone(b))
 }
 

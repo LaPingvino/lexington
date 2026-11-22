@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.26.2] - 2026-11-22
+
+### Fixed
+- `pdf.AddFont` hands a `Recorder` the font's own bytes (the Recorder copies
+  for gofpdf itself), so a drawing keeps the font's identity and pages drawn
+  again with the same font still compare equal (1.26.1 copied first, and
+  every redraw looked new to a page view).
+
 ## [1.26.1] - 2026-11-22
 
 ### Fixed
