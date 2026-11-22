@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Language rules in the configuration** (`[Languages.xx]`, docs/LANGUAGES.md):
+  every language carries its whole definition — scene words, heading
+  patterns with slots (`{n}`, `{place}`, `{io}`, `{time}`, `{any}`) for the
+  word orders real scripts use (researched and cited per language), cue
+  rules (`forced`, `caps`, `list`, `parenthetical`, `extension`, `shape`,
+  `repeat`), extensions, transition ends and words with their marks, title
+  keys, direction. Hebrew, Chinese and Japanese read cues without capitals
+  (`list` takes the names in the script's `/* Characters */` block and every
+  earlier cue). `fountain.NewDialect` reads lines by a language's rules;
+  `ParseIn`, `ParseLinesIn`, `ForceIn`, `UnforceIn`, `StripIn`,
+  `KeepLooseIn` take a `rules.Language`; `fountain.ListedNames`,
+  `fountain.CueName`. Force marks a transition a reader would not see with
+  `>`.
+- **Hekaya** (Fountain in Arabic, MIT): the default Arabic is Hekaya's full
+  set (plus numbered Arabic headings); the fixed language `hekaya` reads a
+  `.hekaya` file (also as `-i x.hekaya`, `-o x.hekaya`) whatever the
+  configuration's Arabic says; `Direction:` on a title page
+  (`lex.TitleDirection`, `cli.Options.Direction`). Where Hekaya's spec is
+  open, Lexington's choices are documented and tested; drafts of issues
+  for Hekaya in docs/hekaya-issues.
+- **Arabic prints shaped in the PDF**, through Courier Badi's own OpenType
+  features (go-text's HarfBuzz port, Arabic runs only): joining forms and
+  lam-alef as the characters the font maps them to, before wrapping and
+  bidi, so a Recorder records the shaped text. `pdf.Unsupported` and
+  `cli.PDFWarning` no longer warn for Arabic (only for letters whose joined
+  forms have no character, and for other joining scripts). Marks stacked by
+  GPOS (a vowel on a shadda) stand at their default places.
+
+### Changed
+- `rules.TOMLConf`: `Scenes`, `Matchups`, `Directions` are now
+  `Languages` (the old tables are read, as `LegacyScenes`…, and moved into
+  it); `Scenes(lang)` is a method; `Language(lang)`, `Knows`,
+  `LanguageNames`, `rules.Words(scenes)` (English's rules with other words).
+
 ## [1.26.2] - 2026-11-22
 
 ### Fixed

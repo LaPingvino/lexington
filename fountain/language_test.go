@@ -106,6 +106,7 @@ func TestHeadingPatterns(t *testing.T) {
 		{"ar", "مشهد 12 خارج شقة إنجي/البسطة ن/د", true},
 		{"ar", "مشهد (1) غرفة الضيوف ليل / داخلي", true},
 		{"ar", "داخلي - قهوة بلدي - نهار", true},
+		{"zh", "场景1 小区楼下 日 外 #1#", true},
 		{"ar", "مشهد جميل في الليل", false},
 		{"ru", "1. НАТ. ГОРОДСКАЯ ПЛОЩАДЬ. НОЧЬ", true},
 		{"he", "1. פנים. משרד דפנה – יום.", true},
@@ -151,5 +152,44 @@ func TestListedNames(t *testing.T) {
 	}
 	if got := strings.Join(ListedNames(text), ","); got != "ANNA,ben,小明" {
 		t.Errorf("listed before the notes: %q", got)
+	}
+}
+
+// TestHekayaOpenSpec: where Hekaya's spec v0.1 is open, what Lexington
+// reads (docs/LANGUAGES.md, "Hekaya, where its spec is open").
+func TestHekayaOpenSpec(t *testing.T) {
+	h := rules.DefaultConf().Language(rules.Hekaya)
+	read := func(text, row string) string {
+		t.Helper()
+		for _, l := range ParseIn(h, strings.NewReader(text)) {
+			if strings.Contains(strings.ToUpper(string(l.Contents)), strings.ToUpper(row)) {
+				return l.Type
+			}
+		}
+		t.Fatalf("no %q in %q", row, text)
+		return ""
+	}
+	for _, c := range []struct{ name, text, row, want string }{
+		{"1 مقدر is no scene word", "x\n\nمقدر له أن يعود.\n", "مقدر", lex.TypeAction},
+		{"2 مزج إلى is a transition", "x\n\nمزج إلى\n\ny\n", "مزج", lex.TypeTrans},
+		{"3 خارج الكادر is an extension", "x\n\n@نادية (خارج الكادر)\nأنا هنا.\n", "نادية", lex.TypeSpeaker},
+		{"4 عودة للمشهد is a transition", "x\n\n- عودة للمشهد -\n\ny\n", "عودة", lex.TypeTrans},
+		{"5 a registered name needs its speech right under it", "@سمير\nأهلا.\n\nسمير\n\nكلام.\n", "كلام", lex.TypeAction},
+		{"5 the registry: an earlier bare name is action", "x\n\nسمير\nكلام.\n\n@سمير\nأهلا.\n", "كلام", lex.TypeAction},
+		{"6 a heading needs a blank line before it", "قهوة.\nداخلي - شارع - ليل\n", "شارع", lex.TypeAction},
+		{"7 a keyword transition needs blank lines around it", "x\n\n- قطع -\nسمير يمشي.\n", "قطع", lex.TypeAction},
+		{"8 any title page key", "Producer: نادية\nالعنوان: فيلم\n\nداخلي - شارع - ليل\n", "نادية", "Producer"},
+		{"9 == text is a synopsis", "x\n\n== الفصل الثاني\n\ny\n", "الفصل", "synopse"},
+		{"11 Arabic digits number a scene", "x\n\nداخلي - قهوة بلدي - نهار #١٢#\n\ny\n", "قهوة", lex.TypeScene},
+		{"12 capitals beyond ASCII are a cue", "x\n\nJOSÉ\nHola.\n", "Hola", lex.TypeDialog},
+	} {
+		if got := read(c.text, c.row); got != c.want {
+			t.Errorf("%s: %s, want %s", c.name, got, c.want)
+		}
+	}
+	for _, l := range ParseIn(h, strings.NewReader("x\n\nداخلي - قهوة بلدي - نهار #١٢#\n")) {
+		if _, n := lex.SceneNumber(string(l.Contents)); l.Type == lex.TypeScene && n != "١٢" {
+			t.Errorf("number %q", n)
+		}
 	}
 }

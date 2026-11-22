@@ -30,3 +30,13 @@ func TestOwnDirection(t *testing.T) {
 		}
 	}
 }
+
+func TestTitleDirection(t *testing.T) {
+	s := Screenplay{{Type: "Title", Contents: "x"}, {Type: "Direction", Contents: " RTL "}, {Type: TypeScene, Contents: "INT. X"}}
+	if d := TitleDirection(s); d != "rtl" {
+		t.Errorf("direction %q", d)
+	}
+	if d := TitleDirection(Screenplay{{Type: TypeScene}, {Type: "Direction", Contents: "rtl"}}); d != "" {
+		t.Errorf("after a heading: %q", d)
+	}
+}

@@ -143,6 +143,7 @@ type Options struct {
 	FormatDir    string          // folders of format (preset) files of one's own, as a path list, or ""
 	SceneIn      string          // the scene heading language of the input ("en")
 	SceneOut     string          // and of the output
+	Direction    string          // "rtl" or "ltr" for the script's lines with no direction of their own; "" for its language's (or its title page's Direction:)
 	Elements     string          // the element settings: a preset or a set from the settings file
 	Page         string          // paper for pdf, docx and odt: letter, a4, a5; "" for the preset's
 	Input        string          // file name, "-" for standard input
@@ -442,6 +443,9 @@ func Convert(ctx context.Context, o Options) error {
 	if err != nil {
 		return err
 	}
+	if o.Direction == "" {
+		o.Direction = lex.TitleDirection(screenplay) // Hekaya's Direction: rtl
+	}
 	if o.Lint && lint(screenplay) && o.To == "" && o.Output == "-" {
 		return nil // only linting
 	}
@@ -582,7 +586,7 @@ func makeReport(o Options, conf rules.TOMLConf, screenplay lex.Screenplay, ro re
 			}
 			elements = elements.WithPagination(p)
 		}
-		ro.PDF = &pdf.PDFWriter{Elements: elements, Page: pageFor(o), MergeOmitted: o.MergeOmitted, RTL: conf.RTL(o.SceneIn)}
+		ro.PDF = &pdf.PDFWriter{Elements: elements, Page: pageFor(o), MergeOmitted: o.MergeOmitted, RTL: rtlFor(conf, o)}
 	}
 	if ro.Scenes == nil {
 		ro.Scenes = conf.Scenes(o.SceneIn)
@@ -616,7 +620,7 @@ func lockWriter(o Options, conf rules.TOMLConf) (*pdf.PDFWriter, error) {
 		elements = elements.WithPagination(p)
 	}
 	return &pdf.PDFWriter{Elements: elements, Page: pageFor(o), Lock: o.Lock, Continueds: o.Continueds,
-		Revisions: o.Revisions, MergeOmitted: o.MergeOmitted, RTL: conf.RTL(o.SceneIn)}, nil
+		Revisions: o.Revisions, MergeOmitted: o.MergeOmitted, RTL: rtlFor(conf, o)}, nil
 }
 
 // LockPages are the pages of a screenplay as the PDF prints it with o's
@@ -737,6 +741,18 @@ func detectFormats(o *Options) {
 			o.SceneOut = outs[len(outs)-2]
 		}
 	}
+}
+
+// rtlFor tells whether the script's lines with no direction of their own
+// run right to left: o.Direction, else its language's.
+func rtlFor(conf rules.TOMLConf, o Options) bool {
+	switch strings.ToLower(strings.TrimSpace(o.Direction)) {
+	case "rtl":
+		return true
+	case "ltr":
+		return false
+	}
+	return conf.RTL(o.SceneIn)
 }
 
 func setDefaults(o *Options) {
@@ -977,7 +993,7 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 			return nil, errors.New("cannot write PDF to standard output: give an output file (-o output.pdf)")
 		}
 		return &pdf.PDFWriter{OutputFile: o.Output, Elements: elements, Page: pageFor(o), Revisions: o.Revisions,
-			Lock: o.Lock, Continueds: o.Continueds, MergeOmitted: o.MergeOmitted, RTL: conf.RTL(o.SceneIn),
+			Lock: o.Lock, Continueds: o.Continueds, MergeOmitted: o.MergeOmitted, RTL: rtlFor(conf, o),
 			Record: o.Record, Resume: o.Resume}, nil
 	case internal.FormatLex:
 		return &lex.LexWriter{}, nil
@@ -987,7 +1003,7 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 		return &fdx.FDXWriter{TemplatePath: o.TemplatePath, Revisions: o.Revisions, Lock: o.Lock,
 			Tags: o.Breakdown, LineTags: o.LineTags}, nil
 	case internal.FormatHTML:
-		return &html.HTMLWriter{Elements: elements, Page: pageFor(o), RTL: conf.RTL(o.SceneIn)}, nil
+		return &html.HTMLWriter{Elements: elements, Page: pageFor(o), RTL: rtlFor(conf, o)}, nil
 	case internal.FormatLaTeX:
 		return &latex.LaTeXWriter{Template: o.TemplatePath, Elements: elements}, nil
 	case "docx":
@@ -1052,7 +1068,7 @@ func htmlPDF(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 		return errors.New("'htmlpdf' output requires wkhtmltopdf, but it could not be found in your system's PATH")
 	}
 	var buf bytes.Buffer
-	if err = (&html.HTMLWriter{Elements: conf.Elements[o.Elements], RTL: conf.RTL(o.SceneIn)}).Write(&buf, screenplay); err != nil {
+	if err = (&html.HTMLWriter{Elements: conf.Elements[o.Elements], RTL: rtlFor(conf, o)}).Write(&buf, screenplay); err != nil {
 		return fmt.Errorf("converting to HTML for wkhtmltopdf: %w", err)
 	}
 	name, remove, err := tempFile("lexington_*.html", buf.Bytes())
@@ -1170,7 +1186,7 @@ func calibre(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 	}
 	defer os.RemoveAll(dir)
 	var buf bytes.Buffer
-	if err = (&html.HTMLWriter{Elements: conf.Elements[o.Elements], RTL: conf.RTL(o.SceneIn)}).Write(&buf, screenplay); err != nil {
+	if err = (&html.HTMLWriter{Elements: conf.Elements[o.Elements], RTL: rtlFor(conf, o)}).Write(&buf, screenplay); err != nil {
 		return fmt.Errorf("converting to HTML for ebook-convert: %w", err)
 	}
 	in := filepath.Join(dir, "script.html")

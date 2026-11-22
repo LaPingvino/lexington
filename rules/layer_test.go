@@ -82,3 +82,26 @@ func TestWithPresetFiles(t *testing.T) {
 		t.Fatalf("child: %+v", child)
 	}
 }
+
+// TestEveryLanguageInFull: the default languages written and read back
+// are the same, each with every field.
+func TestEveryLanguageInFull(t *testing.T) {
+	text, err := DefaultConf().Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := Decode(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, l := range DefaultLanguages() {
+		got := back.Languages[name]
+		if got.Scenes == nil || got.Cues == nil || got.Extensions == nil || got.TransitionEnds == nil ||
+			got.Transitions == nil || got.TitleKeys == nil || got.Headings == nil || got.Direction == "" || got.Repeat == 0 {
+			t.Errorf("%s not in full after a round trip: %+v", name, got)
+		}
+		if !Same(TOMLConf{Languages: map[string]Language{name: l}}, TOMLConf{Languages: map[string]Language{name: back.Language(name)}}) {
+			t.Errorf("%s differs after a round trip", name)
+		}
+	}
+}

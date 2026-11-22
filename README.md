@@ -179,23 +179,43 @@ Font = "CourierPrime"
 Size = 12.0
 ```
 
-### Scene heading languages
+### Languages: scene headings, cues, transitions
 
-`[Scenes]` lists, per language, the words a scene heading starts with
-(`en = ["INT", "EXT", …]`, `eo = ["EN.", "EKST", …]`); a file named
-`script.eo.fountain` is read with Esperanto's. `Standard` names the
-language whose words are standard Fountain's (`"en"`): a script in
-another language is a dialect of Fountain, and `fountain.Force(text,
-from, to)` writes it so that the standard words read the same elements
-(force marks — `.EN. DOMO`, `!INT. is English` — only where needed, the
-lines otherwise as written); `fountain.Unforce` takes those marks back.
+Each language in `[Languages]` carries its whole definition: the words a
+scene heading starts with and heading patterns with slots for other word
+orders (`"{n}. {place} {io}/{time}"`, as German and French scripts write
+them), the rules a character's cue is read by (`caps` for English;
+`list`, `parenthetical`, `extension`, `repeat` for languages without
+capitals; `forced` @ always), what a transition ends in or is, the title
+page's keys and the direction. A file named `script.eo.fountain` is read
+with Esperanto's, a `.hekaya` file with Hekaya's fixed Arabic rules. See
+[docs/LANGUAGES.md](docs/LANGUAGES.md) for every rule, the research behind
+the default languages, and Hekaya.
 
 ```toml
 Standard = "en"
 
-[Scenes]
-eo = ["EN.", "ENE", "EKST", "EK", "EN/EKST", "EKST/EN", "EKST./EN", "EN./EKST"]
+[Languages.zh]
+Scenes = ["内景", "外景", "内景/外景", "外景/内景"]
+Headings = ["场景{n} {place} {time} {io}", "{n}. {place} {time} {io}"]
+Settings = ["内", "外"]
+Times = ["日", "夜"]
+Cues = ["forced", "list", "parenthetical", "extension", "repeat"]
+Extensions = ["画外音"]
+Shape = { Chars = 6, Ends = "。！？…，" }
+Repeat = 2
+TransitionEnds = [" TO:"]
+Transitions = ["淡入", "淡出"]
 ```
+
+`Standard` names the language whose words are standard Fountain's
+(`"en"`): a script in another language is a dialect of Fountain, and
+`fountain.ForceIn(text, from, to)` writes it so that the standard rules
+read the same elements (force marks — `.EN. DOMO`, `!INT. is English`,
+`@张三`, `> - قطع -` — only where needed, the lines otherwise as written);
+`fountain.UnforceIn` takes those marks back. Configuration files with the
+older `[Scenes]`, `[Matchups]` and `[Directions]` tables are read as
+before.
 
 ### A language's direction
 
@@ -204,9 +224,10 @@ start (RLM U+200F, LRM U+200E), or else its first strong letter
 (Hebrew and Arabic right to left, Latin left to right), so a file mixing
 directions stays mixed. Only a line with neither — `…`, `2.`, a bare
 number — takes its language's direction, from `[Directions]`: `"rtl"` or
-`"ltr"`. The default configuration has `ar` and `he` right to left, and a
-language one's configuration does not name keeps the default's (so `he =
-"ltr"` turns Hebrew around); a custom language sets its own. The HTML
+`"ltr"`, each language's `Direction` (or a title page's `Direction:`, as
+Hekaya writes it). The default configuration has `ar` and `he` right to
+left, and a language one's configuration does not name keeps the
+default's; a custom language sets its own. The HTML
 and PDF writers use it (`-scenein` names the script's language).
 
 The PDF prints a right-to-left line from the right: its element's
@@ -215,15 +236,15 @@ scene's CONTINUEDs, a dual dialogue's first speaker on the right), its
 words in reading order by the Unicode bidi algorithm, numbers and Latin
 in it kept, brackets turned. Hebrew prints this way, points and all
 (Courier Badi has them; without shaping each point stands at its default
-place). Scripts whose letters join (Arabic, Syriac, N'Ko, Mongolian…)
-need shaping the PDF does not do yet: for them Lexington warns and
-suggests printing the HTML from a browser.
+place). Arabic is shaped through Courier Badi's own OpenType features
+(joining forms, lam-alef; go-text's HarfBuzz port), so it prints joined;
+other scripts whose letters join (Syriac, N'Ko, Mongolian…) are not
+shaped: for them Lexington warns and suggests printing the HTML from a
+browser.
 
 ```toml
-[Directions]
-ar = "rtl"
-he = "rtl"
-fa = "rtl"   # a language of one's own
+[Languages.fa]
+Direction = "rtl"   # a language of one's own
 ```
 
 ### Presets: stage plays, radio, comics and more

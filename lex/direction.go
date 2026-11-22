@@ -1,6 +1,10 @@
 package lex
 
-import "golang.org/x/text/unicode/bidi"
+import (
+	"strings"
+
+	"golang.org/x/text/unicode/bidi"
+)
 
 // A line's direction can be set with a mark at its start, which other
 // apps read the same way: right to left (RLM) or left to right (LRM).
@@ -40,4 +44,21 @@ func LineRTL(line string, rtl bool) bool {
 		return r
 	}
 	return rtl
+}
+
+// TitleDirection is the direction a script's title page gives it
+// ("Direction: rtl", as Hekaya writes it): "rtl", "ltr" or "".
+func TitleDirection(s Screenplay) string {
+	for _, l := range s {
+		if strings.EqualFold(l.Type, "Direction") {
+			switch d := strings.ToLower(strings.TrimSpace(string(l.Contents))); d {
+			case "rtl", "ltr":
+				return d
+			}
+		}
+		if l.Type == TypeScene {
+			break
+		}
+	}
+	return ""
 }
