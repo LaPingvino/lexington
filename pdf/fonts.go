@@ -113,9 +113,9 @@ func (f *fonts) file(path string) string {
 				break
 			}
 		}
-		f.pdf.AddUTF8FontFromBytes(name, style, b)
+		AddFont(f.pdf, name, style, b)
 	}
-	f.pdf.AddUTF8FontFromBytes(name, "", regular)
+	AddFont(f.pdf, name, "", regular)
 	f.files[path] = name
 	f.has[name] = glyphTest(regular)
 	return name

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.26.1] - 2026-11-22
+
+### Fixed
+- **Making a PDF no longer changes the embedded fonts.** gofpdf writes into
+  the font bytes it is given (its table checksum pads with `append`, which
+  wrote zeros past the table into the rest of the shared Courier Badi when
+  the slice had room), so every PDF after the first used a slightly damaged
+  font, and two PDFs made at once raced on it. gofpdf now always gets a copy:
+  `pdf.AddFont(d, family, style, b)` for any font handed to a `Drawer`, and
+  the `Recorder` copies too. `TestPDFLeavesTheFontsAlone` hashes the embedded
+  faces around making PDFs (it fails without the fix).
+
 ## [1.26.0] - 2026-11-22
 
 ### Added

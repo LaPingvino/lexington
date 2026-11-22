@@ -990,10 +990,10 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 	}
 
 	// Load fonts using modern embed approach
-	pdf.AddUTF8FontFromBytes("CourierPrime", "", font.GetFont("CourierPrime", ""))
-	pdf.AddUTF8FontFromBytes("CourierPrime", "B", font.GetFont("CourierPrime", "B"))
-	pdf.AddUTF8FontFromBytes("CourierPrime", "I", font.GetFont("CourierPrime", "I"))
-	pdf.AddUTF8FontFromBytes("CourierPrime", "BI", font.GetFont("CourierPrime", "BI"))
+	AddFont(pdf, "CourierPrime", "", font.GetFont("CourierPrime", ""))
+	AddFont(pdf, "CourierPrime", "B", font.GetFont("CourierPrime", "B"))
+	AddFont(pdf, "CourierPrime", "I", font.GetFont("CourierPrime", "I"))
+	AddFont(pdf, "CourierPrime", "BI", font.GetFont("CourierPrime", "BI"))
 
 	// Set default font for the document
 	pdf.SetFont("CourierPrime", "", 12)

@@ -1,6 +1,7 @@
 package pdf
 
 import (
+	"bytes"
 	"image/color"
 	"io"
 	"math"
@@ -263,6 +264,17 @@ func fontKey(family, style string) string {
 	return strings.ToLower(strings.ReplaceAll(family, " ", "#20")) + style
 }
 
+// AddFont adds a font's bytes to d as gofpdf wants them: a copy of its own.
+// gofpdf writes into the bytes it is given (its checksum pads a table with
+// append, which writes past the table into the rest of the file when the
+// slice has room), so handing it a font shared by the program (the embedded
+// Courier Badi, a UI's font) corrupts that font for every later use, and two
+// documents made at once race on it.
+func AddFont(d Drawer, family, style string, b []byte) {
+	d.AddUTF8FontFromBytes(family, style, bytes.Clone(b))
+}
+
+// AddUTF8FontFromBytes gives gofpdf a copy of b (see AddFont).
 func (r *Recorder) AddUTF8FontFromBytes(family, style string, b []byte) {
 	key := fontKey(family, style)
 	if r.lazy {
@@ -273,7 +285,7 @@ func (r *Recorder) AddUTF8FontFromBytes(family, style string, b []byte) {
 			r.pending[key] = lazyFont{family, style, b}
 		}
 	} else {
-		r.Fpdf.AddUTF8FontFromBytes(family, style, b)
+		r.Fpdf.AddUTF8FontFromBytes(family, style, bytes.Clone(b))
 	}
 	if _, ok := r.drawing.Fonts[key]; ok || r.Err() {
 		return
@@ -298,7 +310,7 @@ func (r *Recorder) SetFont(family, style string, size float64) {
 		key := fontKey(f, strings.NewReplacer("U", "", "u", "", "S", "", "s", "").Replace(style))
 		if l, ok := r.pending[key]; ok {
 			delete(r.pending, key)
-			r.Fpdf.AddUTF8FontFromBytes(l.family, l.style, l.b)
+			r.Fpdf.AddUTF8FontFromBytes(l.family, l.style, bytes.Clone(l.b))
 		}
 	}
 	r.Fpdf.SetFont(family, style, size)

@@ -376,8 +376,8 @@ func writeSheetsPDF(w io.Writer, title string, sheets []Sheet, paper string, rec
 	p.SetMargins(36, 36, 36)
 	p.SetAutoPageBreak(false, 36)
 	const face = "sheet"
-	p.AddUTF8FontFromBytes(face, "", font.GetFont(font.CourierPrimeName, ""))
-	p.AddUTF8FontFromBytes(face, "B", font.GetFont(font.CourierPrimeName, "B"))
+	pdf.AddFont(p, face, "", font.GetFont(font.CourierPrimeName, ""))
+	pdf.AddFont(p, face, "B", font.GetFont(font.CourierPrimeName, "B"))
 	pw, ph := p.GetPageSize()
 	left, top := 36.0, 36.0
 	width := pw - 2*left

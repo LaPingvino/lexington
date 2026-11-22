@@ -412,8 +412,8 @@ func schedulePDF(orientation, paper string, record *pdf.Drawing) (pdf.Drawer, st
 	p.SetMargins(36, 36, 36)
 	p.SetAutoPageBreak(false, 36)
 	const face = "sched"
-	p.AddUTF8FontFromBytes(face, "", font.GetFont(font.CourierPrimeName, ""))
-	p.AddUTF8FontFromBytes(face, "B", font.GetFont(font.CourierPrimeName, "B"))
+	pdf.AddFont(p, face, "", font.GetFont(font.CourierPrimeName, ""))
+	pdf.AddFont(p, face, "B", font.GetFont(font.CourierPrimeName, "B"))
 	return p, face
 }
 
