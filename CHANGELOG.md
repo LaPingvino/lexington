@@ -27,7 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pages match pdftoppm's of the PDF (ink within a pixel, colours) on 99.9%
   of the ink at worst, over the examples, the test inputs, Hebrew (A5
   too), the four colour styles with block, tint and patterns, revisions
-  (marks, revised pages only, page colours) and the three reports.
+  (marks, revised pages only, page colours) and the three reports; the
+  standard fonts (Helvetica, Times), painted in the Go fonts, on 90%.
 
 ### Changed
 - `pdf.Tree.PDF` is a `pdf.Drawer` (was `*gofpdf.Fpdf`).

@@ -30,6 +30,9 @@ type drawnCase struct {
 	script lex.Screenplay // printed through pdf.PDFWriter instead, if set
 	w      *pdf.PDFWriter
 	make   func(io.Writer) (pdf.Drawing, error) // a report's PDF, if set
+	// substitute: the standard fonts, painted in the Go fonts (the PDF
+	// does not embed them): the same places, other letterforms
+	substitute bool
 }
 
 const colourScript = "Title: Colours\n\n# ACT ONE [[blue]]\n\nINT. PUB - NIGHT [[red]]\n\nAnna sits at the bar. **Bold** and *italic* and _underlined_ words.\n\nANNA\nHi there, it is a long line of dialogue that wraps over two lines at least.\n\nEXT. ROAD - DAY [[green]]\n\nBOB\nBye.\n\nINT. HOUSE - DAY\n\nNothing.\n"
@@ -87,6 +90,16 @@ func drawnCases(t *testing.T) []drawnCase {
 		drawnCase{name: "revisions-pages-only", script: revised, w: &pdf.PDFWriter{Revisions: pagesOnly(true, false)}},
 		drawnCase{name: "revisions-colours", script: revised, w: &pdf.PDFWriter{Revisions: pagesOnly(false, true)}},
 	)
+	// the standard fonts (not embedded: code page 1252, a byte a character)
+	for _, face := range []string{"helvetica", "times"} {
+		set := rules.Set{}
+		for k, f := range rules.Default {
+			f.Font = face
+			set[k] = f
+		}
+		s := fountain.Parse(rules.DefaultConf().Scenes["en"], strings.NewReader(colourScript+"\nANNA\nCafé, naïve — “quoted” and a very long line of dialogue that wraps over the margin.\n"))
+		cs = append(cs, drawnCase{name: "font-" + face, script: s, w: &pdf.PDFWriter{Elements: set}, substitute: true})
+	}
 	return append(cs, reportCases(t)...)
 }
 
@@ -217,6 +230,12 @@ func TestDrawingLooksLikeThePDF(t *testing.T) {
 			for i, want := range shots {
 				got := r.Page(i, fidelityDPI/72.0)
 				m := compare(got, want)
+				if c.substitute { // other letterforms: their ink 90% on the PDF's
+					if m.size != "" || m.score() < 0.9 {
+						t.Errorf("page %d: %v", i+1, m)
+					}
+					continue
+				}
 				worst = min(worst, m.score())
 				if !m.ok() {
 					saveFailure(t, c.name, i, got, want)
