@@ -67,6 +67,9 @@ type carried struct {
 	contd       int
 	continuing  bool
 	lastsection int
+	// color: the colour of the block the start is in (its heading is
+	// before it: a colour changed there changes the pages from here)
+	color string
 }
 
 // Resume draws a screenplay from a page's start (PDFWriter.Resume,
@@ -221,6 +224,7 @@ func (t *Tree) startHere(page int) PageStart {
 				strings.ContainsAny(row.Contents, "*_") || needsBidi(row.Contents, t.lineRTL(row.Contents)) {
 				return st
 			}
+			at.state.color = t.colorOf[in.block]
 			rest := row
 			rest.Contents = strings.TrimSpace(row.Contents[cut:])
 			at.row, at.rest, at.block = in.origin, &rest, in.block
@@ -248,6 +252,7 @@ func (t *Tree) startHere(page int) PageStart {
 		}
 	}
 	at.row, at.prefix = in.origin, slices.Clone(rows[n:m])
+	at.state.color = t.colorOf[info[n].block]
 	if in.word > 0 {
 		rest := rows[m]
 		at.rest, at.block = &rest, in.block

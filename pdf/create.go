@@ -107,8 +107,9 @@ type Tree struct {
 	starts    map[int]PageStart
 	pageLines map[int][2]int
 	resume    *Resume
-	stopAt    int // the page the Resume stopped before (0: none)
-	offset    int // the document's pages before the PDF's first (a Resume's)
+	stopAt    int            // the page the Resume stopped before (0: none)
+	colorOf   map[int]string // each colour block's colour, by its number
+	offset    int            // the document's pages before the PDF's first (a Resume's)
 }
 
 // span is where printed text is on a page: from its top to its foot.
@@ -281,6 +282,7 @@ func (t *Tree) Render() {
 	}
 	rows := t.F
 	info, colorOf := rowInfos(rows), map[int]string{} // the color block of each row, its color
+	t.colorOf = colorOf
 	for _, row := range rows {
 		if row.Block != 0 && colorOf[row.Block] == "" {
 			colorOf[row.Block] = row.Color

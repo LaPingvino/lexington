@@ -458,3 +458,58 @@ func BenchmarkRedraw(b *testing.B) {
 		}
 	}
 }
+
+// colourful is a feature with colour notes on its acts and on some
+// scenes' headings.
+func colourful(seed uint64, scenes int) string {
+	colours := []string{"red", "blue", "green", "yellow"}
+	lines := strings.Split(featureScript(seed, scenes), "\n")
+	n := 0
+	for i, l := range lines {
+		if strings.HasPrefix(l, "# ACT") || (strings.HasPrefix(l, "INT. ") || strings.HasPrefix(l, "EXT. ")) && n%4 == 0 {
+			lines[i] += " [[" + colours[n%len(colours)] + "]]"
+		}
+		if strings.HasPrefix(l, "INT. ") || strings.HasPrefix(l, "EXT. ") {
+			n++
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// A heading's colour changed (its act or scene runs over pages after
+// it): the pages after are drawn in the new colour too.
+func TestReflowFollowsAColour(t *testing.T) {
+	for _, o := range []cli.Options{
+		{ColorStyle: "line"},
+		{ColorStyle: "marker", ColorScope: "block"},
+		{ColorStyle: "background", ColorScope: "block"},
+	} {
+		t.Run(o.ColorStyle, func(t *testing.T) {
+			text := colourful(12, 80)
+			d := whole(t, drawer(t, text, o))
+			lines := strings.Split(text, "\n")
+			for k, from := range []string{"[[red]]", "[[blue]]"} {
+				at := -1
+				for i := len(lines) / 3 * (1 - k); i < len(lines); i++ {
+					if strings.Contains(lines[i], from) {
+						at = i
+						break
+					}
+				}
+				if at < 0 {
+					t.Fatalf("no %s", from)
+				}
+				lines[at] = strings.Replace(lines[at], from, "[[green]]", 1)
+				edited := strings.Join(lines, "\n")
+				draw := drawer(t, edited, o)
+				got, how, err := pdf.Reflow(context.Background(), d, at+1, draw)
+				if err != nil {
+					t.Fatal(err)
+				}
+				samePages(t, fmt.Sprintf("%s to green at line %d", from, at+1), got.Pages, whole(t, draw).Pages)
+				t.Logf("%s at line %d: drawn %d from %d, kept %v", from, at+1, how.Drawn, how.From+1, how.Kept)
+				text, d = edited, got
+			}
+		})
+	}
+}

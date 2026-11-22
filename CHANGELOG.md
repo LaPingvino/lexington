@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `DrawnPage.Start` (a `pdf.PageStart`: the page's number, the script's
   line and word its text starts at, and, unexported, what the pages before
   leave to it — the scene it continues and its CONTINUEDs so far, the page
-  numbers, the rows pagination looks back at), and the script's lines
+  numbers, the colour of the block it is in, the rows pagination looks
+  back at), and the script's lines
   printed on it, `First` and `Last` (`Drawing.PageOf(line)` is the page a
   line prints on; the script parsed with `fountain.ParseLines`).
   `PDFWriter.Resume` / `cli.Options.Resume` (a `pdf.Resume`) draws the
@@ -40,7 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   edits in a row (a word, a line, a line deleted, a heading that moves
   the scene numbers after it, a paragraph that adds a page, a speaker's
   name deleted, a page's first line), each reflowed from the drawing
-  before, are the whole drawing of the script as edited; a word typed
+  before, are the whole drawing of the script as edited, and so is a
+  heading's colour changed (bars, markers and backgrounds over its block); a word typed
   redraws its page in some 30 ms (the two fonts it reads are most of it),
   where the whole feature takes 400.
 
