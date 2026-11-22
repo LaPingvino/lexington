@@ -176,8 +176,6 @@ func ParseLines(scenes []string, file io.Reader) lex.Screenplay {
 }
 
 func parse(scenes []string, file io.Reader, lines, loose bool) (out lex.Screenplay) {
-	Scene = scenes
-
 	toParse := readAllLines(file)
 
 	state := &ParseState{

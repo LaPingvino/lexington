@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `pdf.Tree.PDF` is a `pdf.Drawer` (was `*gofpdf.Fpdf`).
+- Parsing no longer sets `fountain.Scene` to the words it parsed with: two
+  scripts parsed at once (a program making two PDFs) raced on it.
+  `fountain.Scene` stays the English words, `CheckScene`'s default.
 - The PDFs list their fonts in the order of their names (`pdf.NewFpdf`):
   the same script makes the same PDF, but for its date.
 
