@@ -6,15 +6,20 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/LaPingvino/lexington/cli"
+	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/pdf"
+	"github.com/LaPingvino/lexington/report"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // A drawn case: a script and how it is printed.
@@ -24,6 +29,7 @@ type drawnCase struct {
 	o      cli.Options
 	script lex.Screenplay // printed through pdf.PDFWriter instead, if set
 	w      *pdf.PDFWriter
+	make   func(io.Writer) (pdf.Drawing, error) // a report's PDF, if set
 }
 
 const colourScript = "Title: Colours\n\n# ACT ONE [[blue]]\n\nINT. PUB - NIGHT [[red]]\n\nAnna sits at the bar. **Bold** and *italic* and _underlined_ words.\n\nANNA\nHi there, it is a long line of dialogue that wraps over two lines at least.\n\nEXT. ROAD - DAY [[green]]\n\nBOB\nBye.\n\nINT. HOUSE - DAY\n\nNothing.\n"
@@ -81,7 +87,34 @@ func drawnCases(t *testing.T) []drawnCase {
 		drawnCase{name: "revisions-pages-only", script: revised, w: &pdf.PDFWriter{Revisions: pagesOnly(true, false)}},
 		drawnCase{name: "revisions-colours", script: revised, w: &pdf.PDFWriter{Revisions: pagesOnly(false, true)}},
 	)
-	return cs
+	return append(cs, reportCases(t)...)
+}
+
+// reportCases are the production reports' PDFs: breakdown sheets, the
+// one-liner, the Day Out of Days.
+func reportCases(t *testing.T) []drawnCase {
+	data, err := os.ReadFile("../report/testdata/shoot.fountain")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := report.Make(fountain.Parse(rules.DefaultConf().Scenes["en"], bytes.NewReader(data)), report.Options{})
+	b := report.Breakdown{Elements: map[int][]report.Element{
+		1: {{Category: "Props", Name: "revolver"}, {Category: "Cast Members", Name: "Carl"}, {Category: "Wardrobe", Name: "raincoat"}},
+		2: {{Category: "Vehicles", Name: "taxi"}, {Category: "Animals", Name: "dog"}, {Category: "Background Actors", Name: "neighbours"}},
+	}}
+	day := func(d int) time.Time { return time.Date(2026, 12, d, 0, 0, 0, 0, time.UTC) }
+	s := report.Schedule{Days: []report.Day{
+		{ID: "d1", Date: day(1), Call: "07:00", Notes: "Kovač house; the kitchen", Scenes: []int{4, 1}},
+		{ID: "d2", Date: day(2), Scenes: []int{2}},
+		{ID: "d3", Date: day(4), Call: "6:30", Scenes: []int{5}},
+	}}
+	return []drawnCase{
+		{name: "report-sheets", make: func(w io.Writer) (pdf.Drawing, error) { return report.DrawSheetsPDF(w, "Shoot", r.Sheets(b), "a4") }},
+		{name: "report-oneliner", make: func(w io.Writer) (pdf.Drawing, error) {
+			return report.DrawOneLinerPDF(w, "Shoot", r, b, s, report.StripOptions{}, "letter")
+		}},
+		{name: "report-dood", make: func(w io.Writer) (pdf.Drawing, error) { return report.DrawDOODPDF(w, "Shoot", r, b, s, "") }},
+	}
 }
 
 func pagesOnly(only, colours bool) *lex.Revisions {
@@ -95,6 +128,21 @@ func (c drawnCase) draw(t *testing.T, record bool) ([]byte, pdf.Drawing) {
 	t.Helper()
 	var d pdf.Drawing
 	out := filepath.Join(t.TempDir(), c.name+".pdf")
+	if c.make != nil {
+		var buf bytes.Buffer
+		if record {
+			d, err := c.make(&buf)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return buf.Bytes(), d
+		}
+		var plain bytes.Buffer
+		if _, err := c.make(&plain); err != nil {
+			t.Fatal(err)
+		}
+		return plain.Bytes(), d
+	}
 	if c.script != nil {
 		w := *c.w
 		w.OutputFile = out

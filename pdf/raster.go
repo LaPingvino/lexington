@@ -93,7 +93,7 @@ func (r *Rasterizer) box(img *image.RGBA, b Box, scale float64) {
 		fillRect(img, b.X*scale, b.Y*scale, (b.X+b.W)*scale, (b.Y+b.H)*scale, b.FillColor, b.Paint)
 	}
 	if b.Stroke {
-		x0, y0, x1, y1, lw := b.X*scale, b.Y*scale, (b.X+b.W)*scale, (b.Y+b.H)*scale, max(b.LineWidth*scale, 0.5)
+		x0, y0, x1, y1, lw := b.X*scale, b.Y*scale, (b.X+b.W)*scale, (b.Y+b.H)*scale, b.LineWidth*scale
 		c := b.StrokeColor
 		fillRect(img, x0-lw/2, y0-lw/2, x1+lw/2, y0+lw/2, c, b.Paint)
 		fillRect(img, x0-lw/2, y1-lw/2, x1+lw/2, y1+lw/2, c, b.Paint)
@@ -102,9 +102,12 @@ func (r *Rasterizer) box(img *image.RGBA, b Box, scale float64) {
 	}
 }
 
-// fillRect paints the rectangle from (x0, y0) to (x1, y1), its edges'
-// pixels in part.
+// fillRect paints the rectangle from (x0, y0) to (x1, y1), its edges
+// on whole pixels as PDF viewers paint them (crisp edges), at least a
+// pixel wide (a hairline shows).
 func fillRect(img *image.RGBA, x0, y0, x1, y1 float64, c color.RGBA, p Paint) {
+	x0, x1 = hairline(x0, x1)
+	y0, y1 = hairline(y0, y1)
 	b := img.Bounds()
 	for y := max(int(math.Floor(y0)), b.Min.Y); y < min(int(math.Ceil(y1)), b.Max.Y); y++ {
 		cy := math.Min(y1, float64(y+1)) - math.Max(y0, float64(y))
@@ -115,6 +118,19 @@ func fillRect(img *image.RGBA, x0, y0, x1, y1 float64, c color.RGBA, p Paint) {
 			}
 		}
 	}
+}
+
+// hairline is the pixels from a to b: their edges rounded, at least a
+// pixel wide (a line of width 0 is the thinnest there is).
+func hairline(a, b float64) (float64, float64) {
+	if b < a {
+		return a, a
+	}
+	a, b = math.Round(a), math.Round(b)
+	if b == a {
+		b = a + 1
+	}
+	return a, b
 }
 
 // blend paints c over the pixel at (x, y), covering cov of it.

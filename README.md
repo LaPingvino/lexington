@@ -255,6 +255,24 @@ script in Fountain, and [examples/](examples) for a sample of every kind.
 - **LaTeX to PDF**: Uses pdflatex/xelatex for high-quality typesetting (requires LaTeX)
 - Industry-standard page layouts and proper spacing
 
+### Showing the PDF's pages without a PDF reader
+
+The PDF writers (the script's, and the reports' sheets, one-liner and Day
+Out of Days) draw through `pdf.Drawer`, the few gofpdf calls they make. A
+`pdf.Recorder` forwards each to gofpdf — which still measures, breaks and
+places everything, so the PDF is the same byte for byte — and records
+what landed on each page: text runs at their baselines, alignment and
+cell margins resolved, the string as printed (right-to-left lines in
+visual order, the Hebrew presentation forms), and boxes (fills, borders,
+underlines, with their alpha and blend), in points. A program gets this
+`pdf.Drawing` with the PDF in one pass (`PDFWriter.Record`,
+`cli.Options.Record`, `report.DrawSheetsPDF` and the like) and can show
+the pages itself: `pdf.Rasterizer` paints them as images in the fonts
+the PDF embeds (the standard fonts, which it does not, in the Go fonts,
+stretched to their width in the PDF). A test compares the painted pages
+with pdftoppm's of the PDF itself, over the examples, the test inputs,
+Hebrew, colours, revisions and the reports.
+
 ### Page breaks
 
 Pages break as screenplay software breaks them (on by default, in the
@@ -470,7 +488,8 @@ same conversions (Accolade does, as a graphical Lexington):
 `cli.Main(ctx, args)` runs it with arguments, `cli.Convert(ctx, opts)`
 converts a file, `cli.Write(ctx, screenplay, opts)` writes a parsed
 screenplay, and `cli.Formats` lists the output formats and the programs
-some of them need.
+some of them need. With `Options.Record` set, writing a PDF also gives
+its pages as drawn (see *Showing the PDF's pages*).
 
 ## Contributing
 

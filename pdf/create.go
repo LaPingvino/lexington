@@ -54,6 +54,19 @@ type PDFWriter struct {
 // that two PDFs of the same are the same.
 var fixedDate time.Time
 
+// NewFpdf is a gofpdf document as Lexington's writers start one: its
+// fonts in the order of their names, so that the same script makes the
+// same PDF (but for its date).
+func NewFpdf(orientation, unit, size string) *gofpdf.Fpdf {
+	f := gofpdf.New(orientation, unit, size, "")
+	f.SetCatalogSort(true)
+	if !fixedDate.IsZero() {
+		f.SetCreationDate(fixedDate)
+		f.SetModificationDate(fixedDate)
+	}
+	return f
+}
+
 // pages are the paper sizes by name, as gofpdf names them.
 var pages = map[string]string{"letter": "Letter", "a4": "A4", "a5": "A5"}
 
@@ -911,12 +924,7 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 	if !ok {
 		size = "Letter"
 	}
-	fpdf := gofpdf.New("P", "in", size, "")
-	if !fixedDate.IsZero() {
-		fpdf.SetCreationDate(fixedDate)
-		fpdf.SetModificationDate(fixedDate)
-		fpdf.SetCatalogSort(true)
-	}
+	fpdf := NewFpdf("P", "in", size)
 	var pdf Drawer = fpdf
 	if p.Record != nil {
 		pdf = NewRecorder(fpdf)

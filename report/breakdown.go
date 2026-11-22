@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/phpdave11/gofpdf"
+	"github.com/LaPingvino/lexington/pdf"
 
 	"github.com/LaPingvino/lexington/font"
 	"github.com/LaPingvino/lexington/lex"
@@ -330,17 +330,49 @@ var sheetBoxes = []string{"Background Actors", "Stunts", "Vehicles", "Props", "S
 	"Makeup/Hair", "Animals", "Music", "Sound", "Set Dressing", "Special Equipment", "Visual Effects",
 	"Mechanical Effects", "Notes"}
 
+// newPDF starts a PDF in points on paper (sheetPaper), recording it in
+// record if set.
+func newPDF(orientation, paper string, record *pdf.Drawing) pdf.Drawer {
+	size, ok := sheetPaper[strings.ToLower(paper)]
+	if !ok {
+		size = "Letter"
+	}
+	f := pdf.NewFpdf(orientation, "pt", size)
+	if record != nil {
+		return pdf.NewRecorder(f)
+	}
+	return f
+}
+
+// output writes the PDF to w, and its drawing to record if set.
+func output(p pdf.Drawer, w io.Writer, record *pdf.Drawing) error {
+	if err := p.Output(w); err != nil {
+		return err
+	}
+	if r, ok := p.(*pdf.Recorder); ok && record != nil {
+		*record = r.Drawing()
+	}
+	return nil
+}
+
 // SheetPaper are the papers WriteSheetsPDF knows, as gofpdf names them.
 var sheetPaper = map[string]string{"": "Letter", "letter": "Letter", "a4": "A4", "a5": "A5", "legal": "Legal"}
 
 // WriteSheetsPDF writes the sheets as a PDF, a page each, on paper
 // (letter, a4, a5; "" letter), under the script's title.
 func WriteSheetsPDF(w io.Writer, title string, sheets []Sheet, paper string) error {
-	size, ok := sheetPaper[strings.ToLower(paper)]
-	if !ok {
-		size = "Letter"
-	}
-	p := gofpdf.New("P", "pt", size, "")
+	return writeSheetsPDF(w, title, sheets, paper, nil)
+}
+
+// DrawSheetsPDF is WriteSheetsPDF, and the sheets' pages as drawn.
+func DrawSheetsPDF(w io.Writer, title string, sheets []Sheet, paper string) (pdf.Drawing, error) {
+	var d pdf.Drawing
+	err := writeSheetsPDF(w, title, sheets, paper, &d)
+	return d, err
+}
+
+func writeSheetsPDF(w io.Writer, title string, sheets []Sheet, paper string, record *pdf.Drawing) error {
+	p := newPDF("P", paper, record)
 	p.SetMargins(36, 36, 36)
 	p.SetAutoPageBreak(false, 36)
 	const face = "sheet"
@@ -464,11 +496,11 @@ func WriteSheetsPDF(w io.Writer, title string, sheets []Sheet, paper string) err
 		p.SetXY(left, top)
 		p.CellFormat(width, 14, "No scenes.", "", 0, "L", false, 0, "")
 	}
-	return p.Output(w)
+	return output(p, w, record)
 }
 
 // fit is s cut to fit width (with "…").
-func fit(p *gofpdf.Fpdf, s string, width float64) string {
+func fit(p pdf.Drawer, s string, width float64) string {
 	if p.GetStringWidth(s) <= width {
 		return s
 	}

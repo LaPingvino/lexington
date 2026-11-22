@@ -2,18 +2,16 @@ package report
 
 import (
 	"fmt"
+	"github.com/LaPingvino/lexington/font"
+	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/pdf"
+	"github.com/LaPingvino/lexington/rules"
 	"io"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
-
-	"github.com/phpdave11/gofpdf"
-
-	"github.com/LaPingvino/lexington/font"
-	"github.com/LaPingvino/lexington/lex"
-	"github.com/LaPingvino/lexington/rules"
 )
 
 // The shooting schedule's reports: the strips (a scene each, coloured by
@@ -409,12 +407,8 @@ func (r Report) DOODTable(b Breakdown, s Schedule) Table {
 }
 
 // schedulePDF starts a PDF of the schedule's reports in Courier Prime.
-func schedulePDF(orientation, paper string) (*gofpdf.Fpdf, string) {
-	size, ok := sheetPaper[strings.ToLower(paper)]
-	if !ok {
-		size = "Letter"
-	}
-	p := gofpdf.New(orientation, "pt", size, "")
+func schedulePDF(orientation, paper string, record *pdf.Drawing) (pdf.Drawer, string) {
+	p := newPDF(orientation, paper, record)
 	p.SetMargins(36, 36, 36)
 	p.SetAutoPageBreak(false, 36)
 	const face = "sched"
@@ -448,7 +442,18 @@ func EndOfDay(i int, length lex.Eighths) string {
 // call, notes), its strips in their colours (scene, I/E, set, D/N, pages,
 // cast numbers, synopsis), and the day break with its total.
 func WriteOneLinerPDF(w io.Writer, title string, r Report, b Breakdown, s Schedule, o StripOptions, paper string) error {
-	p, face := schedulePDF("P", paper)
+	return writeOneLinerPDF(w, title, r, b, s, o, paper, nil)
+}
+
+// DrawOneLinerPDF is WriteOneLinerPDF, and its pages as drawn.
+func DrawOneLinerPDF(w io.Writer, title string, r Report, b Breakdown, s Schedule, o StripOptions, paper string) (pdf.Drawing, error) {
+	var d pdf.Drawing
+	err := writeOneLinerPDF(w, title, r, b, s, o, paper, &d)
+	return d, err
+}
+
+func writeOneLinerPDF(w io.Writer, title string, r Report, b Breakdown, s Schedule, o StripOptions, paper string, record *pdf.Drawing) error {
+	p, face := schedulePDF("P", paper, record)
 	strips := byOrder(r.Strips(b, o))
 	pw, ph := p.GetPageSize()
 	left, top := 36.0, 36.0
@@ -554,7 +559,7 @@ func WriteOneLinerPDF(w io.Writer, title string, r Report, b Breakdown, s Schedu
 		p.SetXY(left, y)
 		p.CellFormat(width, 14, "No shoot days yet.", "", 0, "L", false, 0, "")
 	}
-	return p.Output(w)
+	return output(p, w, record)
 }
 
 func joinInts(ns []int) string {
@@ -569,7 +574,18 @@ func joinInts(ns []int) string {
 // cast member, a column per day (as many pages across as the days need),
 // the totals on each, and the codes' legend.
 func WriteDOODPDF(w io.Writer, title string, r Report, b Breakdown, s Schedule, paper string) error {
-	p, face := schedulePDF("L", paper)
+	return writeDOODPDF(w, title, r, b, s, paper, nil)
+}
+
+// DrawDOODPDF is WriteDOODPDF, and its pages as drawn.
+func DrawDOODPDF(w io.Writer, title string, r Report, b Breakdown, s Schedule, paper string) (pdf.Drawing, error) {
+	var d pdf.Drawing
+	err := writeDOODPDF(w, title, r, b, s, paper, &d)
+	return d, err
+}
+
+func writeDOODPDF(w io.Writer, title string, r Report, b Breakdown, s Schedule, paper string, record *pdf.Drawing) error {
+	p, face := schedulePDF("L", paper, record)
 	rows := r.DOOD(b, s)
 	pw, ph := p.GetPageSize()
 	left, top := 36.0, 36.0
@@ -665,5 +681,5 @@ func WriteDOODPDF(w io.Writer, title string, r Report, b Breakdown, s Schedule, 
 		p.CellFormat(width, 10, "SW start work · W work · WF work finish · SWF start, work and finish · H hold "+
 			"(codes as Movie Magic Scheduling's)", "", 0, "L", false, 0, "")
 	}
-	return p.Output(w)
+	return output(p, w, record)
 }

@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **The PDF's pages as drawn, to show without a PDF reader.** The PDF
+  writers draw through `pdf.Drawer`, the gofpdf calls they make (which
+  `*gofpdf.Fpdf` satisfies); a `pdf.Recorder` forwards each to gofpdf and
+  records each page's text runs (baseline, font, size, colour, the string
+  as printed: after bidi, with the Hebrew presentation forms; alignment
+  and cell margins resolved) and boxes (fills, borders, underlines, alpha
+  and blend), in points. MultiCell and Write it runs itself over
+  CellFormat, line by line as gofpdf does, so that it sees each line: the
+  PDF is the same byte for byte (tested over every case below).
+  `PDFWriter.Record` and `cli.Options.Record` give the `pdf.Drawing` in
+  the same pass as the PDF (a PDF of revised pages only, only those
+  pages); `PDFWriter.Render` gives the PDF's bytes; the reports have
+  `DrawSheetsPDF`, `DrawOneLinerPDF`, `DrawDOODPDF`.
+- **`pdf.Rasterizer`** paints a Drawing's pages with the embedded fonts
+  (golang.org/x/image), a glyph at a time at gofpdf's advances, fills on
+  whole pixels; the standard fonts, not embedded, in the Go fonts. Its
+  pages match pdftoppm's of the PDF (ink within a pixel, colours) on 99.9%
+  of the ink at worst, over the examples, the test inputs, Hebrew (A5
+  too), the four colour styles with block, tint and patterns, revisions
+  (marks, revised pages only, page colours) and the three reports.
+
+### Changed
+- `pdf.Tree.PDF` is a `pdf.Drawer` (was `*gofpdf.Fpdf`).
+- The PDFs list their fonts in the order of their names (`pdf.NewFpdf`):
+  the same script makes the same PDF, but for its date.
+
 ## [1.23.0] - 2026-11-21
 
 ### Changed
