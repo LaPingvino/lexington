@@ -247,6 +247,21 @@ Devanagari); hollywoodreporterindia.com, "Why Is There a Dearth of Hindi
 in Hindi Film Scripts?" (Hindi film dialogue mostly written in Roman
 letters).
 
+## Title page keys
+
+Every language but English has its own title page keys (`TitleKeys`), each
+the standard key it is: Esperanto `Titolo`, `Aŭtoro`, `Dato de malneto`;
+German `Titel`, `Drehbuch`, `Fassung`; Chinese `片名`, `编剧`; Japanese
+`題名`, `脚本`; and so on. The standard keys (`Title`, `Credit`, `Author`,
+`Source`, `Draft date`, `Contact`, `Notes`, `Copyright`…) are read in every
+language too, so a script may mix them. Arabic's are Hekaya's, Hindi's in
+its section above; the others
+are Lexington's own choice, each language's usual word for the field, not
+from a source: a native reader's correction is welcome. The key is
+followed by an ASCII colon (`编剧: 张三`); a full-width `：` is not read as
+one. Force (a language's text as standard Fountain) leaves the title page
+as written, keys included.
+
 ## Hekaya
 
 [Hekaya](https://github.com/michaelkmalak/hekaya) (MIT, spec v0.1) is

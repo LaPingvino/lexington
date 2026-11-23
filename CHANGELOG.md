@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.34.0] - 2026-11-23
+
+### Added
+- **Title page keys in every language**: the default languages have their
+  own title page keys (`TitleKeys`), each the standard key it is —
+  Esperanto `Titolo`, `Aŭtoro`; Dutch `Titel`, `Auteur`; German `Titel`,
+  `Drehbuch`, `Fassung`; French `Titre`, `Scénario`; Italian `Titolo`,
+  `Sceneggiatura`; Russian `Название`, `Сценарий`; toki pona `nimi`,
+  `jan sitelen`; Hebrew `כותרת`, `תסריט`; Chinese `片名`, `编剧`; Japanese
+  `題名`, `脚本` — as Arabic had Hekaya's. The English keys are read in
+  every language as before. Lexington's own words (docs/LANGUAGES.md).
+
+### Fixed
+- **Two languages alike but for their title page keys or direction** were
+  read with one dialect (the first one read): the dialect cache's key now
+  takes `TitleKeys` and `Direction` in.
+
 ## [1.33.0] - 2026-11-23
 
 ### Added

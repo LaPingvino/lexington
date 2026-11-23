@@ -1,6 +1,7 @@
 package fountain
 
 import (
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -65,6 +66,12 @@ func dialectKey(l rules.Language) string {
 	}
 	b.WriteString(l.TransitionMarks + "\x00" + l.Shape.Ends)
 	b.WriteString(string(rune(l.Shape.Words+1)) + string(rune(l.Shape.Chars+1)) + string(rune(l.Repeat+1)))
+	// the title page keys too: two languages alike but for them (Esperanto
+	// and toki pona) are two dialects
+	for _, k := range slices.Sorted(maps.Keys(l.TitleKeys)) {
+		b.WriteString("\x00" + k + "\x1f" + l.TitleKeys[k])
+	}
+	b.WriteString("\x00" + l.Direction)
 	return b.String()
 }
 

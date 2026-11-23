@@ -287,10 +287,54 @@ func defaultLanguages() map[string]Language {
 			TitleKeys:      map[string]string{},
 		},
 	}
+	for k, keys := range titleKeys {
+		l := ls[k]
+		l.TitleKeys = maps.Clone(keys)
+		ls[k] = l
+	}
 	for k, l := range ls {
 		ls[k] = l.clone()
 	}
 	return ls
+}
+
+// titleKeys are the languages' own title page keys, each the standard
+// key it is; the standard keys (Title, Author…) are read in every
+// language too. Arabic's are Hekaya's (hekaya()). Lexington's own
+// choices, from no source (docs/LANGUAGES.md), each language's usual
+// word for the field: a native reader's correction is welcome.
+var titleKeys = map[string]map[string]string{
+	"eo": {"Titolo": "Title", "Kredito": "Credit", "Aŭtoro": "Author", "Aŭtoroj": "Author", "Fonto": "Source",
+		"Malneto": "Draft", "Dato de malneto": "Draft date", "Dato": "Date", "Kontakto": "Contact",
+		"Notoj": "Notes", "Kopirajto": "Copyright"},
+	"nl": {"Titel": "Title", "Vermelding": "Credit", "Auteur": "Author", "Auteurs": "Author", "Scenario": "Author",
+		"Bron": "Source", "Versie": "Draft", "Versiedatum": "Draft date", "Datum": "Date",
+		"Notities": "Notes", "Auteursrecht": "Copyright"},
+	"de": {"Titel": "Title", "Nennung": "Credit", "Autor": "Author", "Autorin": "Author", "Autoren": "Author",
+		"Drehbuch": "Author", "Quelle": "Source", "Vorlage": "Source", "Fassung": "Draft",
+		"Datum der Fassung": "Draft date", "Fassungsdatum": "Draft date", "Datum": "Date", "Kontakt": "Contact",
+		"Notizen": "Notes", "Anmerkungen": "Notes", "Urheberrecht": "Copyright"},
+	"fr": {"Titre": "Title", "Crédit": "Credit", "Auteur": "Author", "Auteurs": "Author", "Scénario": "Author",
+		"Version": "Draft", "Date de la version": "Draft date", "Date de version": "Draft date",
+		"Coordonnées": "Contact", "Droits d'auteur": "Copyright"},
+	"it": {"Titolo": "Title", "Credito": "Credit", "Autore": "Author", "Autori": "Author", "Sceneggiatura": "Author",
+		"Fonte": "Source", "Soggetto": "Source", "Stesura": "Draft", "Data della stesura": "Draft date",
+		"Data": "Date", "Contatti": "Contact", "Note": "Notes"},
+	"ru": {"Название": "Title", "Титр": "Credit", "Автор": "Author", "Авторы": "Author", "Сценарий": "Author",
+		"Источник": "Source", "По мотивам": "Source", "Вариант": "Draft", "Дата варианта": "Draft date",
+		"Дата": "Date", "Контакты": "Contact", "Примечания": "Notes", "Авторское право": "Copyright"},
+	"tok": {"nimi": "Title", "jan pali": "Author", "jan sitelen": "Author", "tan": "Source",
+		"tenpo": "Date", "nasin toki": "Contact", "sona": "Notes"},
+	"he": {"כותרת": "Title", "שם התסריט": "Title", "קרדיט": "Credit", "תסריט": "Author", "מחבר": "Author",
+		"מחברת": "Author", "מקור": "Source", "טיוטה": "Draft", "תאריך טיוטה": "Draft date", "תאריך": "Date",
+		"פרטי קשר": "Contact", "הערות": "Notes", "זכויות יוצרים": "Copyright"},
+	"zh": {"片名": "Title", "标题": "Title", "標題": "Title", "署名": "Credit", "编剧": "Author", "編劇": "Author",
+		"作者": "Author", "原著": "Source", "来源": "Source", "來源": "Source", "稿本": "Draft",
+		"定稿日期": "Draft date", "日期": "Date", "联系方式": "Contact", "聯絡方式": "Contact",
+		"备注": "Notes", "備註": "Notes", "版权": "Copyright", "版權": "Copyright"},
+	"ja": {"題名": "Title", "タイトル": "Title", "クレジット": "Credit", "脚本": "Author", "作者": "Author",
+		"原作": "Source", "稿": "Draft", "改訂日": "Draft date", "日付": "Date", "連絡先": "Contact",
+		"備考": "Notes", "著作権": "Copyright"},
 }
 
 // DefaultLanguages are the default configuration's languages, each in

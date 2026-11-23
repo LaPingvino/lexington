@@ -136,6 +136,36 @@ func TestTitleKeys(t *testing.T) {
 	}
 }
 
+// Every language's own title page keys read as the standard ones, the
+// English keys too, and none reads as a scene heading.
+func TestTitleKeysEveryLanguage(t *testing.T) {
+	c := rules.DefaultConf()
+	for _, lang := range c.LanguageNames() {
+		l := c.Language(lang)
+		for key, std := range l.TitleKeys {
+			for _, text := range []string{key + ": x\n\nz\n", "Title: y\n" + key + ": x\n\nz\n"} {
+				got := ""
+				for _, r := range ParseIn(l, strings.NewReader(text)) {
+					if r.Contents == "x" {
+						got = r.Type
+					}
+				}
+				if got != std {
+					t.Errorf("%s: %q read as %q, want %q", lang, key, got, std)
+				}
+			}
+		}
+		s := ParseIn(l, strings.NewReader("Title: y\nAuthor: z\nDraft date: 1\n\nw\n"))
+		got := map[string]string{}
+		for _, r := range s {
+			got[r.Type] = r.Contents
+		}
+		if got["Title"] != "y" || got["Author"] != "z" || got["Draft date"] != "1" {
+			t.Errorf("%s: English keys read as %v", lang, got)
+		}
+	}
+}
+
 func TestHekayaFixed(t *testing.T) {
 	c := rules.DefaultConf()
 	c.Languages["ar"] = rules.Language{Scenes: []string{"XX"}, Cues: []string{"caps"}}
