@@ -278,13 +278,15 @@ func (c TOMLConf) Language(lang string) Language {
 }
 
 // Knows tells whether c has a language: one with scene words of its
-// own (Hekaya always), lang's tag or one it falls back to (Lookup).
+// own (Hekaya always), named lang in any case (hi-deva, hi_Deva: c's
+// hi-Deva) — not one lang only falls back to (hi-Deva-IN, xq-2): c has
+// no language of that name, though it reads one so (Lookup).
 func (c TOMLConf) Knows(lang string) bool {
 	if lang == Hekaya {
 		return true
 	}
-	_, ok := c.lookup(lang, false)
-	return ok
+	k, ok := c.lookup(lang, false)
+	return ok && (strings.EqualFold(k, lang) || strings.EqualFold(k, Tag(lang)))
 }
 
 // Lookup is the language of c (or of the default configuration) that a

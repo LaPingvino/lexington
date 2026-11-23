@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.35.0] - 2026-11-23
+
+### Fixed
+- **`Knows` is a language of that name again**, in any case (`hi-deva`),
+  not one a tag only falls back to: 1.33.0 had `Knows("xq-2")` true for a
+  configuration with `xq`, so a new language's name beside one (Accolade's
+  keep both) was always taken, and `Part` carried a fallen-back language
+  under the tag's name. `Language` and `Scenes` still read by `Lookup`.
+
 ## [1.34.0] - 2026-11-23
 
 ### Added
@@ -36,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Language tags with a script or region**: `TOMLConf.Lookup` reads a
   BCP 47 tag as itself in any case (`hi-deva`, `hi_Deva`), else without its
   last subtag down to the language (`hi-Deva-IN` → `hi-Deva`, `de-CH` →
-  `de`); `Language`, `Knows` and `Scenes` follow it, so
+  `de`); `Language` and `Scenes` follow it (`Knows` takes any case), so
   `script.hi-Deva.fountain` and `-scenein de-CH` read right. `rules.Tag`
   writes a tag as BCP 47 does.
 

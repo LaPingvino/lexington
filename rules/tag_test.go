@@ -31,8 +31,14 @@ func TestLookup(t *testing.T) {
 			t.Errorf("Lookup(%q) = %q %v, want %q", in, got, ok, want)
 		}
 	}
-	if !c.Knows("hi-Deva-IN") || c.Knows("xx-Yyyy") {
-		t.Error("Knows does not follow Lookup")
+	// c has a language of the name in any case, not one a tag falls
+	// back to: a new language xq-2 beside xq is not taken (Accolade's keep
+	// both), nor is a script's part carried for it
+	if !c.Knows("hi_deva") || c.Knows("hi-Deva-IN") || c.Knows("xx-Yyyy") || c.Knows("de-CH") {
+		t.Error("Knows: a language of that name")
+	}
+	if p := c.Part([]string{"de-CH"}, nil); p.Languages != nil {
+		t.Errorf("de-CH's part: %v", p.Languages)
 	}
 	if !slices.Equal(c.Scenes("hi-deva"), c.Scenes("hi-Deva")) || c.Scenes("xx-Yyyy") != nil {
 		t.Error("Scenes does not follow Lookup")
