@@ -57,6 +57,22 @@ func (f *fonts) compose(name, text string) string {
 	return text
 }
 
+// shaper is the shaper of the (embedded or file) font name in a style,
+// nil if it has none.
+func (f *fonts) shaper(name, style string) *arabicShaper {
+	if f == nil {
+		return nil
+	}
+	data := font.GetFont(name, style)
+	if d, ok := f.data[name]; ok && strings.HasPrefix(name, "file:") {
+		data = d
+	}
+	if data == nil {
+		return nil
+	}
+	return shaperFor(name+"/"+strings.ToUpper(style), data)
+}
+
 // core are the standard fonts by the names one can give them.
 var core = map[string]string{
 	"helvetica": "Helvetica", "arial": "Helvetica", "sans": "Helvetica", "sans-serif": "Helvetica",

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -830,7 +831,13 @@ func (p Page) Content() Content {
 	}
 
 	var text []Text
+	// marked content (BMC, BDC … EMC): whether each open one is shown, not
+	// text (an empty ActualText, as Lexington prints a placed mark)
+	var marked []bool
 	showText := func(s string) {
+		if slices.Contains(marked, true) {
+			return
+		}
 		n := 0
 		decoded := enc.Decode(s)
 		for _, ch := range decoded {
@@ -940,6 +947,21 @@ func (p Page) Content() Content {
 		case "BT": // begin text (reset text matrix and line matrix)
 			g.Tm = ident
 			g.Tlm = g.Tm
+
+		case "BMC":
+			marked = append(marked, false)
+		case "BDC":
+			hide := false
+			if len(args) == 2 && args[1].Kind() == Dict {
+				if a := args[1].Key("ActualText"); a.Kind() == String && a.RawString() == "" {
+					hide = true
+				}
+			}
+			marked = append(marked, hide)
+		case "EMC":
+			if len(marked) > 0 {
+				marked = marked[:len(marked)-1]
+			}
 
 		case "ET": // end text
 

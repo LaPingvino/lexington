@@ -27,9 +27,9 @@ import (
 // A glyph the font maps no character to (the contextual forms of letters
 // beyond Arabic's, Persian's and Urdu's, which Courier Badi has but only
 // through GSUB) cannot be printed so: such a letter stays as written, its
-// isolated form (Unsupported warns of it). The font's GPOS (a vowel
-// mark stacked on a shadda) is not applied: every mark stands at its own
-// default place, as Hebrew's points do.
+// isolated form (Unsupported warns of it). The font's GPOS (mark to base,
+// mark to mark: a fatha on a hamza, over a shadda) places the marks:
+// markOffsets, printed apart by bidiPrint, for Hebrew's points too.
 
 // arabicShaper shapes Arabic runs in one font.
 type arabicShaper struct {
@@ -160,6 +160,47 @@ func (s *arabicShaper) shapeRun(run []rune) ([]rune, int) {
 		b = append(b, chars...)
 	}
 	return b, unshaped
+}
+
+// markOffsets are where the font's GPOS puts the marks on a base
+// character: cluster is the base as printed (a presentation form) and its
+// marks in logical order; each mark's offset from where it would stand
+// unplaced (at the base's origin, as a mark has no advance), in ems, y
+// up. ok is false when the shaper does not give a glyph a character (a
+// ligature of marks), and the marks then keep their default places.
+func (s *arabicShaper) markOffsets(cluster []rune) (dx, dy []float64, ok bool) {
+	if len(cluster) < 2 {
+		return nil, nil, false
+	}
+	script, lang := language.Arabic, language.NewLanguage("ar")
+	if b := cluster[0]; b >= 0x0590 && b <= 0x05FF || b >= 0xFB1D && b <= 0xFB4F {
+		script, lang = language.Hebrew, language.NewLanguage("he")
+	}
+	upem := int(s.face.Upem())
+	s.mu.Lock()
+	out := s.sh.Shape(shaping.Input{Text: cluster, RunStart: 0, RunEnd: len(cluster), Direction: di.DirectionRTL,
+		Face: s.face, Size: fixed.I(upem), Script: script, Language: lang})
+	s.mu.Unlock()
+	// right to left: the glyphs come as the cluster reversed, the base last
+	if len(out.Glyphs) != len(cluster) {
+		return nil, nil, false
+	}
+	type at struct{ x, y fixed.Int26_6 }
+	pos := make([]at, len(out.Glyphs))
+	pen := fixed.Int26_6(0)
+	for i, g := range out.Glyphs {
+		pos[i] = at{pen + g.XOffset, g.YOffset}
+		pen += g.Advance
+	}
+	n := len(out.Glyphs)
+	base := pos[n-1]
+	em := float64(upem) * 64
+	for k := 1; k < len(cluster); k++ {
+		m := pos[n-1-k]
+		dx = append(dx, float64(m.x-base.x)/em)
+		dy = append(dy, float64(m.y-base.y)/em)
+	}
+	return dx, dy, true
 }
 
 // shaperFor is the shaper of a font's file data, made once.

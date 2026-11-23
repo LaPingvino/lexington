@@ -287,3 +287,65 @@ func TestHebrewPresentationForms(t *testing.T) {
 		t.Errorf("pdftotext, NFD, has no %+q:\n%+q", hebrew, clean)
 	}
 }
+
+// A title page's lines are centred on the page whatever their direction:
+// a Hebrew title over a Latin author, one centre (mirrored margins put
+// it half an inch left).
+func TestHebrewTitleCentred(t *testing.T) {
+	pages := printRTL(t, "Title: המגדל\nCredit: נכתב על ידי\nAuthor: Accolade\n\nפנים. חנות - יום\n\nדני נכנס.\n", true)
+	centre := map[string]float64{}
+	for _, l := range pages[0] {
+		centre[l.Text] = l.X + width(l.Text)/2
+	}
+	he, latin := centre[seen("המגדל")], centre["Accolade"]
+	if he == 0 || latin == 0 {
+		t.Fatalf("title page lines: %v", pages[0])
+	}
+	if math.Abs(he-latin) > 0.06 {
+		t.Errorf("Hebrew title centred at %.2f\", the Latin author at %.2f\"", he, latin)
+	}
+	if c := centre[seen("נכתב על ידי")]; math.Abs(c-latin) > 0.06 {
+		t.Errorf("Hebrew credit centred at %.2f\", the author at %.2f\"", c, latin)
+	}
+}
+
+// The font's GPOS places the vowel marks (mark to base, mark to mark): a
+// fatha on alef with hamza sits over the hamza, a fatha on a shadda over
+// the shadda, one on a plain letter where it stood; each drawn once, apart
+// from the letters (the page view draws them there too).
+func TestArabicMarksPlaced(t *testing.T) {
+	var d pdf.Drawing
+	s := fountain.Parse(rules.DefaultConf().Scenes("ar"), strings.NewReader("خارجي - بيت - نهار\n\nأَعُودَ حَتَّى\n"))
+	if err := (&pdf.PDFWriter{OutputFile: filepath.Join(t.TempDir(), "ar.pdf"), Elements: rules.Default, Record: &d}).Write(nil, s); err != nil {
+		t.Fatal(err)
+	}
+	var marks []pdf.Text
+	base := 0.0
+	for _, m := range d.Pages[0].Marks {
+		if tx, ok := m.(pdf.Text); ok {
+			switch {
+			case strings.ContainsAny(tx.Text, "\u064e\u064f\u0651"):
+				if len([]rune(tx.Text)) != 1 {
+					t.Errorf("marks drawn with letters: %q", tx.Text)
+				}
+				marks = append(marks, tx)
+			case strings.ContainsAny(tx.Text, "\u0623\uFE83"): // أ
+				base = tx.Y
+			}
+		}
+	}
+	if len(marks) != 6 || base == 0 { // أَعُودَ حَتَّى: fatha, damma, fatha; fatha, shadda, fatha
+		t.Fatalf("marks drawn: %+v (the line at %.1f)", marks, base)
+	}
+	raised := 0
+	for _, m := range marks {
+		if up := base - m.Y; m.Text == "\u064e" && up > 0.3*m.Size {
+			raised++ // on the hamza (0.39 em), on the shadda (0.48 em); on a letter 0
+		} else if math.Abs(up) > 0.1*m.Size && m.Text != "\u0651" {
+			t.Errorf("%q moved %.1f pt up", m.Text, up)
+		}
+	}
+	if raised != 2 {
+		t.Errorf("%d fathas raised over a hamza or a shadda, want 2: %+v (the line at %.1f)", raised, marks, base)
+	}
+}

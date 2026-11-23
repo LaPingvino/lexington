@@ -8,10 +8,10 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-// Hebrew presentation forms. The PDF does no shaping, so a font's GPOS
-// mark positioning is never applied and every point stands where its
-// glyph draws it, the same for every letter: a dagesh centred in the cell
-// hides in vav's stem (a shuruk), zayin's, yod's and final nun's. The
+// Hebrew presentation forms. A point left over is placed by the font's
+// GPOS (bidiPrint, arabicShaper.markOffsets), but the points inside a
+// letter (a dagesh centred in the cell hides in vav's stem, a shuruk,
+// zayin's, yod's and final nun's) are best printed as one glyph: the
 // presentation forms U+FB1D–FB4F (letter + dagesh or mapiq, shin + shin or
 // sin dot, vav + holam, alef + patah…) have the points placed for their
 // letter, so a letter with such points prints as its form when the font

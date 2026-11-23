@@ -2,6 +2,8 @@ package pdf
 
 import (
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	gobidi "github.com/go-text/typesetting/bidi"
 	"golang.org/x/text/unicode/bidi"
@@ -21,11 +23,10 @@ import (
 // words in it keeps its side and is reordered the same way. Any other
 // line prints as it always has.
 //
-// Combining marks (Hebrew points) are reversed with their letters: in
-// visual order a mark comes before its letter. Courier Badi's marks have
-// no advance and are drawn over the cell that follows them, so they land
-// on their letter. The font's GPOS anchors are not applied (the PDF
-// writer does no shaping): every mark stands at its own default place.
+// Combining marks (Arabic vowels, Hebrew points) in right-to-left text
+// are printed apart, each where the font's GPOS anchors put it on its
+// letter (mark to base, mark to mark: arabicShaper.markOffsets); Courier
+// Badi's marks have no advance, so the letters print as without them.
 
 // lineRTL tells whether a line reads right to left.
 func (t Tree) lineRTL(text string) bool { return lex.LineRTL(lex.Unstyled(text), t.rtl) }
@@ -56,8 +57,13 @@ func control(r rune) bool {
 }
 
 // mirrored is a format laid out from the other side of the page, for a
-// right-to-left line: its margins swapped, its alignment turned.
+// right-to-left line: its margins swapped, its alignment turned. A
+// centred line stays centred where a left-to-right one is (the title
+// page's lines one under the other, whatever their direction).
 func mirrored(f rules.Format) rules.Format {
+	if strings.EqualFold(f.Align, "C") {
+		return f
+	}
 	f.Left, f.Right = f.Right, f.Left
 	f.Align = mirrorAlign(f.Align)
 	return f
@@ -156,7 +162,20 @@ func mirror(r rune) rune {
 type piece struct {
 	text  string
 	style lex.Span // its emphasis (Text unused)
+	marks []placed // the marks on its right-to-left letters, printed apart
 }
+
+// placed is a mark on the character at (a rune index into its piece's
+// text), offset from that character's origin by dx, dy (in ems, y up).
+type placed struct {
+	at     int
+	mark   string
+	dx, dy float64
+}
+
+// markRune tells whether a character is a combining mark that the font's
+// GPOS places on its letter.
+func markRune(r rune) bool { return unicode.Is(unicode.Mn, r) }
 
 // visualLines are a line's text wrapped in width as the PDF wraps it
 // (Tree.wrap) and each line's pieces in visual order; rtl is the
@@ -199,6 +218,12 @@ func (t Tree) visualLines(f rules.Format, text string, rtl bool, width float64) 
 	t.PDF.SetFont(fontName, f.Style, f.Size)
 	starts := t.breaks(chars, width)
 	lv := levels(runes, rtl)
+	shaper := func(s lex.Span) *arabicShaper { // the marks' font: the letter's style
+		if core {
+			return nil
+		}
+		return t.Fonts.shaper(fontName, fontStyle(f.Style, s))
+	}
 	var lines [][]piece
 	for k, a := range starts {
 		b := len(chars)
@@ -209,11 +234,21 @@ func (t Tree) visualLines(f rules.Format, text string, rtl bool, width float64) 
 			b-- // the break: a new line, or the space wrapped at
 		}
 		var line []piece
-		for _, i := range visualOrder(lv, a, b) {
+		var pending []placed // marks before their letter (in visual order)
+		order := visualOrder(lv, a, b)
+		for v, i := range order {
 			if control(runes[i]) {
 				continue
 			}
 			c := chars[i]
+			if !core && lv[i]%2 == 1 && markRune(runes[i]) {
+				// in a right-to-left run a mark comes before its letter:
+				// held for it, unless no letter of the run follows
+				if v+1 < len(order) && lv[order[v+1]]%2 == 1 && order[v+1] == i-1 {
+					pending = append(pending, placed{mark: c})
+					continue
+				}
+			}
 			if lv[i]%2 == 1 {
 				if m := mirror(runes[i]); m != runes[i] {
 					c = string(m)
@@ -223,16 +258,118 @@ func (t Tree) visualLines(f rules.Format, text string, rtl bool, width float64) 
 				}
 			}
 			s := style[i]
-			if n := len(line); n > 0 && sameStyle(line[n-1].style, s) {
-				line[n-1].text += c
-				continue
+			if n := len(line); n == 0 || !sameStyle(line[n-1].style, s) {
+				line = append(line, piece{style: s})
 			}
-			line = append(line, piece{text: c, style: s})
+			p := &line[len(line)-1]
+			if len(pending) > 0 { // the letter of the marks held: placed on it
+				cluster := []rune{[]rune(c)[0]}
+				for k := len(pending) - 1; k >= 0; k-- {
+					cluster = append(cluster, []rune(pending[k].mark)[0])
+				}
+				var dx, dy []float64
+				ok := false
+				if sh := shaper(s); sh != nil {
+					dx, dy, ok = sh.markOffsets(cluster)
+				}
+				at := utf8.RuneCountInString(p.text)
+				for k := range pending {
+					m := pending[len(pending)-1-k] // in logical order
+					m.at = at
+					if ok {
+						m.dx, m.dy = dx[k], dy[k]
+					}
+					p.marks = append(p.marks, m)
+				}
+				pending = pending[:0]
+			}
+			p.text += c
+		}
+		for _, m := range pending { // (none: a mark always has its letter after it)
+			line = append(line, piece{text: m.mark, style: style[a]})
 		}
 		lines = append(lines, line)
 	}
 	return fontName, lines
 }
+
+// printPiece prints a piece from x, w wide. Its placed marks go where
+// they stood unplaced (before their letter, in visual order) but
+// invisible, so that the text copied out of the PDF reads as written;
+// printMarks draws them where they show.
+func printPiece(pdf Drawer, p piece, x, w float64) {
+	if len(p.marks) == 0 {
+		pdf.SetX(x)
+		pdf.CellFormat(w, lineHeight, p.text, "", 0, "L", false, 0, "")
+		return
+	}
+	rs := []rune(p.text)
+	from := 0
+	seg := func(text string) {
+		sw := pdf.GetStringWidth(text)
+		pdf.SetX(x)
+		pdf.CellFormat(max(sw, markWidth), lineHeight, text, "", 0, "L", false, 0, "")
+		x += sw
+	}
+	for k := 0; k < len(p.marks); {
+		at := min(p.marks[k].at, len(rs))
+		if at > from {
+			seg(string(rs[from:at]))
+			from = at
+		}
+		j := k
+		var marks []string // the letter's marks, as they stood: in visual order
+		for j < len(p.marks) && p.marks[j].at == p.marks[k].at {
+			marks = append([]string{p.marks[j].mark}, marks...)
+			j++
+		}
+		pdf.SetTextRenderingMode(3)
+		seg(strings.Join(marks, ""))
+		pdf.SetTextRenderingMode(0)
+		k = j
+	}
+	if from < len(rs) {
+		seg(string(rs[from:]))
+	}
+}
+
+// printMarks prints the marks of a line's pieces (printed from starts),
+// each offset from its letter's origin as the font places it: the line's
+// cells moved by the offset, with no page break (a mark below the last
+// line of a page stays on it).
+func (t Tree) printMarks(fontName string, f rules.Format, line []piece, starts []float64) {
+	pdf := t.PDF
+	x0, y := pdf.GetX(), pdf.GetY()
+	auto, margin := pdf.GetAutoPageBreak()
+	moved := false
+	for i, p := range line {
+		if len(p.marks) == 0 {
+			continue
+		}
+		if !moved {
+			pdf.SetAutoPageBreak(false, margin)
+			moved = true
+		}
+		pdf.SetFont(fontName, fontStyle(f.Style, p.style), f.Size)
+		_, em := pdf.GetFontSize()
+		rs := []rune(p.text)
+		for _, m := range p.marks {
+			at := starts[i] + pdf.GetStringWidth(string(rs[:min(m.at, len(rs))]))
+			pdf.SetXY(at+m.dx*em, y-m.dy*em)
+			// shown, not text: the copy above is what is read out
+			pdf.RawWriteStr("/Span <</ActualText ()>> BDC")
+			pdf.CellFormat(markWidth, lineHeight, m.mark, "", 0, "L", false, 0, "")
+			pdf.RawWriteStr("EMC")
+		}
+	}
+	if moved {
+		pdf.SetAutoPageBreak(auto, margin)
+		pdf.SetXY(x0, y)
+	}
+}
+
+// markWidth is the width of a mark's cell (it has no advance of its own).
+const markWidth = 0.001
 
 func sameStyle(a, b lex.Span) bool {
 	return a.Bold == b.Bold && a.Italic == b.Italic && a.Underline == b.Underline
@@ -266,12 +403,14 @@ func (t Tree) bidiPrint(f rules.Format, text string, rtl bool, left, width float
 			pdf.SetX(left)
 			pdf.CellFormat(width, lineHeight, "", "", 0, "L", false, 0, "")
 		}
+		starts := make([]float64, len(line))
 		for i, p := range line {
 			pdf.SetFont(fontName, fontStyle(f.Style, p.style), f.Size)
-			pdf.SetX(x)
-			pdf.CellFormat(widths[i], lineHeight, p.text, "", 0, "L", false, 0, "")
+			starts[i] = x
+			printPiece(pdf, p, x, widths[i])
 			x += widths[i]
 		}
+		t.printMarks(fontName, f, line, starts)
 		pdf.Ln(lineHeight)
 	}
 	pdf.SetFont(fontName, f.Style, f.Size)

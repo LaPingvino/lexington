@@ -42,6 +42,10 @@ type Drawer interface {
 	SetDrawColor(r, g, b int)
 	SetLineWidth(w float64)
 	SetAlpha(alpha float64, blend string)
+	// SetTextRenderingMode 3 prints text invisible (to be read, not seen)
+	SetTextRenderingMode(mode int)
+	// RawWriteStr writes to the page's content as it is (marked content)
+	RawWriteStr(s string)
 
 	GetX() float64
 	GetY() float64
@@ -180,6 +184,7 @@ type Recorder struct {
 	*gofpdf.Fpdf
 	family, style      string // the font, as gofpdf keys it
 	underline          bool
+	invisible          bool    // text rendering mode 3: text printed is not drawn
 	ws                 float64 // word spacing of a justified line, a standard font's
 	utf8               map[string]bool
 	drawing            Drawing
@@ -480,7 +485,7 @@ func (r *Recorder) CellFormat(w, h float64, text, border string, ln int, align s
 			r.line(x, y+h, x+w, y+h)
 		}
 	}
-	if text == "" {
+	if text == "" || r.invisible {
 		return
 	}
 	cm := r.GetCellMargin()
@@ -555,6 +560,13 @@ func (r *Recorder) CellFormat(w, h float64, text, border string, ln int, align s
 		r.add(Box{X: (x + dx) * k, Y: (base - up/1000*size) * k, W: sw * k, H: ut / 1000 * size * k,
 			Fill: true, FillColor: t.Color, Paint: t.Paint})
 	}
+}
+
+// SetTextRenderingMode sets how text is printed; invisible text (3) is
+// not recorded.
+func (r *Recorder) SetTextRenderingMode(mode int) {
+	r.Fpdf.SetTextRenderingMode(mode)
+	r.invisible = mode == 3 || mode == 7
 }
 
 func (r *Recorder) fromCP1252(s string) string {

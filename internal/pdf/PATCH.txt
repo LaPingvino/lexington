@@ -15,3 +15,8 @@ empty user password, common in old PDFs) did not decrypt.
 Page.Content follows Form XObjects (Do), with their matrix and
 resources: text drawn in forms (as some PDF makers do for every page)
 was missing.
+
+Page.Content leaves out the text of marked content whose ActualText is
+empty (/Span <</ActualText ()>> BDC … EMC): Lexington prints a vowel
+mark placed by the font's GPOS so, shown but not read, with the mark
+read where it stands in the text printed invisibly.

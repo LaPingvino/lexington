@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.38.0] - 2026-11-23
+
+### Changed
+- **Vowel marks placed by the font**: in right-to-left text, the PDF
+  prints each Arabic vowel and Hebrew point where the font's GPOS
+  (`mark`, `mkmk`) puts it on its letter: a fatha on alef with hamza over
+  the hamza, a fatha over a shadda; drawn apart (and in the drawing, so
+  the page view shows them so), with the text still read as written:
+  the marks also print invisibly in place, and the placed ones are
+  marked content with an empty ActualText. `pdfin` leaves such content
+  out and gives combining marks no width.
+- **A centred right-to-left line stays centred** where a left-to-right
+  one is: a format aligned "C" (the title page, centred text) is not
+  mirrored; its margins were swapped, half an inch to the left.
+
+### Added
+- The `Drawer` has gofpdf's `SetTextRenderingMode` and `RawWriteStr`; a
+  `Recorder` records no invisible text (mode 3).
+
 ## [1.37.0] - 2026-11-23
 
 ### Added

@@ -310,8 +310,12 @@ func lines(page int, p pdf.Page) []line {
 			if adv <= 0 { // one of the standard fonts, which need not say
 				adv = standardWidth(g.font, g.s, g.size)
 			}
-			if adv <= 0 {
-				adv = cw * float64(len([]rune(g.s)))
+			if adv <= 0 { // Courier's width a character; a combining mark has none
+				for _, c := range g.s {
+					if !unicode.Is(unicode.Mn, c) {
+						adv += cw
+					}
+				}
 			}
 			// from the glyph's own position: the PDF's widths can be wider
 			// than its spacing (tight tracking), and adding them up drifted
