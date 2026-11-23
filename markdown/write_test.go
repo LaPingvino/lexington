@@ -16,7 +16,7 @@ func TestMarkdownWrite(t *testing.T) {
 		lex.Line{Type: lex.TypeTitlePage},
 		lex.Line{Type: "Title", Contents: "The Great Test"},
 		lex.Line{Type: "Author", Contents: "A. Software Engineer"},
-		lex.Line{Type: "metasection"},
+		lex.Line{Type: "Contact", Contents: "me@example.com"},
 		lex.Line{Type: lex.TypeScene, Contents: "INT. TEST SUITE - DAY"},
 		lex.Line{Type: lex.TypeAction, Contents: "A simple action line."},
 		lex.Line{Type: lex.TypeSpeaker, Contents: "TDD BOT"},
@@ -343,7 +343,7 @@ func TestTitlePageElements(t *testing.T) {
 		lex.Line{Type: "Title", Contents: "Test Title"},
 		lex.Line{Type: "Credit", Contents: "Written by"},
 		lex.Line{Type: "Author", Contents: "Test Author"},
-		lex.Line{Type: "metasection"},
+		lex.Line{Type: "Contact", Contents: "me@example.com"},
 		lex.Line{Type: lex.TypeScene, Contents: "INT. ROOM - DAY"},
 	}
 

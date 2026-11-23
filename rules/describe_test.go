@@ -38,6 +38,8 @@ func TestDescribeCoversEverything(t *testing.T) {
 		{"Shape", reflect.TypeOf(Shape{}), ShapeFields()},
 		{"Format", reflect.TypeOf(Format{}), FormatFields()},
 		{"presetFile", reflect.TypeOf(presetFile{}), FormatFileFields()},
+		{"TitlePage", reflect.TypeOf(TitlePage{}), TitlePageFields()},
+		{"TitleKey", reflect.TypeOf(TitleKey{}), TitleKeyFields()},
 	} {
 		keys := tomlKeys(c.typ)
 		var got []string

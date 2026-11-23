@@ -531,10 +531,7 @@ func (r reader) parseTitlePage(ps []FdxParagraph) lex.Screenplay {
 	out = append(out, title...)
 	out = append(out, credit...)
 	out = append(out, author...)
-	if contact != nil {
-		out = append(out, lex.Line{Type: "metasection"})
-		out = append(out, contact...)
-	}
+	out = append(out, contact...)
 	return append(out, lex.Line{Type: lex.TypeNewPage})
 }
 

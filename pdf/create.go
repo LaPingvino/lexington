@@ -16,6 +16,7 @@ import (
 	"github.com/LaPingvino/lexington/internal"
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/rules"
+	"github.com/LaPingvino/lexington/titlepage"
 
 	"github.com/phpdave11/gofpdf"
 )
@@ -61,6 +62,13 @@ type PDFWriter struct {
 	// PictureLines is how many lines high a frame prints (0: 12, two
 	// inches); a frame wider than the action is made smaller to fit.
 	PictureLines int
+	// TitlePage is the title page's template (nil: Fountain's, the
+	// standard one): where each key goes and how (titlepage.go).
+	TitlePage *titlepage.Template
+	// TitlePictures are the files a title page's pictures name, by the
+	// name the field gives (Picture: art.png, ![Key art](art.png)); a
+	// picture not among them prints as a box with its name.
+	TitlePictures map[string][]byte
 
 	tocPass bool // drawing to know a {{TOC}}'s pages (highland.go)
 }
@@ -84,10 +92,6 @@ func NewFpdf(orientation, unit, size string) *gofpdf.Fpdf {
 
 // pages are the paper sizes by name, as gofpdf names them.
 var pages = map[string]string{"letter": "Letter", "a4": "A4", "a5": "A5"}
-
-// elementMeta is the format for title page fields other than the title,
-// credit and author.
-const elementMeta = "meta"
 
 type Tree struct {
 	PDF          Drawer
@@ -124,6 +128,9 @@ type Tree struct {
 	offset    int            // the document's pages before the PDF's first (a Resume's)
 	pictures  *pictures      // the storyboard frames printed (nil: none)
 	highland  *highland      // Highland's page directives (highland.go)
+	lh        float64        // the line's height printing in a type other than 12 pt (0: lineHeight; titlepage.go)
+	title     *titlepage.Template
+	titlePics map[string][]byte
 }
 
 // span is where printed text is on a page: from its top to its foot.
@@ -384,6 +391,13 @@ func (t *Tree) Render() {
 			t.extendBar(spans)
 			continue
 		}
+		if row.Type == lex.TypeTitlePage { // drawn whole, by its template (titlepage.go)
+			_, to := titlepage.Rows(rows[i:])
+			t.drawTitlePage(rows[i : i+to])
+			*block = internal.ElementTitle
+			i += to - 1
+			continue
+		}
 		wasTitle := *block != ""
 		if t.handleSpecialCases(row, block, lastsection) {
 			if row.Type == lex.TypeNewPage && wasTitle {
@@ -410,9 +424,6 @@ func (t *Tree) Render() {
 			continue
 		}
 
-		if *block == internal.ElementTitle || *block == elementMeta {
-			row.Type = *block
-		}
 		if c, ok := lex.ColorFor(lex.ColorText, row.Color); ok && style == lex.ColorText &&
 			(row.Type == lex.TypeScene || row.Type == lex.TypeSection) {
 			t.PDF.SetTextColor(int(c[0]), int(c[1]), int(c[2]))
@@ -655,19 +666,6 @@ func (t *Tree) handleSpecialCases(row lex.Line, block *string, lastsection *int)
 		*block = ""
 		t.PDF.AddPage()
 		return true
-	case "titlepage":
-		*block = internal.ElementTitle
-		t.PDF.SetY(4 * t.vsc())
-		return false
-	case "title", "Title":
-		t.PDF.SetTitle(lex.Unstyled(row.Contents), true)
-		return false
-	case "metasection":
-		// Fields after the title block (Contact, Draft date, ...) go to
-		// the bottom of the title page in the meta format.
-		*block = elementMeta
-		t.PDF.SetY(-2)
-		return true
 	case "dualspeaker_open":
 		t.DualDialogue = true
 		t.DualColumn = 0
@@ -833,11 +831,20 @@ func (t Tree) linePrint(format rules.Format, text string) {
 	pdf.SetLeftMargin(format.Left)
 	pdf.SetRightMargin(format.Right)
 	if len(spans) == 1 && !styled(spans[0]) {
-		pdf.MultiCell(0, lineHeight, spans[0].Text, "", format.Align, false)
+		pdf.MultiCell(0, t.lineH(), spans[0].Text, "", format.Align, false)
 		return
 	}
 	t.writeSpans(format, fontName, spans)
-	pdf.SetY(pdf.GetY() + lineHeight)
+	pdf.SetY(pdf.GetY() + t.lineH())
+}
+
+// lineH is the height of the lines printed: lineHeight, or the title
+// page's line of a larger type (Tree.lh).
+func (t Tree) lineH() float64 {
+	if t.lh > 0 {
+		return t.lh
+	}
+	return lineHeight
 }
 
 // lineHeight is a line's height: 12 pt type, six lines to the inch.
@@ -881,7 +888,7 @@ func (t Tree) writeSpans(format rules.Format, fontName string, spans []lex.Span)
 	}
 	for _, s := range spans {
 		pdf.SetFont(fontName, fontStyle(format.Style, s), format.Size)
-		pdf.Write(lineHeight, s.Text)
+		pdf.Write(t.lineH(), s.Text)
 	}
 	pdf.SetFont(fontName, format.Style, format.Size)
 }
@@ -1039,6 +1046,8 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 		Fonts:        newFonts(pdf),
 		Scale:        width / 8.5,
 		VScale:       height / 11,
+		title:        p.TitlePage,
+		titlePics:    p.TitlePictures,
 	}
 	if _, ok := pdf.(*Recorder); ok {
 		t.starts, t.pageLines = map[int]PageStart{}, map[int][2]int{}

@@ -10,16 +10,21 @@ import (
 	"github.com/LaPingvino/lexington/layout"
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/rules"
+	"github.com/LaPingvino/lexington/titlepage"
 )
 
 // ODTWriter writes an OpenDocument text (LibreOffice, Word, Google Docs).
 type ODTWriter struct {
 	Elements rules.Set // the element rules; rules.Default if nil
 	Page     string    // "letter" (the default), "a4" or "a5"
+	// TitlePage lays the title page out (nil: Fountain's); TitlePictures
+	// are its pictures' files, by the names its fields give.
+	TitlePage     *titlepage.Template
+	TitlePictures map[string][]byte
 }
 
 func (w *ODTWriter) Write(out io.Writer, s lex.Screenplay) error {
-	d := prepare(s, w.Elements, GetPage(w.Page))
+	d := prepare(s, w.Elements, GetPage(w.Page), w.TitlePage, w.TitlePictures)
 	z := zip.NewWriter(out)
 	// the mimetype first, uncompressed and without a data descriptor (as
 	// CreateHeader would add), or LibreOffice does not load the file
@@ -35,7 +40,7 @@ func (w *ODTWriter) Write(out io.Writer, s lex.Screenplay) error {
 	}
 	content, auto := d.odtContent()
 	for _, p := range []struct{ name, body string }{
-		{"META-INF/manifest.xml", odtManifest},
+		{"META-INF/manifest.xml", d.odtManifest()},
 		{"meta.xml", odtMeta(d.title)},
 		{"styles.xml", d.odtStyles()},
 		{"content.xml", odtDocument("content", "", auto, `<office:body><office:text>`+content+`</office:text></office:body>`)},
@@ -48,6 +53,15 @@ func (w *ODTWriter) Write(out io.Writer, s lex.Screenplay) error {
 			return err
 		}
 	}
+	for _, pic := range d.pictureList() {
+		f, err := z.Create("Pictures/" + pic.name)
+		if err != nil {
+			return err
+		}
+		if _, err := f.Write(pic.data); err != nil {
+			return err
+		}
+	}
 	return z.Close()
 }
 
@@ -57,15 +71,26 @@ const odtNS = `xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" `
 	`xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" ` +
 	`xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" ` +
 	`xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" ` +
+	`xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" ` +
+	`xmlns:xlink="http://www.w3.org/1999/xlink" ` +
 	`xmlns:dc="http://purl.org/dc/elements/1.1/" ` +
 	`xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0" office:version="1.3"`
 
-const odtManifest = xmlHeader + `<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.3">` +
-	`<manifest:file-entry manifest:full-path="/" manifest:version="1.3" manifest:media-type="application/vnd.oasis.opendocument.text"/>` +
-	`<manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>` +
-	`<manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/>` +
-	`<manifest:file-entry manifest:full-path="meta.xml" manifest:media-type="text/xml"/>` +
-	`</manifest:manifest>`
+// odtManifest lists the document's parts, the title page's pictures
+// among them.
+func (d *doc) odtManifest() string {
+	var b strings.Builder
+	b.WriteString(xmlHeader + `<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.3">` +
+		`<manifest:file-entry manifest:full-path="/" manifest:version="1.3" manifest:media-type="application/vnd.oasis.opendocument.text"/>` +
+		`<manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>` +
+		`<manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/>` +
+		`<manifest:file-entry manifest:full-path="meta.xml" manifest:media-type="text/xml"/>`)
+	for _, pic := range d.pictureList() {
+		b.WriteString(`<manifest:file-entry manifest:full-path="Pictures/` + pic.name + `" manifest:media-type="image/png"/>`)
+	}
+	b.WriteString(`</manifest:manifest>`)
+	return b.String()
+}
 
 func odtMeta(title string) string {
 	return xmlHeader + `<office:document-meta ` + odtNS + `><office:meta><dc:title>` + esc(title) +
@@ -167,7 +192,7 @@ func (d *doc) odtContent() (string, string) {
 		}
 	}
 	first, numbered, n := true, false, 0
-	para := func(p layout.Paragraph, breakBefore bool, spaceBefore float64, keepNext bool) {
+	para := func(p layout.Paragraph, breakBefore bool, spaceBefore float64, keepNext bool, pic *picture) {
 		st := d.byKey[p.Key]
 		parent := "Standard"
 		if st != nil {
@@ -203,6 +228,21 @@ func (d *doc) odtContent() (string, string) {
 		if p.Marker != "" {
 			color += ` fo:background-color="` + p.Marker + `"`
 		}
+		if sz, font := titleRun(p, st); sz > 0 || font != "" { // a title page field's own type
+			if sz > 0 {
+				color += fmt.Sprintf(` fo:font-size="%gpt"`, sz)
+				props += ` fo:line-height="100%"`
+			}
+			if font != "" {
+				color += ` style:font-name="` + esc(font) + `" fo:font-family="` + esc(font) + `"`
+			}
+		}
+		if p.TitleField != nil && st != nil && p.Align != st.Align {
+			props += ` fo:text-align="` + odtAlign(p.Align) + `"`
+		}
+		if pic != nil {
+			props += ` fo:line-height="100%" fo:text-align="` + odtAlign(p.Align) + `" fo:margin-left="0in" fo:margin-right="0in"`
+		}
 		if color != "" {
 			color = `<style:text-properties` + color + `/>`
 		}
@@ -232,7 +272,15 @@ func (d *doc) odtContent() (string, string) {
 		}
 		first = false
 		fmt.Fprintf(&body, `<text:p text:style-name="%s">`, name)
+		if pic != nil {
+			fmt.Fprintf(&body, `<draw:frame draw:name="%s" text:anchor-type="as-char" svg:width="%s" svg:height="%s" draw:z-index="0">`+
+				`<draw:image xlink:href="Pictures/%s" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"/>`+
+				`<svg:desc>%s</svg:desc></draw:frame>`, pic.name, in(pic.width), in(pic.height), pic.name, odtEsc(pic.alt))
+		}
 		for _, sp := range p.Spans {
+			if pic != nil {
+				break // (the picture's name)
+			}
 			t := odtEsc(sp.Text)
 			if st != nil && (sp.Bold != st.Bold || sp.Italic != st.Italic || sp.Underline != st.Underline) {
 				ts := fmt.Sprintf("T_%t_%t_%t", sp.Bold, sp.Italic, sp.Underline)
@@ -249,13 +297,13 @@ func (d *doc) odtContent() (string, string) {
 		body.WriteString(`</text:p>`)
 	}
 	tables := 0
-	for _, bl := range d.blocks {
+	for i, bl := range d.blocks {
 		if bl.P.Column == 0 {
-			para(bl.P, bl.BreakBefore, bl.SpaceBefore, bl.KeepNext)
+			para(bl.P, bl.BreakBefore, bl.SpaceBefore, bl.KeepNext, d.pictures[i])
 			continue
 		}
 		if bl.BreakBefore {
-			para(layout.Paragraph{}, true, 0, false)
+			para(layout.Paragraph{}, true, 0, false, nil)
 		}
 		indent, col, gap := d.dualTable()
 		addAuto("Dual", fmt.Sprintf(`<style:style style:name="Dual" style:family="table"><style:table-properties style:width="%s" fo:margin-left="%s" table:align="left"/></style:style>`+
@@ -274,7 +322,7 @@ func (d *doc) odtContent() (string, string) {
 				body.WriteString(`<text:p/>`)
 			}
 			for _, p := range ps {
-				para(p, false, 0, false)
+				para(p, false, 0, false, nil)
 			}
 			body.WriteString(`</table:table-cell>`)
 		}

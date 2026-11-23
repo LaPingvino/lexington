@@ -61,6 +61,13 @@ func (c TOMLConf) With(layer TOMLConf) TOMLConf {
 	if layer.Standard != "" {
 		out.Standard = layer.Standard
 	}
+	out.TitlePages = maps.Clone(c.TitlePages)
+	if len(layer.TitlePages) > 0 && out.TitlePages == nil {
+		out.TitlePages = map[string]TitlePage{}
+	}
+	for k, v := range layer.TitlePages { // a template whole, as a set
+		out.TitlePages[k] = v.clone()
+	}
 	if len(layer.Extensions) > 0 {
 		out.Extensions = maps.Clone(c.Extensions)
 		if out.Extensions == nil {
@@ -77,8 +84,9 @@ func (c TOMLConf) With(layer TOMLConf) TOMLConf {
 // element sets sets, uses: those languages, each in full as c reads it
 // (Language), those sets (the ones c has), and the Standard (the
 // standard language's words are needed to write it as standard
-// Fountain: give it in langs).
-func (c TOMLConf) Part(langs, sets []string) TOMLConf {
+// Fountain: give it in langs), and the title page templates titles of
+// c's own (a preset travels by its name alone).
+func (c TOMLConf) Part(langs, sets []string, titles ...string) TOMLConf {
 	c = c.normalized()
 	out := TOMLConf{Standard: c.StandardLanguage()}
 	for _, l := range langs {
@@ -103,6 +111,14 @@ func (c TOMLConf) Part(langs, sets []string) TOMLConf {
 				out.Elements = map[string]Set{}
 			}
 			out.Elements[s] = set
+		}
+	}
+	for _, t := range titles {
+		if tp, ok := c.TitlePages[t]; ok {
+			if out.TitlePages == nil {
+				out.TitlePages = map[string]TitlePage{}
+			}
+			out.TitlePages[t] = tp.clone()
 		}
 	}
 	return out

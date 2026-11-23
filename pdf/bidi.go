@@ -301,7 +301,7 @@ func (t Tree) visualLines(f rules.Format, text string, rtl bool, width float64) 
 //
 // Its Devanagari is shaped by sh, the font's (fontName in style, size
 // points) shaper: shapedCell.
-func printPiece(pdf Drawer, sh *fontShaper, fontName, style string, size float64, p piece, x, w float64) {
+func printPiece(pdf Drawer, sh *fontShaper, fontName, style string, size float64, p piece, x, w, lineHeight float64) {
 	if len(p.marks) == 0 {
 		pdf.SetX(x)
 		shapedCell(pdf, sh, fontName, style, size, w, lineHeight, p.text, "L")
@@ -412,17 +412,17 @@ func (t Tree) bidiPrint(f rules.Format, text string, rtl bool, left, width float
 		}
 		if len(line) == 0 { // an empty line: its height, breaking the page as a cell does
 			pdf.SetX(left)
-			pdf.CellFormat(width, lineHeight, "", "", 0, "L", false, 0, "")
+			pdf.CellFormat(width, t.lineH(), "", "", 0, "L", false, 0, "")
 		}
 		starts := make([]float64, len(line))
 		for i, p := range line {
 			pdf.SetFont(fontName, fontStyle(f.Style, p.style), f.Size)
 			starts[i] = x
-			printPiece(pdf, shaper(p), fontName, fontStyle(f.Style, p.style), f.Size, p, x, widths[i])
+			printPiece(pdf, shaper(p), fontName, fontStyle(f.Style, p.style), f.Size, p, x, widths[i], t.lineH())
 			x += widths[i]
 		}
 		t.printMarks(fontName, f, line, starts)
-		pdf.Ln(lineHeight)
+		pdf.Ln(t.lineH())
 	}
 	pdf.SetFont(fontName, f.Style, f.Size)
 }

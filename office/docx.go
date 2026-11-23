@@ -11,12 +11,17 @@ import (
 	"github.com/LaPingvino/lexington/layout"
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/rules"
+	"github.com/LaPingvino/lexington/titlepage"
 )
 
 // DOCXWriter writes a Word document (Office Open XML).
 type DOCXWriter struct {
 	Elements rules.Set // the element rules; rules.Default if nil
 	Page     string    // "letter" (the default), "a4" or "a5"
+	// TitlePage lays the title page out (nil: Fountain's); TitlePictures
+	// are its pictures' files, by the names its fields give.
+	TitlePage     *titlepage.Template
+	TitlePictures map[string][]byte
 }
 
 func twips(in float64) int { return int(math.Round(in * 1440)) }
@@ -28,17 +33,20 @@ func esc(s string) string {
 }
 
 func (w *DOCXWriter) Write(out io.Writer, s lex.Screenplay) error {
-	d := prepare(s, w.Elements, GetPage(w.Page))
+	d := prepare(s, w.Elements, GetPage(w.Page), w.TitlePage, w.TitlePictures)
 	z := zip.NewWriter(out)
 	parts := []struct{ name, body string }{
 		{"[Content_Types].xml", docxContentTypes},
 		{"_rels/.rels", docxRels},
-		{"word/_rels/document.xml.rels", docxDocumentRels},
+		{"word/_rels/document.xml.rels", d.docxDocumentRels()},
 		{"word/fontTable.xml", docxFontTable},
 		{"docProps/core.xml", docxCore(d.title)},
 		{"word/styles.xml", d.docxStyles()},
 		{"word/header1.xml", docxHeader},
 		{"word/document.xml", d.docxDocument()},
+	}
+	for _, pic := range d.pictureList() {
+		parts = append(parts, struct{ name, body string }{"word/media/" + pic.name, string(pic.data)})
 	}
 	for _, p := range parts {
 		f, err := z.Create(p.name)
@@ -57,6 +65,7 @@ const xmlHeader = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` + "\
 const docxContentTypes = xmlHeader + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
 	`<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
 	`<Default Extension="xml" ContentType="application/xml"/>` +
+	`<Default Extension="png" ContentType="image/png"/>` +
 	`<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>` +
 	`<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>` +
 	`<Override PartName="/word/fontTable.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"/>` +
@@ -69,11 +78,41 @@ const docxRels = xmlHeader + `<Relationships xmlns="http://schemas.openxmlformat
 	`<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>` +
 	`</Relationships>`
 
-const docxDocumentRels = xmlHeader + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
-	`<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
-	`<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>` +
-	`<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable" Target="fontTable.xml"/>` +
-	`</Relationships>`
+// docxDocumentRels are the document's parts: its styles, header, fonts
+// and the title page's pictures (rIdImg1, …).
+func (d *doc) docxDocumentRels() string {
+	var b strings.Builder
+	b.WriteString(xmlHeader + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+		`<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
+		`<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>` +
+		`<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable" Target="fontTable.xml"/>`)
+	for _, pic := range d.pictureList() {
+		fmt.Fprintf(&b, `<Relationship Id="rId%s" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/%s"/>`,
+			strings.TrimSuffix(pic.name, ".png"), pic.name)
+	}
+	b.WriteString(`</Relationships>`)
+	return b.String()
+}
+
+// docxPicture is a title page picture's paragraph: the picture inline,
+// as large as the template has it.
+func (d *doc) docxPicture(b *strings.Builder, bl block, pic *picture) {
+	b.WriteString(`<w:p><w:pPr>`)
+	if bl.BreakBefore {
+		b.WriteString(`<w:pageBreakBefore/>`)
+	}
+	fmt.Fprintf(b, `<w:spacing w:before="%d" w:line="240" w:lineRule="auto"/><w:ind w:left="0" w:right="0"/>%s</w:pPr>`,
+		twips(bl.SpaceBefore*d.vscale), docxJc(bl.P.Align))
+	cx, cy := int(pic.width*914400), int(pic.height*914400)
+	id := strings.TrimSuffix(strings.TrimPrefix(pic.name, "image"), ".png")
+	fmt.Fprintf(b, `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="%[1]d" cy="%[2]d"/>`+
+		`<wp:docPr id="%[3]s" name="Picture %[3]s" descr="%[4]s"/>`+
+		`<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">`+
+		`<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="%[3]s" name="%[5]s"/><pic:cNvPicPr/></pic:nvPicPr>`+
+		`<pic:blipFill><a:blip r:embed="rIdimage%[3]s"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>`+
+		`<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="%[1]d" cy="%[2]d"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>`+
+		`</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`, cx, cy, id, esc(pic.alt), pic.name)
+}
 
 // Courier Prime as a fixed-pitch modern font, so that a word processor
 // without it puts another monospaced font in its place
@@ -81,7 +120,8 @@ const docxFontTable = xmlHeader + `<w:fonts ` + wNS + `><w:font w:name="Courier 
 	`<w:family w:val="modern"/><w:pitch w:val="fixed"/></w:font></w:fonts>`
 
 const wNS = `xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ` +
-	`xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"`
+	`xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ` +
+	`xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"`
 
 // the page number at the top right, as in the PDF ("1.")
 const docxHeader = xmlHeader + `<w:hdr ` + wNS + `><w:p><w:pPr><w:jc w:val="right"/></w:pPr>` +
@@ -154,10 +194,15 @@ func (d *doc) docxDocument() string {
 	var b strings.Builder
 	b.WriteString(xmlHeader + `<w:document ` + wNS + `><w:body>`)
 	lastTable := false
-	for _, bl := range d.blocks {
+	for i, bl := range d.blocks {
 		if bl.P.Column != 0 {
 			d.docxDual(&b, bl)
 			lastTable = true
+			continue
+		}
+		if pic := d.pictures[i]; pic != nil {
+			d.docxPicture(&b, bl, pic)
+			lastTable = false
 			continue
 		}
 		d.docxParagraph(&b, bl.P, bl.BreakBefore, bl.SpaceBefore, bl.KeepNext)
@@ -182,6 +227,7 @@ func (d *doc) docxParagraph(b *strings.Builder, p layout.Paragraph, breakBefore 
 	b.WriteString(`<w:p>`)
 	st := d.byKey[p.Key]
 	bar := p.Bar != "" && p.Column == 0
+	ownAlign := p.TitleField != nil && st != nil && p.Align != st.Align
 	if st != nil || breakBefore || spaceBefore > 0 || bar || p.Background != "" || keepNext {
 		b.WriteString(`<w:pPr>`)
 		if st != nil {
@@ -208,15 +254,30 @@ func (d *doc) docxParagraph(b *strings.Builder, p layout.Paragraph, breakBefore 
 		if p.SceneNumber != "" && st != nil {
 			fmt.Fprintf(b, `<w:tabs><w:tab w:val="right" w:pos="%d"/></w:tabs>`, twips(d.textWidth()-st.Right))
 		}
-		if spaceBefore > 0 {
+		sz, _ := titleRun(p, st)
+		switch {
+		case sz > 12: // a line as high as its type
+			fmt.Fprintf(b, `<w:spacing w:before="%d" w:line="%d" w:lineRule="atLeast"/>`, twips(spaceBefore*d.vscale), int(sz*20))
+		case spaceBefore > 0:
 			fmt.Fprintf(b, `<w:spacing w:before="%d"/>`, twips(spaceBefore*d.vscale))
+		}
+		if ownAlign {
+			if jc := docxJc(p.Align); jc != "" {
+				b.WriteString(jc)
+			} else {
+				b.WriteString(`<w:jc w:val="left"/>`)
+			}
 		}
 		b.WriteString(`</w:pPr>`)
 	}
+	sz, font := titleRun(p, st)
 	for _, sp := range p.Spans {
 		b.WriteString(`<w:r>`)
-		if p.Color != "" || p.Marker != "" || st != nil && (sp.Bold != st.Bold || sp.Italic != st.Italic || sp.Underline != st.Underline) {
+		if p.Color != "" || p.Marker != "" || sz > 0 || font != "" || st != nil && (sp.Bold != st.Bold || sp.Italic != st.Italic || sp.Underline != st.Underline) {
 			b.WriteString(`<w:rPr>`)
+			if font != "" {
+				fmt.Fprintf(b, `<w:rFonts w:ascii="%[1]s" w:hAnsi="%[1]s" w:cs="%[1]s"/>`, esc(font))
+			}
 			if st != nil && sp.Bold != st.Bold {
 				b.WriteString(onOff("b", sp.Bold))
 			}
@@ -225,6 +286,9 @@ func (d *doc) docxParagraph(b *strings.Builder, p layout.Paragraph, breakBefore 
 			}
 			if p.Color != "" {
 				fmt.Fprintf(b, `<w:color w:val="%s"/>`, hexVal(p.Color))
+			}
+			if sz > 0 { // (before u and shd: the schema's order)
+				fmt.Fprintf(b, `<w:sz w:val="%[1]d"/><w:szCs w:val="%[1]d"/>`, int(sz*2))
 			}
 			if st != nil && sp.Underline != st.Underline {
 				if sp.Underline {

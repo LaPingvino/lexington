@@ -8,6 +8,7 @@ import (
 
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/rules"
+	"github.com/LaPingvino/lexington/titlepage"
 )
 
 // LaTeXWriter implements the writer.Writer interface for LaTeX output.
@@ -16,6 +17,9 @@ import (
 type LaTeXWriter struct {
 	Template string    // Path to the LaTeX template file
 	Elements rules.Set // Configuration for elements (margins, fonts, etc.)
+	// TitlePage places the title page's fields (nil: Fountain's); the
+	// LaTeX shows their order and whether they are centred or at the foot.
+	TitlePage *titlepage.Template
 }
 
 // Inline markup patterns for LaTeX output
@@ -144,16 +148,16 @@ const defaultLaTeXTemplate = `\documentclass[{{printf "%.0f" .Config.FontSize}}p
 
 \begin{document}
 
+{{- $title := false -}}{{- $foot := false -}}
 {{range .Screenplay}}
-    {{if eq .Type "titlepage"}}
+    {{if eq .Type "titlepage"}}{{$title = true}}
         \thispagestyle{empty}
         \vspace*{2in}
     {{else if eq .Type "Title"}}\titletext{ {{- .Contents -}} }
     {{else if eq .Type "Credit"}}\credittext{ {{- .Contents -}} }
     {{else if eq .Type "Author"}}\authorname{ {{- .Contents -}} }
-    {{else if eq .Type "metasection"}}
-        \newpage
-        \setcounter{page}{2}
+    {{else if eq .Type "metasection"}}{{$foot = true}}
+        \vfill
     {{else if eq .Type "scene"}}
         \sceneheading{ {{- .Contents -}} }
     {{else if eq .Type "action"}}
@@ -168,7 +172,7 @@ const defaultLaTeXTemplate = `\documentclass[{{printf "%.0f" .Config.FontSize}}p
         \transition{ {{- .Contents -}} }
     {{else if eq .Type "center"}}
         \centeredtext{ {{- .Contents -}} }
-    {{else if eq .Type "newpage"}}
+    {{else if eq .Type "newpage"}}{{$title = false}}{{$foot = false}}
         \newpage
     {{else if eq .Type "empty"}}
         \vspace{\baselineskip}
@@ -185,6 +189,8 @@ const defaultLaTeXTemplate = `\documentclass[{{printf "%.0f" .Config.FontSize}}p
         \dualtext{ {{- .Contents -}} }
     {{else if eq .Type "dualparen"}}
         \dualparenthetical{ {{- .Contents -}} }
+    {{else if $foot}}\noindent {{.Contents}}\par
+    {{else if $title}}\authorname{ {{- .Contents -}} }
     {{else}}
         % Ignore unhandled types
     {{end}}
@@ -310,6 +316,11 @@ func printsNot(t lex.ElementType) bool {
 func (l *LaTeXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	// Preprocess screenplay to handle dual dialogue; notes are not printed
 	screenplay = preprocessDualDialogue(lex.Printable(screenplay, printsNot))
+	tpl := titlepage.Standard()
+	if l.TitlePage != nil {
+		tpl = *l.TitlePage
+	}
+	screenplay = tpl.Stream(screenplay) // its fields by key: the centred ones, then the foot's
 
 	// Get template configuration from rules
 	config := l.getLatexConfig()

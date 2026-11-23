@@ -552,10 +552,7 @@ func titlePage(ls []line, width float64, scene *regexp.Regexp) (lex.Screenplay, 
 			}
 			continue
 		}
-		if !meta {
-			out = append(out, lex.Line{Type: "metasection"})
-			meta = true
-		}
+		meta = true
 		key := "Contact"
 		if dateLike.MatchString(t) {
 			key = "Draft date"

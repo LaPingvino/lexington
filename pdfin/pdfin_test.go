@@ -136,7 +136,7 @@ func TestTitlePage(t *testing.T) {
 	for _, l := range s {
 		got = append(got, string(l.Type)+"="+l.Contents)
 	}
-	want := "titlepage=|Title=BISCUITS|Credit=Written by|Author=Anna Smith|metasection=|Contact=anna@example.com|Draft date=Draft, May 2026|newpage="
+	want := "titlepage=|Title=BISCUITS|Credit=Written by|Author=Anna Smith|Contact=anna@example.com|Draft date=Draft, May 2026|newpage="
 	if strings.Join(got, "|") != want {
 		t.Errorf("got %s", strings.Join(got, "|"))
 	}

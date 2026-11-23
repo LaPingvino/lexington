@@ -139,7 +139,7 @@ func elementsOf(text string, lang rules.Language, loose bool) map[int]string {
 	out := map[int]string{}
 	for _, row := range parse(lang, strings.NewReader(text), true, loose) {
 		switch row.Type {
-		case lex.TypeDualOpen, lex.TypeDualNext, lex.TypeDualClose, lex.TypeTitlePage, lex.TypeNewPage, "metasection":
+		case lex.TypeDualOpen, lex.TypeDualNext, lex.TypeDualClose, lex.TypeTitlePage, lex.TypeNewPage, lex.TypeMetaSection:
 			continue
 		}
 		if _, ok := out[row.Source]; !ok && row.Source > 0 {

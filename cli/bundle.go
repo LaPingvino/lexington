@@ -61,7 +61,7 @@ func readBundleInput(o *Options) (*bundle.Bundle, error) {
 	if err != nil {
 		return nil, err
 	}
-	o.in = text
+	o.in, o.src = text, b
 	if o.From == "" {
 		o.From = internal.FormatFountain
 	}

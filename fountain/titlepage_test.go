@@ -55,7 +55,7 @@ func TestTitlePageMultiLineValues(t *testing.T) {
 	got := types(src)
 	want := strings.Join([]string{
 		"titlepage=", "Title=The Barn", "Title=A Story", "Author=Jane Smith",
-		"metasection=", "Contact=Jane Smith", "Contact=1 Writer's Lane", "Draft date=1 May",
+		"Contact=Jane Smith", "Contact=1 Writer's Lane", "Draft date=1 May",
 		"newpage=", "scene=INT. BARN - DAY",
 	}, "\n")
 	if got != want {
@@ -106,17 +106,17 @@ func TestTitlePageEndsAtMarkupWithColon(t *testing.T) {
 	}
 }
 
-// Source is centred with the title (Fountain's place for it), and the keys
-// for the foot of the page make one section however they are mixed with
-// the centred ones: a second would print over the first.
-func TestTitlePageOneFootSection(t *testing.T) {
+// The title page's rows keep the text's order, whatever goes where: the
+// writers place the keys (package titlepage), and a program maps the rows
+// back to its text.
+func TestTitlePageKeepsTextOrder(t *testing.T) {
 	got := types("Title: X\nDraft date: 1 May\nSource: A story\nAuthor: A\nContact: me\n\nINT. BARN - DAY\n")
-	want := "titlepage=\nTitle=X\nmetasection=\nDraft date=1 May\nSource=A story\nAuthor=A\nContact=me\nnewpage=\nscene=INT. BARN - DAY"
+	want := "titlepage=\nTitle=X\nDraft date=1 May\nSource=A story\nAuthor=A\nContact=me\nnewpage=\nscene=INT. BARN - DAY"
 	if got != want {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
 	got = types("Title: X\nAuthor: A\nSource: A story\nDraft date: 1 May\n\nINT. BARN - DAY\n")
-	want = "titlepage=\nTitle=X\nAuthor=A\nSource=A story\nmetasection=\nDraft date=1 May\nnewpage=\nscene=INT. BARN - DAY"
+	want = "titlepage=\nTitle=X\nAuthor=A\nSource=A story\nDraft date=1 May\nnewpage=\nscene=INT. BARN - DAY"
 	if got != want {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}

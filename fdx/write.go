@@ -76,7 +76,7 @@ func paragraphType(t lex.ElementType) (pType string, ok bool) {
 		return FDXLyrics, true
 	case lex.TypeTrans:
 		return FDXTransition, true
-	case lex.TypeEmpty, lex.TypeTitlePage, lex.TypeNewPage, "metasection", "section", "synopse", "note", lex.TypeBoneyard:
+	case lex.TypeEmpty, lex.TypeTitlePage, lex.TypeNewPage, lex.TypeMetaSection, "section", "synopse", "note", lex.TypeBoneyard:
 		// Final Draft spaces elements itself; blank lines (handled in
 		// buildDocument), structure markers and Fountain's boneyard
 		// (never printed: notes blocks, an omitted scene) have no
@@ -366,7 +366,7 @@ func buildTitlePage(screenplay lex.Screenplay) (*FdxTitlePage, int) {
 			i++
 			break
 		}
-		if line.Type == "metasection" || line.Contents == "" {
+		if line.Type == lex.TypeMetaSection || line.Contents == "" {
 			continue
 		}
 		role := titleRole(line.Type)

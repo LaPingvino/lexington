@@ -34,6 +34,9 @@ func ConfFields() []Field {
 			"(en if none). A script in another language is a dialect of Fountain, written for them with -force."},
 		{Key: "Extensions", Kind: "table", Doc: "File extensions (without the dot) whose files are in a language: hekaya = \"hekaya\" " +
 			"reads film.hekaya with Hekaya's rules. The default's are known in every configuration; one of one's own adds to them or changes one."},
+		{Key: "TitlePages", Kind: "tables", Doc: "Title page templates, by name: where each title page key goes (centred under the title, " +
+			"at the top, at the foot left or right, or anywhere), in what size and style, and a picture. A key a template does not name is " +
+			"placed by the language's TitleCentred. Standard, bold and poster are known without being written; one of one's own named so takes its place."},
 		{Key: "Scenes", Kind: "table", Doc: "Legacy: scene words by language, from before [Languages]. Read into Languages, never written."},
 		{Key: "Matchups", Kind: "table", Doc: "Legacy: scene words by role, by language, from before [Languages]. Read into Languages, never written."},
 		{Key: "Directions", Kind: "table", Doc: "Legacy: the direction by language, from before [Languages]. Read into Languages, never written."},
@@ -66,6 +69,8 @@ func LanguageFields() []Field {
 		{Key: "TransitionMarks", Kind: "text", Doc: "Signs that may stand around one of Transitions (\"-\" for \"- CUT -\")."},
 		{Key: "TitleKeys", Kind: "table", Doc: "The language's title page keys and the standard key each one is (TITEL = Title). " +
 			"The standard keys themselves are known in every language."},
+		{Key: "TitleCentred", Kind: "list", Doc: "The standard title page keys printed centred under the title, in this order; the rest go to the page's foot. " +
+			"Empty: Fountain's (Title, Credit, Author, Source). What places a key when no title page template is chosen, or one the template does not name."},
 	}
 }
 
@@ -131,6 +136,42 @@ func ElementKeys() []Field {
 		{Key: KeyNoteColors.String(), Kind: "tables", Doc: "A switch: scene headings and sections in the color their notes give ([[red]]); its Style is how."},
 		{Key: KeyPagination.String(), Kind: "tables", Doc: "A switch: how page breaks keep things together; its Style says what is on " +
 			"(keep: headings and cues go over with what follows; widows: two lines of a paragraph on each page; more: (MORE) and CONT'D)."},
+	}
+}
+
+// TitlePageFields are the fields of a title page template
+// ([TitlePages.name]), in the order of TitlePage.
+func TitlePageFields() []Field {
+	return []Field{
+		{Key: "Name", Kind: "text", Doc: "The template's name, as lists show it (its key if none)."},
+		{Key: "Description", Kind: "text", Doc: "What the template is for."},
+		{Key: "Centre", Kind: "number", Doc: "Where the centred block starts, in inches from the top of a Letter page (0: 4, Fountain's)."},
+		{Key: "Keys", Kind: "tables", Doc: "The keys it places, a [[TitlePages.name.Keys]] table each, each place's in this order. " +
+			"Key \"*\" is every key it does not name."},
+	}
+}
+
+// TitleKeyFields are the fields of a template's key
+// ([[TitlePages.name.Keys]]), in the order of TitleKey.
+func TitleKeyFields() []Field {
+	return []Field{
+		{Key: "Key", Kind: "text", Doc: "The title page key: a standard one (Title, Credit, Author, Source, Draft date, Contact) or one of " +
+			"one's own (Logline, Registration); case does not count. \"*\": every key the template does not name."},
+		{Key: "Place", Kind: "choice", Choices: append([]string{""}, Places...), Doc: "Where it goes: centre (the block under the title), " +
+			"top, foot-left, foot-right, or free (at X, Y). Empty: the language's (TitleCentred: centre, else the foot on the left)."},
+		{Key: "X", Kind: "number", Doc: "A free place's distance from the page's left edge, in inches on Letter (0 and centred: the middle)."},
+		{Key: "Y", Kind: "number", Doc: "A free place's distance from the page's top, in inches on Letter; from the foot when negative."},
+		{Key: "Align", Kind: "choice", Choices: []string{"", "L", "C", "R"}, Doc: "Left, centred or right; empty: the place's. " +
+			"In a free place, how the text stands to X."},
+		{Key: "Font", Kind: "text", Doc: "The font, as an element's (empty: the element set's title format in the centre and at the top, its meta format elsewhere)."},
+		{Key: "Size", Kind: "number", Doc: "The font size in points (0: the element set's)."},
+		{Key: "Style", Kind: "text", Doc: "b bold, i italic, u underlined, joined (\"bi\")."},
+		{Key: "Caps", Kind: "bool", Doc: "Printed in capitals."},
+		{Key: "Before", Kind: "number", Doc: "Space before it, in lines of 12 pt."},
+		{Key: "Picture", Kind: "bool", Doc: "Its value is a picture's file (art.png, or ![Key art](art.png)) beside the script or in its bundle. " +
+			"A value written as a Markdown picture is printed as one under any key."},
+		{Key: "Height", Kind: "number", Doc: "A picture's height in inches (0: 2); made smaller to fit the page's width."},
+		{Key: "Hide", Kind: "bool", Doc: "Left off the page."},
 	}
 }
 

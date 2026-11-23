@@ -121,7 +121,7 @@ func TestODT(t *testing.T) {
 // bold underline, its lyrics indented.
 func TestPresetStyles(t *testing.T) {
 	m, _ := rules.GetPreset("musical")
-	d := prepare(fountain.Parse(nil, strings.NewReader("ANNA\n~A LYRIC\n\n> 3. SONG <\n")), m.Elements, GetPage(m.Page))
+	d := prepare(fountain.Parse(nil, strings.NewReader("ANNA\n~A LYRIC\n\n> 3. SONG <\n")), m.Elements, GetPage(m.Page), nil, nil)
 	c, l := d.byKey["center"], d.byKey["lyrics"]
 	if c == nil || !c.Bold || !c.Underline || c.Align != 'C' {
 		t.Errorf("center %+v", c)

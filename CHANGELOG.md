@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.49.0] - 2026-11-23
+
+### Added
+- **Title page templates** (docs/TITLEPAGE.md). A template places each title page key (centred under the
+  title, at the top, at the foot left or right, or at a free position) in its own size, font, style, capitals
+  and spacing; keys of one's own (Logline, Registration, …) get a place too, `*` stands for every key it does
+  not name. Templates are named `[TitlePages.name]` entries of `lexington.toml`, layered as the element sets
+  are; `rules/describe.go` describes them. Presets: **standard** (Fountain's), **bold** (a big title, the
+  logline, spaced credits) and **poster** (a picture above a big title). `-titlepage NAME`, `-titlepages`.
+- **A picture on the title page**: a field whose value is a Markdown picture (`Logo: ![Logo](logo.png)`), or
+  under a key the template marks `Picture`, printed from beside the script or its bundle (`assets/`); never
+  fetched from the web. PDF, HTML (as data), Word and ODT (as PNG).
+- `Language.TitleCentred`: the keys a language prints centred, in order (Fountain's Title, Credit, Author,
+  Source when empty): what places a key with no template, or one the template does not name.
+- Package `titlepage`: the layout every writer uses (`Fields`, `Place`, `Layout`, `Stream`, `Format`).
+
+### Changed
+- **The title page is placed by key, never by the order the keys are written in.** `Contact:` above `Title:`
+  no longer drags the title to the foot. The parser keeps the rows in the text's order and no longer makes a
+  `metasection` row (an old `.lex` file's is read and passed over); the writers (PDF, HTML, Word, ODT, LaTeX,
+  Markdown) lay the page out. A title page in Fountain's order prints as before in the PDF.
+- HTML: the title page's places as blocks (`title-top`, `title-centre`, `title-meta`, `title-meta-right`,
+  `title-free`); Source and keys of one's own now print (they were left out).
+- `rules.TOMLConf.Part` takes the title page templates a script uses, after its languages and sets.
+
 ## [1.48.1] - 2026-11-23
 
 ### Fixed

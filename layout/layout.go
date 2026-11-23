@@ -8,12 +8,14 @@
 package layout
 
 import (
+	"cmp"
 	"math"
 	"strings"
 	"unicode"
 
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/rules"
+	"github.com/LaPingvino/lexington/titlepage"
 )
 
 // The page: US Letter, Courier 12 pt at ten characters to the inch.
@@ -166,6 +168,28 @@ type Paragraph struct {
 	// Colors of the line, as #rrggbb (or ""), when the rules print
 	// colors (rules.Set.ShowsColors), in their style (ColorStyle).
 	Colors
+	// TitleField is how a title page field prints, by its template
+	// (package titlepage); nil off the title page. Its Type is the
+	// field's key.
+	TitleField *TitleField
+}
+
+// TitleField is a title page paragraph's place and type: its template's
+// entry for its key, with what that comes to.
+type TitleField struct {
+	Entry rules.TitleKey // its Place always set
+	// Size is its type's size in points (12 the set's usual), Font its
+	// font as the rules name it.
+	Size float64
+	Font string
+	// Before is the space before it, in lines of 12 pt: on a field's
+	// first line only.
+	Before float64
+	// Picture is the file of a picture (the paragraph's text is its alt
+	// text or name in brackets, for a writer that cannot show it), Alt
+	// its text, Height its height in inches.
+	Picture, Alt string
+	Height       float64
 }
 
 // Text is the paragraph's text without styles.
@@ -194,6 +218,14 @@ func Margin(set rules.Set) float64 {
 // rule, if it has one), prefixes and postfixes added, scene headings and names in capitals, Fountain's
 // emphasis as styled spans.
 func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
+	return ParagraphsWith(s, set, titlepage.Standard())
+}
+
+// ParagraphsWith are Paragraphs with the title page laid out by a
+// template: its fields in the order the template places them, the top's
+// and centre's in Block "title", then an empty paragraph of Block "meta"
+// and the foot's and the free places' (each with its TitleField).
+func ParagraphsWith(s lex.Screenplay, set rules.Set, tpl titlepage.Template) []Paragraph {
 	if set == nil {
 		set = rules.Default
 	}
@@ -204,6 +236,12 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 		out = append(out, p)
 		ids = append(ids, id)
 	}
+	_, titleEnd := titlepage.Rows(s)
+	if titleEnd > 0 {
+		for _, p := range titleParagraphs(s, set, tpl) {
+			add(p, 0)
+		}
+	}
 	block, column := "", 0
 	sch := set.ColorScheme()
 	blocks, colorOf := lex.ColorBlocks(s), map[int]string{} // the block each row is in, and its color
@@ -213,6 +251,9 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 		}
 	}
 	for i, row := range s {
+		if i < titleEnd {
+			continue // (above)
+		}
 		t := row.Type
 		if !set.ShowsColors() {
 			row.Color, blocks[i] = "", 0
@@ -228,10 +269,6 @@ func Paragraphs(s lex.Screenplay, set rules.Set) []Paragraph {
 			continue
 		case lex.TypeTitlePage:
 			block = "title"
-			continue
-		case "metasection":
-			block = "meta"
-			add(Paragraph{Block: block}, 0)
 			continue
 		case lex.TypeDualOpen:
 			column = 1
@@ -407,6 +444,49 @@ func merge(spans []Span) []Span {
 			out[len(out)-1].Text += s.Text
 		} else {
 			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// titleParagraphs are the title page's paragraphs, laid out by tpl.
+func titleParagraphs(s lex.Screenplay, set rules.Set, tpl titlepage.Template) []Paragraph {
+	var out []Paragraph
+	foot := false
+	for _, b := range tpl.Layout(s) {
+		block := "title"
+		if b.Place != rules.PlaceTop && b.Place != rules.PlaceCentre {
+			block = "meta"
+			if !foot {
+				out = append(out, Paragraph{Block: block})
+				foot = true
+			}
+		}
+		for _, f := range b.Fields {
+			e := f.Entry
+			fm := titlepage.Format(set, e)
+			align := byte('L')
+			if a := strings.ToUpper(fm.Align); a == "C" || a == "R" {
+				align = a[0]
+			}
+			tf := TitleField{Entry: e, Size: fm.Size, Font: fm.Font, Before: e.Before}
+			if f.Picture != "" {
+				tf.Picture, tf.Alt, tf.Height = f.Picture, f.Alt, titlepage.PictureHeight(e)
+				out = append(out, Paragraph{Type: lex.ElementType(f.Key), Block: block, Key: block, Left: fm.Left, Right: fm.Right,
+					Align: align, Spans: []Span{{Text: "[" + cmp.Or(f.Alt, f.Picture) + "]"}}, TitleField: &tf})
+				continue
+			}
+			base := Span{Bold: strings.ContainsAny(fm.Style, "bB"), Italic: strings.ContainsAny(fm.Style, "iI"),
+				Underline: strings.ContainsAny(fm.Style, "uU")}
+			for i, l := range f.Lines {
+				line := tf
+				if i > 0 {
+					line.Before = 0
+				}
+				text := strings.TrimSpace(fm.Prefix + titlepage.Caps(e, l) + fm.Postfix)
+				out = append(out, Paragraph{Type: lex.ElementType(f.Key), Block: block, Key: block, Left: fm.Left, Right: fm.Right,
+					Align: align, Spans: emphasis(text, base), TitleField: &line})
+			}
 		}
 	}
 	return out

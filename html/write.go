@@ -8,6 +8,7 @@ import (
 
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/rules"
+	"github.com/LaPingvino/lexington/titlepage"
 )
 
 // HTMLWriter implements the writer.Writer interface for HTML output.
@@ -19,6 +20,12 @@ type HTMLWriter struct {
 	// line with no direction of its own ("…", "2.") reads right to left.
 	// Every other line follows its own letters (dir="auto").
 	RTL bool
+	// TitlePage lays the title page out (nil: Fountain's): titlepage.go.
+	TitlePage *titlepage.Template
+	// TitlePictures are its pictures' files, by the names its fields
+	// give: put in the page as data. A picture not among them is linked
+	// by its name.
+	TitlePictures map[string][]byte
 }
 
 // processInlineMarkup turns Fountain's emphasis (lex.Emphasis) into
@@ -112,24 +119,23 @@ body {
 }
 .title-page {
 	text-align: center;
-	height: 100vh;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	align-items: center;
+	min-height: 100vh;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	grid-template-rows: auto 1fr auto;
+	position: relative;
 }
+.title-top { grid-column: 1 / 3; grid-row: 1; }
+.title-centre { grid-column: 1 / 3; grid-row: 2; align-self: center; }
 .title-page h1 {
-	margin-bottom: 1em;
+	margin: 0 0 1em;
 }
 .title-page p {
 	margin: 0.5em 0;
 }
-.title-meta {
-	align-self: flex-start;
-	text-align: start;
-	margin-top: 3in;
-}
-.title-meta p {
+.title-meta { grid-column: 1; grid-row: 3; text-align: start; }
+.title-meta-right { grid-column: 2; grid-row: 3; text-align: end; }
+.title-meta p, .title-meta-right p {
 	margin: 0;
 }
 .center {
@@ -190,11 +196,14 @@ body {
     .page:has(.title-page) { page: title; }
     /* as the PDF: centred between 1.5 and 1 in, the title a line below 4 in
        from the top, the details 2 in from the bottom */
-    .title-page { height: {{.Config.PrintHeight}}; justify-content: flex-start; position: relative; margin: 0 1in 0 1.5in; }
-    .title-page h1 { font-size: inherit; font-weight: normal; margin: calc(3in + 12pt) 0 0; }
+    .title-page { display: block; height: {{.Config.PrintHeight}}; min-height: 0; position: relative; margin: 0 1in 0 1.5in; }
+    .title-page h1 { font-size: inherit; font-weight: normal; margin: 0; }
     .title-page p { margin: 0; }
-    .title-page em { font-style: normal; }
+    .title-top { position: absolute; left: 0; right: 0; top: 0; }
+    .title-centre { position: absolute; left: 0; right: 0; top: calc(3in + 12pt); margin: 0; }
     .title-meta { position: absolute; left: 0; top: calc({{.Config.PrintHeight}} - 1in); margin: 0; }
+    .title-meta-right { position: absolute; right: 0; top: calc({{.Config.PrintHeight}} - 1in); margin: 0; text-align: end; }
+
     .page:has(.title-page) + .newpage { display: none; } /* the title page breaks already */
     .scene-heading, .action, .general, .speaker, .dialogue, .parenthetical,
     .transition, .center, .lyrics, .dual-dialogue { margin-top: 0; margin-bottom: 0; }
@@ -221,18 +230,10 @@ body {
 </head>
 <body>
 <div class="page">
-{{- $inTitle := false -}}{{- $inMeta := false -}}
+{{- $inTitle := false -}}
 {{- range .Screenplay -}}
     {{- if eq .Type "titlepage" -}}
-<div class="title-page">{{- $inTitle = true -}}{{-
-    else if eq .Type "Title" -}}
-<h1>{{- processInlineMarkup .Contents -}}</h1>{{-
-    else if eq .Type "Credit" -}}
-<p><em>{{- processInlineMarkup .Contents -}}</em></p>{{-
-    else if eq .Type "Author" -}}
-<p>{{- processInlineMarkup .Contents -}}</p>{{-
-    else if eq .Type "metasection" -}}
-<div class="title-meta">{{- $inMeta = true -}}{{-
+{{ $.TitlePage }}{{- $inTitle = true -}}{{-
     else if eq .Type "scene" -}}
 {{- $h := sceneHeading .Contents -}}
 <div class="scene-heading" dir="{{dir $h.Text}}"{{headingColor $.Config.ColorScheme .Color}}>{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup $h.Text -}}{{markerClose $.Config.ColorScheme .Color}}{{- if $h.Number -}}<span class="scene-number left">{{ $h.Number }}</span><span class="scene-number right">{{ $h.Number }}</span>{{- end -}}</div>{{-
@@ -251,7 +252,6 @@ body {
     else if eq .Type "center" -}}
 <div class="center" dir="{{dir .Contents}}">{{markerOpen $.Config.ColorScheme .Color}}{{- processInlineMarkup .Contents -}}{{markerClose $.Config.ColorScheme .Color}}</div>{{-
     else if eq .Type "newpage" -}}
-{{- if $inMeta -}}</div>{{- $inMeta = false -}}{{- end -}}
 {{- if $inTitle -}}</div>{{- $inTitle = false -}}{{- end -}}
 </div>
 <div class="newpage"></div>
@@ -268,8 +268,6 @@ body {
 </td><td>{{-
     else if eq .Type "dualspeaker_close" -}}
 </td></tr></table>{{-
-    else if $inMeta -}}
-<p>{{- processInlineMarkup .Contents -}}</p>{{-
     else -}}{{- end -}}
 {{- end -}}
 </div>
@@ -281,6 +279,8 @@ body {
 type HTMLTemplateData struct {
 	Config     TemplateConfig
 	Screenplay lex.Screenplay
+	// TitlePage is the title page, opened: the page break closes it
+	TitlePage template.HTML
 }
 
 // TemplateConfig holds the configuration values for the HTML template
@@ -460,11 +460,16 @@ func (h *HTMLWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	config := h.getTemplateConfig()
 	printable := lex.Printable(screenplay, printsNot)
 	config.PageBoxes = pageBoxes(printable)
+	title, to := h.titlePageHTML(printable)
+	if to > 0 { // the title page, laid out by its template (titlepage.go)
+		printable = append(lex.Screenplay{printable[0]}, printable[to:]...)
+	}
 
 	// Create combined template data
 	templateData := HTMLTemplateData{
 		Config:     config,
 		Screenplay: withBlocks(printable, config.ColorScheme, h.elements()), // notes are not printed
+		TitlePage:  title,
 	}
 
 	// Parse and execute the HTML template with better error context

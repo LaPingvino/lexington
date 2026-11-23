@@ -13,6 +13,7 @@ import (
 	"github.com/LaPingvino/lexington/layout"
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/rules"
+	"github.com/LaPingvino/lexington/titlepage"
 )
 
 // Page is a paper size, in inches.
@@ -75,6 +76,7 @@ type doc struct {
 	byKey       map[string]*style
 	blocks      []block
 	pagination  rules.Pagination
+	pictures    map[int]*picture // the title page's, by their blocks
 }
 
 // Dual dialogue's columns on a Letter page, as in the PDF and the layout.
@@ -110,7 +112,11 @@ var styleNames = map[string]string{
 	"dualparen":   "Dual Parenthetical",
 }
 
-func prepare(s lex.Screenplay, set rules.Set, page Page) *doc {
+func prepare(s lex.Screenplay, set rules.Set, page Page, tp *titlepage.Template, pictures map[string][]byte) *doc {
+	tpl := titlepage.Standard()
+	if tp != nil {
+		tpl = *tp
+	}
 	if set == nil {
 		set = rules.Default
 	}
@@ -131,8 +137,8 @@ func prepare(s lex.Screenplay, set rules.Set, page Page) *doc {
 		}
 	}
 
-	paras := layout.Paragraphs(s, set)
-	brk, firstTitle, firstMeta := false, true, false
+	paras := layout.ParagraphsWith(s, set, tpl)
+	brk, firstMeta := false, false
 	for i := 0; i < len(paras); i++ {
 		p := paras[i]
 		switch {
@@ -144,9 +150,6 @@ func prepare(s lex.Screenplay, set rules.Set, page Page) *doc {
 			continue
 		}
 		b := block{P: p, BreakBefore: brk}
-		if p.Block == "title" && p.Type != "" && firstTitle {
-			b.SpaceBefore, firstTitle = 3, false
-		}
 		if p.Block == "meta" && p.Type != "" && firstMeta {
 			b.SpaceBefore, firstMeta = 2, false
 		}
@@ -186,6 +189,8 @@ func prepare(s lex.Screenplay, set rules.Set, page Page) *doc {
 	if d.pagination.Keep {
 		d.keep()
 	}
+	d.titleSpaces(tpl)
+	d.titlePictures(pictures)
 	return d
 }
 
@@ -241,7 +246,11 @@ func (d *doc) addStyle(set rules.Set, p layout.Paragraph) {
 	if name == "" {
 		name = strings.ToUpper(p.Key[:1]) + p.Key[1:]
 	}
-	st := &style{Key: p.Key, Name: name, ID: strings.ReplaceAll(name, " ", ""), Align: p.Align,
+	align := p.Align
+	if p.TitleField != nil { // (a field's own alignment is its paragraph's)
+		align = titleStyleAlign(set, p.Key)
+	}
+	st := &style{Key: p.Key, Name: name, ID: strings.ReplaceAll(name, " ", ""), Align: align,
 		Bold: strings.Contains(f.Style, "b"), Italic: strings.Contains(f.Style, "i"),
 		Underline: strings.Contains(f.Style, "u"), Font: fontName(f.Font), Size: f.Size,
 		KeepNext:  d.pagination.Keep && keepsWithNext(p.Key),

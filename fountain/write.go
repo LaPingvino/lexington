@@ -111,7 +111,7 @@ func (state *WriteState) writeLine(line lex.Line) error {
 }
 
 func (state *WriteState) writeTitlePageLine(line lex.Line) error {
-	if line.Type == "metasection" {
+	if line.Type == lex.TypeMetaSection {
 		return nil
 	}
 	if line.Type == lex.TypeNewPage {

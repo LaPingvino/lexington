@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/titlepage"
 )
 
 // Constants for markdown formatting
@@ -57,7 +58,11 @@ func processInlineMarkup(text string) string {
 
 // MarkdownWriter implements the writer.Writer interface for Markdown output.
 // This is primarily used as an intermediate format for pandoc conversion.
-type MarkdownWriter struct{}
+type MarkdownWriter struct {
+	// TitlePage orders the title page's fields (nil: Fountain's): the
+	// centred ones first, then the foot's after a rule.
+	TitlePage *titlepage.Template
+}
 
 // Write converts the internal lex.Screenplay format to a Markdown file.
 // It implements the writer.Writer interface.
@@ -68,7 +73,11 @@ func (m *MarkdownWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		inDualDialogue: false,
 	}
 
-	for _, line := range lex.Printable(screenplay, nil) { // notes are not printed
+	tpl := titlepage.Standard()
+	if m.TitlePage != nil {
+		tpl = *m.TitlePage
+	}
+	for _, line := range tpl.Stream(lex.Printable(screenplay, nil)) { // notes are not printed
 		if err := state.processLine(line); err != nil {
 			return err
 		}
@@ -80,7 +89,8 @@ func (m *MarkdownWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 // markdownState holds the state during markdown conversion
 type markdownState struct {
 	writer          io.Writer
-	inTitlePage     bool
+	inTitlePage     bool // in the title page's centred fields
+	inTitle         bool // in the title page
 	inDualDialogue  bool
 	inDialogueBlock bool
 }
@@ -88,7 +98,13 @@ type markdownState struct {
 // processLine processes a single line based on its type
 func (s *markdownState) processLine(line lex.Line) error {
 	// Handle title page elements
-	if s.isTitlePageElement(line.Type) {
+	if line.Type == lex.TypeTitlePage {
+		s.inTitle = true
+	}
+	if s.inTitle && line.Type != lex.TypeTitlePage && titlepage.IsBody(line.Type) {
+		s.inTitle, s.inTitlePage = false, false
+	}
+	if s.inTitle || titleKey[line.Type] { // (a title page's fields without its marker too)
 		return s.processTitlePageElements(line)
 	}
 
@@ -101,13 +117,9 @@ func (s *markdownState) processLine(line lex.Line) error {
 	return s.processContentElements(line)
 }
 
-// isTitlePageElement checks if the line type is a title page element
-func (s *markdownState) isTitlePageElement(lineType string) bool {
-	return lineType == lex.TypeTitlePage || lineType == "Title" ||
-		lineType == "Credit" || lineType == "Author" || lineType == "metasection" ||
-		lineType == "Source" || lineType == "Contact" || lineType == "Draft date" ||
-		lineType == "Notes" || lineType == "Copyright"
-}
+// titleKey are the title page's standard keys, and the foot's marker.
+var titleKey = map[string]bool{"Title": true, "Credit": true, "Author": true, "Source": true, "Contact": true,
+	"Draft date": true, "Notes": true, "Copyright": true, lex.TypeMetaSection: true}
 
 // isDualDialogueMarker checks if the line type is a dual dialogue marker
 func (s *markdownState) isDualDialogueMarker(lineType string) bool {
@@ -126,13 +138,13 @@ func (s *markdownState) processTitlePageElements(line lex.Line) error {
 		return s.processTitlePageElement(line, "*%s*\n\n")
 	case "Author":
 		return s.processTitlePageElement(line, "**%s**\n\n")
-	case "Source", "Contact", "Draft date", "Notes", "Copyright":
-		return s.processTitlePageElement(line, "%s\n\n")
-	case "metasection":
+	case lex.TypeMetaSection:
 		s.inTitlePage = false
 		return s.writeString(metaSeparator)
+	case lex.TypeEmpty:
+		return nil
 	}
-	return nil
+	return s.processTitlePageElement(line, "%s\n\n")
 }
 
 // processDualDialogueMarkers handles dual dialogue markers

@@ -31,6 +31,11 @@ const (
 	TypeLyrics    ElementType = "lyrics"
 	TypeSection   ElementType = "section"
 	TypeSynopsis  ElementType = "synopse"
+	// TypeMetaSection is a row only older .lex files and readers have:
+	// it opened the title page's foot. Nothing makes it now (a key's
+	// place is the writers', package titlepage); it is read and passed
+	// over.
+	TypeMetaSection ElementType = "metasection"
 )
 
 type Screenplay []Line
@@ -96,3 +101,17 @@ func SceneNumber(heading string) (string, string) {
 func SectionText(section string) string {
 	return strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(StripNotes(section)), "#"))
 }
+
+// bodyTypes are the elements of a script's body (and the title page's
+// marker): a title page row is any other, its key's.
+var bodyTypes = map[ElementType]bool{
+	TypeScene: true, TypeAction: true, TypeSpeaker: true, TypeDialog: true, TypeParen: true,
+	TypeTrans: true, TypeCenter: true, TypeLyrics: true, TypeSection: true, TypeSynopsis: true,
+	TypeDualOpen: true, TypeDualNext: true, TypeDualClose: true, TypeTitlePage: true,
+	TypePicture: true, "general": true, "allcaps": true,
+}
+
+// IsBodyType tells whether t is an element of a script's body, not a
+// title page key. A title page key spelled as one ("picture:",
+// "action:") is read with a capital (Picture) so it is not.
+func IsBodyType(t ElementType) bool { return bodyTypes[t] }

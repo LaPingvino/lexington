@@ -6,6 +6,7 @@ package cli
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"flag"
@@ -31,6 +32,7 @@ import (
 	"github.com/LaPingvino/lexington/pdfin"
 	"github.com/LaPingvino/lexington/report"
 	"github.com/LaPingvino/lexington/rules"
+	"github.com/LaPingvino/lexington/titlepage"
 	"github.com/LaPingvino/lexington/writer"
 )
 
@@ -254,8 +256,18 @@ type Options struct {
 	// for a script that has none of its own (lex/highland.go): its own
 	// wins.
 	Header, Footer string
+	// TitlePage is the title page template's name (rules.TOMLConf
+	// TitlePage: one's own or a preset, standard, bold, poster); "" the
+	// standard one, Fountain's.
+	TitlePage string
+	// TitlePictures are the files the title page's pictures name, by
+	// their names (Picture: art.png). nil: read from beside Input, or
+	// from its bundle (as it is, or in assets/).
+	TitlePictures map[string][]byte
 
-	in   []byte        // the input's text, read from a bundle (nil: Input's)
+	in   []byte         // the input's text, read from a bundle (nil: Input's)
+	src  *bundle.Bundle // the bundle the input was read from
+	tpl  *titlepage.Template
 	sink *bytes.Buffer // where the output goes, to be put in a bundle
 }
 
@@ -344,7 +356,7 @@ func Main(ctx context.Context, args []string) int {
 // convert (help, presets, version, dumped settings).
 func parseFlags(args []string) (o Options, ok bool, err error) {
 	fs := flag.NewFlagSet("lexington", flag.ContinueOnError)
-	var dump, help, presets, version bool
+	var dump, help, presets, titlePages, version bool
 	fs.StringVar(&o.ConfigFile, "config", "lexington.toml", "Configuration file to use.")
 	fs.StringVar(&o.FormatDir, "formats", "", "Folders of format files of your own (name.toml, as Lexington's presets), as a path list, to use with -e.")
 	fs.BoolVar(&dump, "dumpconfig", false,
@@ -359,6 +371,9 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 		"The page's header for a script with no {{HEADER: …}} of its own, as Highland writes one: \"Title | %p.\" (%p the page, %pp the last page, %# the section; left | centre | right).")
 	fs.StringVar(&o.Footer, "footer", "", "The page's footer for a script with no {{FOOTER: …}} of its own, as -header.")
 	fs.BoolVar(&presets, "presets", false, "List the presets for -e (stage play, radio, ...).")
+	fs.StringVar(&o.TitlePage, "titlepage", "",
+		"The title page template: standard (Fountain's, the default), bold, poster, or one of the [TitlePages] in the settings file (see -titlepages).")
+	fs.BoolVar(&titlePages, "titlepages", false, "List the title page templates for -titlepage.")
 	fs.StringVar(&o.Input, "i", "-", "Input from provided filename. - means standard input. "+
 		"A bundle (.accolade, .highland, .textbundle, .textpack, zipped or a folder) is read for its text.")
 	fs.StringVar(&o.Output, "o", "-", "Output to provided filename. - means standard output. "+
@@ -425,6 +440,12 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 		}
 		for _, p := range list {
 			fmt.Printf("%-12s %s\n%-12s %s\n\n", p.Key, p.Name, "", p.Description)
+		}
+	case titlePages:
+		conf := rules.GetConf(o.ConfigFile)
+		for _, k := range conf.TitlePageNames() {
+			t, _ := conf.TitlePage(k)
+			fmt.Printf("%-12s %s\n%-12s %s\n\n", k, cmp.Or(t.Name, k), "", t.Description)
 		}
 	case version:
 		log.Printf("Lexington version %s (commit: %s, built: %s)", Version, Commit, Date)
@@ -540,6 +561,9 @@ func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.S
 		if o.Lock = lex.ParsePageLock(string(data)); o.Lock == nil {
 			return fmt.Errorf("no locked pages in %s", o.LockFile)
 		}
+	}
+	if err := titlePageFor(&o, conf, screenplay); err != nil {
+		return err
 	}
 	if o.Report != "" {
 		return writeReport(o, conf, screenplay)
@@ -1072,7 +1096,7 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 		}
 		return &pdf.PDFWriter{OutputFile: o.Output, Elements: elements, Page: pageFor(o), Revisions: o.Revisions,
 			Lock: o.Lock, Continueds: o.Continueds, MergeOmitted: o.MergeOmitted, RTL: rtlFor(conf, o),
-			Record: o.Record, Resume: o.Resume, Pictures: o.Pictures}, nil
+			Record: o.Record, Resume: o.Resume, Pictures: o.Pictures, TitlePage: o.tpl, TitlePictures: o.TitlePictures}, nil
 	case internal.FormatLex:
 		return &lex.LexWriter{}, nil
 	case internal.FormatFountain:
@@ -1081,13 +1105,14 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 		return &fdx.FDXWriter{TemplatePath: o.TemplatePath, Revisions: o.Revisions, Lock: o.Lock,
 			Tags: o.Breakdown, LineTags: o.LineTags}, nil
 	case internal.FormatHTML:
-		return &html.HTMLWriter{Elements: elements, Page: pageFor(o), RTL: rtlFor(conf, o)}, nil
+		return &html.HTMLWriter{Elements: elements, Page: pageFor(o), RTL: rtlFor(conf, o), TitlePage: o.tpl,
+			TitlePictures: o.TitlePictures}, nil
 	case internal.FormatLaTeX:
-		return &latex.LaTeXWriter{Template: o.TemplatePath, Elements: elements}, nil
+		return &latex.LaTeXWriter{Template: o.TemplatePath, Elements: elements, TitlePage: o.tpl}, nil
 	case "docx":
-		return &office.DOCXWriter{Elements: elements, Page: pageFor(o)}, nil
+		return &office.DOCXWriter{Elements: elements, Page: pageFor(o), TitlePage: o.tpl, TitlePictures: o.TitlePictures}, nil
 	case "odt":
-		return &office.ODTWriter{Elements: elements, Page: pageFor(o)}, nil
+		return &office.ODTWriter{Elements: elements, Page: pageFor(o), TitlePage: o.tpl, TitlePictures: o.TitlePictures}, nil
 	}
 	return nil, fmt.Errorf("%s is not a supported output type", o.To)
 }
@@ -1220,7 +1245,7 @@ func pandoc(o Options, screenplay lex.Screenplay) error {
 	}
 	title, author := titleAuthor(screenplay)
 	var buf bytes.Buffer
-	if err := (&markdown.MarkdownWriter{}).Write(&buf, screenplay); err != nil {
+	if err := (&markdown.MarkdownWriter{TitlePage: o.tpl}).Write(&buf, screenplay); err != nil {
 		return fmt.Errorf("converting to Markdown for pandoc: %w", err)
 	}
 	args := []string{"--from=markdown", "--to=" + o.To, "-o", o.Output}

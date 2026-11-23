@@ -250,7 +250,7 @@ func Unprinted(t ElementType) bool { return t == TypeNote || t == TypeBoneyard }
 // dual dialogue's. Every format prints it.
 func structural(t ElementType) bool {
 	switch t {
-	case TypeEmpty, TypeNewPage, TypeTitlePage, "metasection", TypeDualOpen, TypeDualNext, TypeDualClose:
+	case TypeEmpty, TypeNewPage, TypeTitlePage, TypeMetaSection, TypeDualOpen, TypeDualNext, TypeDualClose:
 		return true
 	}
 	return false

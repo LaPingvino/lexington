@@ -135,7 +135,6 @@ type ParseState struct {
 	inBoneyard            bool // within /* ... */
 	inDualDialogue        bool
 	titletag              string
-	metaOpen              bool // the title page's foot section begun
 	consecutiveEmptyLines int
 	hasTitlePageContent   bool
 	out                   lex.Screenplay
@@ -531,14 +530,16 @@ func (state *ParseState) parseTitlePageKeyValue(row string, currentLine *lex.Lin
 		state.titletag = "Credit"
 	case "author", "authors":
 		state.titletag = "Author"
-	case "source": // centred under the author, as Fountain has it
+	case "source":
 		state.titletag = "Source"
 	default:
-		// the rest go to the foot of the page, all in one section: a
-		// second would start at the same place and print over the first
-		if !state.metaOpen {
-			state.out = append(state.out, lex.Line{Type: "metasection"})
-			state.metaOpen = true
+		// where a key goes on the page is the writers' (package
+		// titlepage), by its key: the rows keep the text's order. A key
+		// spelled as a body element ("picture", "action") takes a
+		// capital, so it stays a key.
+		if lex.IsBodyType(currentMetaTag) || currentMetaTag == lex.TypeNewPage || currentMetaTag == lex.TypeMetaSection {
+			r, n := utf8.DecodeRuneInString(currentMetaTag)
+			currentMetaTag = string(unicode.ToUpper(r)) + currentMetaTag[n:]
 		}
 		state.titletag = currentMetaTag
 	}
@@ -765,7 +766,7 @@ func (state *ParseState) shouldCloseDualDialogue(currentLine lex.Line, isCurrent
 	i, totalLines int) bool {
 	switch currentLine.Type {
 	case lex.TypeScene, lex.TypeAction, lex.TypeTrans, lex.TypeCenter, "section", "synopse", lex.TypeNewPage,
-		lex.TypeTitlePage, "metasection":
+		lex.TypeTitlePage:
 		return true
 	case lex.TypeSpeaker:
 		return !isCurrentLineDualSpeakerCandidate

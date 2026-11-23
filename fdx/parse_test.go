@@ -46,7 +46,7 @@ func TestParseFinalDraftFeatures(t *testing.T) {
 	}
 	want := []string{
 		"titlepage=", "Title=The Barn", "Title=Part One", "Credit=Written by", "Author=Jane Smith",
-		"metasection=", "Contact=1 Writer's Lane", "newpage=",
+		"Contact=1 Writer's Lane", "newpage=",
 		"scene=INT. BARN - DAY",
 		"empty=", "action=Rain *hammers* the _**roof**_.",
 		"empty=", "speaker=JOHN", "dialog=It's ***coming***.", "lyrics=La la la",

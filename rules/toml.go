@@ -26,6 +26,10 @@ type TOMLConf struct {
 	// default's (DefaultExtensions) are known in every configuration; one
 	// of one's own adds to them or changes one.
 	Extensions map[string]string `toml:"Extensions,omitempty"`
+	// TitlePages are title page templates of one's own, by name
+	// (titlepage.go): one named as a preset (standard, bold, poster)
+	// takes its place.
+	TitlePages map[string]TitlePage `toml:"TitlePages,omitempty"`
 	// The tables of configuration files from before Languages: by
 	// language its scene words, its matchup and its direction. Reading a
 	// file moves them into Languages (normalized); they are never

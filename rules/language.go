@@ -104,6 +104,13 @@ type Language struct {
 	// themselves (Title, Credit, Author, Source, Draft date, Contact,
 	// Direction…) are known in every language.
 	TitleKeys map[string]string `toml:"TitleKeys"`
+	// TitleCentred are the standard title page keys printed centred
+	// under the title, in the order they print; every other key goes to
+	// the page's foot. nil is Fountain's: Title, Credit, Author, Source.
+	// It is what places a key when no title page template is chosen, or
+	// one the template does not name (TitlePage): by key, never by the
+	// order the keys are written in.
+	TitleCentred []string `toml:"TitleCentred,omitempty"`
 }
 
 // Shape is what a name looks like to the shape rule.
@@ -147,6 +154,7 @@ func (l Language) clone() Language {
 	l.TransitionEnds = slices.Clone(l.TransitionEnds)
 	l.Transitions = slices.Clone(l.Transitions)
 	l.TitleKeys = maps.Clone(l.TitleKeys)
+	l.TitleCentred = slices.Clone(l.TitleCentred)
 	return l
 }
 
@@ -198,6 +206,9 @@ func (l Language) over(o Language) Language {
 	}
 	if o.TitleKeys != nil {
 		l.TitleKeys = maps.Clone(o.TitleKeys)
+	}
+	if len(o.TitleCentred) > 0 {
+		l.TitleCentred = slices.Clone(o.TitleCentred)
 	}
 	return l
 }

@@ -41,7 +41,7 @@ func (l *Linter) Lint(screenplay lex.Screenplay) {
 // updateLineNumber increments line number for content lines
 func (l *Linter) updateLineNumber(line lex.Line, currentLineNum int) int {
 	// These are structural and don't directly correspond to input lines
-	if line.Type != lex.TypeTitlePage && line.Type != "metasection" {
+	if line.Type != lex.TypeTitlePage && line.Type != lex.TypeMetaSection {
 		return currentLineNum + 1
 	}
 	return currentLineNum

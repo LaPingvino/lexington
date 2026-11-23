@@ -66,7 +66,7 @@ type PagePos struct{ Row, Word int }
 func PageText(l Line) string {
 	switch l.Type {
 	case TypeEmpty, TypeNote, TypeSection, TypeSynopsis, TypeBoneyard, TypeTitlePage, TypeNewPage,
-		TypeDualOpen, TypeDualNext, TypeDualClose, "metasection":
+		TypeDualOpen, TypeDualNext, TypeDualClose, TypeMetaSection:
 		return ""
 	}
 	if strings.HasPrefix(l.Type, "_") {

@@ -272,6 +272,21 @@ lexington -e musical -i musical.fountain -o musical.pdf
 See [docs/presets.md](docs/presets.md) for each, how to write such a
 script in Fountain, and [examples/](examples) for a sample of every kind.
 
+### Title page templates
+
+Where each title page key goes, and how it looks, is a template's: placed by key, never by the order the keys
+are written in. `standard` is Fountain's (Title, Credit, Author and Source centred, the rest at the foot, as
+the language's `TitleCentred` has it); `bold` and `poster` (a picture above a big title) come with Lexington;
+one's own are `[TitlePages.name]` in `lexington.toml`. A field whose value is `![alt](file.png)` prints the
+picture, from beside the script or its bundle.
+
+```bash
+lexington -titlepages                       # the templates
+lexington -i film.fountain -o film.pdf -titlepage poster
+```
+
+All of it: [docs/TITLEPAGE.md](docs/TITLEPAGE.md).
+
 ## Output Formats
 
 ### HTML Output
