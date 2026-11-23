@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.51.0] - 2026-11-23
+
+### Added
+- **An `.accolade`'s own settings on the command line.** The part of Lexington's settings an `.accolade`
+  carries (`assets/lexington/lexington.toml`: its language's words; `assets/lexington/formats/<key>.toml`:
+  a format of one's own) is laid over the machine's for that script, and the format `info.json` names is
+  `-e`'s default: `lexington -i film.accolade -o film.pdf` prints as Accolade shows it. `-e` still wins.
+  A format of Accolade's that the bundle does not carry (TV series, the screenplay with buttons) prints as
+  the screenplay, with a word on the log. Other bundles carry nothing.
+
+### Fixed
+- **Emphasis next to apostrophes and quotes, FDX both ways** (a Highland user reported "John's" turning
+  into "John**s" between Highland and Final Draft). Generated round trips, Fountain → FDX → Fountain and
+  FDX → Fountain → FDX, with straight and typographic quotes beside `*` and `_`, now find no text changed.
+  What they found:
+  - Fountain's emphasis follows Markdown's rule of three: `**,*’s***` is bold with `’s` bold italic, no
+    longer `,’s` italic and a stray `**`.
+  - A Final Draft run whose emphasis Fountain cannot write (part of a word underlined) loses only its own
+    emphasis; the paragraph's other runs keep theirs (before, the whole paragraph's emphasis went).
+  - An underline stops at spaces that are not underlined: `_one_ _two_` stays two, not `_one two_`.
+- **FDX quotes as themselves:** Lexington's FDX has `John's "coat"` in its text, as Final Draft writes it,
+  not `John&#39;s &#34;coat&#34;` (in attributes they stay escaped).
+- `lexington check`'s note on a `.highland` folder says only what is known: Highland 2's zip is from its
+  maker's description, its inner folder from others'; no Highland 2 file has been tried.
+
 ## [1.50.0] - 2026-11-23
 
 ### Added

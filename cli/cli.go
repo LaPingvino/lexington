@@ -265,10 +265,11 @@ type Options struct {
 	// from its bundle (as it is, or in assets/).
 	TitlePictures map[string][]byte
 
-	in   []byte         // the input's text, read from a bundle (nil: Input's)
-	src  *bundle.Bundle // the bundle the input was read from
-	tpl  *titlepage.Template
-	sink *bytes.Buffer // where the output goes, to be put in a bundle
+	in      []byte         // the input's text, read from a bundle (nil: Input's)
+	src     *bundle.Bundle // the bundle the input was read from
+	tpl     *titlepage.Template
+	sink    *bytes.Buffer // where the output goes, to be put in a bundle
+	carried *carried      // the settings an .accolade input brought (cli/bundle.go)
 }
 
 // colorScheme is the color scheme o asks for, on the settings' own.
@@ -363,8 +364,8 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 		"Dump the default configuration to the location of --config to be adapted manually.")
 	fs.StringVar(&o.SceneIn, "scenein", "", "Configuration to use for scene header detection on input.")
 	fs.StringVar(&o.SceneOut, "sceneout", "", "Configuration to use for scene header detection on output.")
-	fs.StringVar(&o.Elements, "e", "default",
-		"Element settings to use: a preset (see -presets) or a set from the settings file.")
+	fs.StringVar(&o.Elements, "e", "",
+		"Element settings to use: a preset (see -presets) or a set from the settings file (default: an .accolade's own format, else default).")
 	fs.StringVar(&o.Page, "page", "",
 		"Paper size for pdf, docx and odt: letter, a4 or a5 (default: the preset's suggestion, else letter).")
 	fs.StringVar(&o.Header, "header", "",
@@ -489,6 +490,12 @@ func convert(ctx context.Context, o Options) error {
 	conf := confOf(o)
 	detectFormats(&o, conf)
 	setDefaults(&o)
+	if _, ok := conf.Elements[o.Elements]; !ok && o.carried != nil && o.carried.chosen {
+		// one of Accolade's formats (TV series: the screenplay with
+		// buttons), which an .accolade does not carry
+		log.Printf("%s: its format %q is Accolade's own; printed as the screenplay", filepath.Base(o.Input), o.Elements)
+		o.Elements = rules.ScreenplayPreset
+	}
 	if _, ok := conf.Elements[o.Elements]; !ok {
 		return fmt.Errorf("no element settings %q in %s or the presets (see -presets)", o.Elements, o.ConfigFile)
 	}
@@ -1070,6 +1077,14 @@ func confOf(o Options) rules.TOMLConf {
 			conf.Elements[p.Key] = p.Elements
 		}
 	}
+	if c := o.carried; c != nil {
+		conf = conf.With(c.conf)
+		for _, p := range c.presets(o) {
+			if _, ok := c.formats[p.Key]; ok {
+				conf.Elements[p.Key] = p.Elements
+			}
+		}
+	}
 	return conf
 }
 
@@ -1079,6 +1094,9 @@ func pageFor(o Options) string {
 		return o.Page
 	}
 	list, _ := rules.PresetsIn(filepath.SplitList(o.FormatDir)...)
+	if o.carried != nil {
+		list = o.carried.presets(o)
+	}
 	for _, p := range list {
 		if p.Key == o.Elements {
 			return p.Page

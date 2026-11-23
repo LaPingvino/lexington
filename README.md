@@ -381,7 +381,15 @@ lexington -i film.accolade -o film-folder.accolade -form folder
 lexington check film.accolade                   # is it whole and readable?
 ```
 
-- **Reading:** a zip and a folder are told apart by what is on disk.
+- **Reading:** a zip and a folder are told apart by what is on disk. A `.highland` that is plain text, as
+  some real ones are, reads as Fountain. Highland 2's zip is read and written as its maker and others
+  describe it; no file saved by Highland 2 has been tried yet, nor whether Highland opens the folder form.
+- **An `.accolade`'s own settings:** the language words and format it carries (`assets/lexington/`, the
+  format named in `info.json`) are laid over the machine's settings for that script, as Accolade does:
+  `lexington -i film.accolade -o film.pdf` prints it as it looks in Accolade. `-e` still picks another
+  format. A format of Accolade's own it does not carry (TV series) prints as the screenplay.
+- **Back to plain Fountain:** `lexington -i film.accolade -o film.fountain` gives the script as it is in
+  the bundle, Accolade's own blocks (Production, Characters, Notes, …) and links included.
 - **The text:** written into a bundle as it is, byte for byte, unless an option changes it (`-strip`,
   `-number`, `-tag`, …). Then Lexington writes it anew as Fountain.
 - **Everything else is kept:** drafts, sources, sidecars, assets and files no one here knows. The output's

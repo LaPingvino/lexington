@@ -50,14 +50,22 @@ func TestQuotesBesideEmphasisFromFDX(t *testing.T) {
 <Paragraph Type="Action"><Text>O’Brien’s </Text><Text Style="Bold">“word”</Text><Text>.</Text></Paragraph>
 <Paragraph Type="Action"><Text Style="Bold">"word"</Text><Text>'s</Text></Paragraph>
 <Paragraph Type="Action"><Text>John's *star* and snake_case_name.</Text></Paragraph>
-<Paragraph Type="Action"><Text Style="Italic">John's</Text></Paragraph>`),
+<Paragraph Type="Action"><Text Style="Italic">John's</Text></Paragraph>
+<Paragraph Type="Action"><Text Style="Bold">,</Text><Text Style="Bold+Italic">’s</Text></Paragraph>
+<Paragraph Type="Action"><Text Style="Underline">Jo</Text><Text>hn's </Text><Text Style="Bold">“word”</Text></Paragraph>
+<Paragraph Type="Character"><Text>JOHN</Text></Paragraph>
+<Paragraph Type="Dialogue"><Text>It's </Text><Text Style="Italic">John</Text><Text>’s, “</Text><Text Style="Underline">not</Text><Text>” mine.</Text></Paragraph>`),
 		"action=*John*'s coat.",
 		"action=**John**’s coat.",
 		"action=It's _not_ mine.",
 		"action=O’Brien’s **“word”**.",
 		`action=**"word"**'s`,
 		`action=John's \*star\* and snake_case_name.`,
-		"action=*John's*")
+		"action=*John's*",
+		"action=**,*’s***",
+		"action=John's **“word”**", // "Jo" underlined cannot be written; the bold is kept
+		"speaker=JOHN",
+		"dialog=It's *John*’s, “_not_” mine.")
 	// and to FDX again: the same runs
 	for _, c := range []struct{ fountain, fdx string }{
 		{"*John*'s coat.", "Action:[Italic]John's coat."},
@@ -69,5 +77,23 @@ func TestQuotesBesideEmphasisFromFDX(t *testing.T) {
 		if got := summary(doc.Content.Paragraphs); len(got) != 2 || got[1] != c.fdx {
 			t.Errorf("%q to FDX: %q, want %q", c.fountain, got, c.fdx)
 		}
+	}
+}
+
+// Quotes and apostrophes are written as themselves, as Final Draft writes
+// them, not as character references (&#39;) a careless reader might show;
+// in attributes they stay escaped.
+func TestQuotesWrittenPlain(t *testing.T) {
+	fdx, _ := writeFDX(t, "INT. HALL - DAY\n\nJohn's \"coat\" & *O'Brien*'s.\n")
+	for _, want := range []string{`<Text>John's "coat" &amp; </Text>`, `<Text Style="Italic">O'Brien</Text>`, `<Text>'s.</Text>`} {
+		if !strings.Contains(fdx, want) {
+			t.Errorf("no %s in\n%s", want, fdx)
+		}
+	}
+	if strings.Contains(fdx, "&#39;") || strings.Contains(fdx, "&#34;") {
+		t.Errorf("character references in\n%s", fdx)
+	}
+	if got := plainQuotes([]byte(`<A B="x&#34;y&#39;">"&#34;&#39;&amp;</A>`)); string(got) != `<A B="x&#34;y&#39;">""'&amp;</A>` {
+		t.Errorf("plainQuotes: %s", got)
 	}
 }

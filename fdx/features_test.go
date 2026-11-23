@@ -60,8 +60,9 @@ func TestAllCapsAndNumbers(t *testing.T) {
 
 // Markers that are text are escaped where Fountain would read them as
 // emphasis, and only there; markers open and close where the style
-// changes; emphasis Fountain cannot write (part of a word underlined) is
-// left out, not printed as markers.
+// changes, and an underline leaves out the spaces that are not underlined;
+// emphasis Fountain cannot write (part of a word underlined) is left out,
+// not printed as markers.
 func TestEscapedMarkers(t *testing.T) {
 	check(t, body(t, caps, `
 <Paragraph Type="Action"><Text Style="Underline">H</Text><Text>ello.</Text></Paragraph>
@@ -69,7 +70,7 @@ func TestEscapedMarkers(t *testing.T) {
 <Paragraph Type="Action"><Text Style="Italic">She </Text><Text Style="Italic">sings</Text><Text Style="Italic"> softly.</Text></Paragraph>
 <Paragraph Type="Action"><Text Style="Underline">one</Text><Text>  </Text><Text Style="Underline">two</Text></Paragraph>
 <Paragraph Type="Action"><Text Style="Bold">foo</Text><Text Style="Italic">bar</Text></Paragraph>`),
-		"action=Hello.", "action=_a **b** c_", "action=*She sings softly.*", "action=_one  two_", "action=**foo***bar*")
+		"action=Hello.", "action=_a **b** c_", "action=*She sings softly.*", "action=_one_  _two_", "action=**foo***bar*")
 	check(t, body(t, caps, `
 <Paragraph Type="Action"><Text>Steel enters the code on the keypad: </Text><Text Style="Bold">*9765*</Text></Paragraph>
 <Paragraph Type="Action"><Text>snake_case and 2 * 3 * 4</Text></Paragraph>

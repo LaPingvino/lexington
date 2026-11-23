@@ -53,6 +53,12 @@ func TestEmphasis(t *testing.T) {
 		{"***bold** italic*", "<bi>bold</><i> italic</>"},
 		{"_under **bold** line_", "<u>under </><bu>bold</><u> line</>"},
 		{"**foo***bar*", "<b>foo</><i>bar</>"},
+		// Markdown's rule of three: a run that can open and close pairs
+		// with one whose length makes a multiple of three only if both are
+		{"**,*’s***", "<b>,</><bi>’s</>"},
+		{"**foo*bar*baz**", "<b>foo</><bi>bar</><b>baz</>"},
+		{"*foo**bar**baz*", "<i>foo</><bi>bar</><i>baz</>"},
+		{"*John*'s **O'Brien**'s", "<i>John</>'s <b>O'Brien</>'s"},
 		// spaces count
 		{"* not italic *", "* not italic *"},
 		{"2 * 3 * 4", "2 * 3 * 4"},

@@ -7,14 +7,17 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/LaPingvino/lexington/bundle"
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/internal"
 	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // Bundles (package bundle) on the command line: one as -i is read for its
@@ -65,11 +68,113 @@ func readBundleInput(o *Options) (*bundle.Bundle, error) {
 	if o.From == "" {
 		o.From = internal.FormatFountain
 	}
+	if o.carried = readCarried(b); o.carried != nil && o.Elements == "" && o.carried.format != "" {
+		o.Elements, o.carried.chosen = o.carried.format, true
+	}
 	// text.eo.fountain: a script in that language
 	if parts := strings.Split(strings.ToLower(b.Text), "."); len(parts) == 3 && parts[2] == "fountain" && o.SceneIn == "" {
 		o.SceneIn = parts[1]
 	}
 	return b, nil
+}
+
+// An .accolade carries the part of Lexington's settings its script uses
+// (Accolade's lexington_carried.go), so that it prints the same on any
+// machine:
+//
+//   - assets/lexington/lexington.toml: its language's words, the
+//     Standard, its format's element set if it is one of one's own;
+//   - assets/lexington/formats/<key>.toml: its format's file (and the
+//     ones it is Based on), as the folders of -formats hold them;
+//   - info.json's "eu.kiefte.Accolade" key: "format", the format's key,
+//     when it is not the screenplay.
+//
+// They are laid over the machine's settings for that script, as Accolade
+// does when it opens it: the bundle's win, flags win over both (-e names
+// another format than the script's). Other bundles carry nothing.
+type carried struct {
+	conf    rules.TOMLConf
+	formats map[string][]byte // format files by key
+	format  string            // the script's format, "" for the screenplay
+	chosen  bool              // -e is format, as no flag said otherwise
+}
+
+const (
+	accoladeKey      = "eu.kiefte.Accolade"
+	carriedConfFile  = "assets/lexington/lexington.toml"
+	carriedFormatDir = "assets/lexington/formats/"
+)
+
+// readCarried is what an .accolade b carries, nil for nothing (or any
+// other bundle). A file that cannot be read is left out, with a word on
+// the log: the script prints with the machine's settings for it.
+func readCarried(b *bundle.Bundle) *carried {
+	if t, ok := bundle.TypeOf(b.Path); !ok || t.Ext != ".accolade" {
+		return nil
+	}
+	c := &carried{}
+	if raw, ok := bundle.InfoValue(b.Info, accoladeKey); ok {
+		c.format, _ = bundle.InfoString(raw, "format")
+	}
+	for _, name := range b.Files {
+		switch key, isFormat := strings.CutPrefix(name, carriedFormatDir); {
+		case name == carriedConfFile:
+			data, err := b.ReadFile(name)
+			if err == nil {
+				c.conf, err = rules.Decode(data)
+			}
+			if err != nil {
+				log.Printf("%s: %s left out: %v", filepath.Base(b.Path), name, err)
+			}
+		case isFormat:
+			key, ok := strings.CutSuffix(key, ".toml")
+			if !ok || !formatKey(key) {
+				continue
+			}
+			data, err := b.ReadFile(name)
+			if err != nil {
+				log.Printf("%s: %s left out: %v", filepath.Base(b.Path), name, err)
+				continue
+			}
+			if c.formats == nil {
+				c.formats = map[string][]byte{}
+			}
+			c.formats[key] = data
+		}
+	}
+	if c.format == "" && len(c.formats) == 0 && len(c.conf.Items()) == 0 {
+		return nil
+	}
+	return c
+}
+
+// formatKey tells whether key is a format's key as Accolade makes one
+// (lower-case letters and digits, dashes between): a name in someone
+// else's bundle reaches nothing else.
+func formatKey(key string) bool {
+	if key == "" || key[0] == '-' || key[len(key)-1] == '-' || strings.Contains(key, "--") {
+		return false
+	}
+	for _, r := range key {
+		if r != '-' && !unicode.IsDigit(r) && (!unicode.IsLetter(r) || unicode.IsUpper(r)) {
+			return false
+		}
+	}
+	return true
+}
+
+// presets are the formats with the ones c carries over them (by key; a
+// Base among them first).
+func (c *carried) presets(o Options) []rules.Preset {
+	list, _ := rules.PresetsIn(filepath.SplitList(o.FormatDir)...)
+	if len(c.formats) == 0 {
+		return list
+	}
+	list, err := rules.WithPresetFiles(list, c.formats)
+	if err != nil {
+		log.Print(err)
+	}
+	return list
 }
 
 // transforms tells whether o changes the script, so that a bundle's text

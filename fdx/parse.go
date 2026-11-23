@@ -609,8 +609,9 @@ func (r reader) runs(p FdxParagraph) []run {
 
 // text is a paragraph's text as Fountain: its runs' emphasis as markers,
 // the markers that are text escaped where they would be read as
-// emphasis; emphasis Fountain cannot write (part of a word underlined)
-// is left out rather than printed as markers. Notes are [[notes]] where
+// emphasis; a run's emphasis Fountain cannot write (part of a word
+// underlined, styles switching inside a word) is left out rather than
+// printed as markers, the rest of the paragraph's kept. Notes are [[notes]] where
 // they are among the text; the ones before all of it go after it, as
 // Fountain has them (Final Draft writes notes first).
 func (r reader) text(p FdxParagraph) string {
@@ -622,27 +623,44 @@ func (r reader) text(p FdxParagraph) string {
 		}
 		runs = runs[1:]
 	}
-	text := ""
-	for _, escape := range []string{"", "*", "_", "*_"} { // as few escaped as will do
-		if s := markup(runs, escape); same(lex.Emphasis(lex.StripNotes(s)), runs) {
-			text = s
-			break
-		}
-	}
-	if text == "" && nextText(runs) != "" { // plain
-		var plain []run
-		for _, t := range runs {
-			if !t.note {
-				t.Bold, t.Italic, t.Underline = false, false, false
+	text := fountainText(runs)
+	if text == "" && nextText(runs) != "" {
+		// emphasis Fountain cannot write as it is: kept run by run, as
+		// far as Fountain reads it back, the rest plain
+		kept := slices.Clone(runs)
+		for i := range kept {
+			if kept[i].note || !(kept[i].Bold || kept[i].Italic || kept[i].Underline) {
+				continue
 			}
-			plain = append(plain, t)
+			try := slices.Clone(kept)
+			for j := i + 1; j < len(try); j++ {
+				if !try[j].note {
+					try[j].Bold, try[j].Italic, try[j].Underline = false, false, false
+				}
+			}
+			if fountainText(try) == "" {
+				kept[i].Bold, kept[i].Italic, kept[i].Underline = false, false, false
+			}
 		}
-		text = markup(plain, "*_")
+		if text = fountainText(kept); text == "" { // cannot be: plain text escaped reads as itself
+			text = markup(kept, "*_")
+		}
 	}
 	for _, n := range lead {
 		text = strings.TrimRightFunc(text, unicode.IsSpace) + " " + n.Text
 	}
 	return text
+}
+
+// fountainText is the runs as Fountain that reads back as them, with as
+// few markers escaped as will do; "" if there is none.
+func fountainText(runs []run) string {
+	for _, escape := range []string{"", "*", "_", "*_"} {
+		if s := markup(runs, escape); same(lex.Emphasis(lex.StripNotes(s)), runs) {
+			return s
+		}
+	}
+	return ""
 }
 
 // markers are Fountain's emphasis markers, in the order they open.
@@ -662,9 +680,10 @@ func markup(runs []run, escape string) string {
 	var b strings.Builder
 	var open []int // markers open, in order
 	space := ""    // spaces not yet written
+	bare := false  // some of them are not underlined (an underline would show under them)
 	change := func(s lex.Span) {
 		keep := 0 // the markers open that stay open: up to the first that does not
-		for keep < len(open) && markers[open[keep]].on(s) {
+		for keep < len(open) && markers[open[keep]].on(s) && !(bare && markers[open[keep]].marker == "_") {
 			keep++
 		}
 		for i := len(open) - 1; i >= keep; i-- {
@@ -672,7 +691,7 @@ func markup(runs []run, escape string) string {
 		}
 		open = open[:keep]
 		b.WriteString(space)
-		space = ""
+		space, bare = "", false
 		for m := range markers {
 			if markers[m].on(s) && !slices.Contains(open, m) {
 				b.WriteString(markers[m].marker)
@@ -700,14 +719,16 @@ func markup(runs []run, escape string) string {
 		content := strings.TrimSpace(text)
 		if content == "" {
 			space += text
+			bare = bare || !t.Underline
 			continue
 		}
 		lead := text[:strings.Index(text, content)]
 		trail := text[len(lead)+len(content):]
 		space += lead
+		bare = bare || lead != "" && !t.Underline
 		change(t.Span)
 		b.WriteString(content)
-		space = trail
+		space, bare = trail, trail != "" && !t.Underline
 	}
 	change(lex.Span{})
 	b.WriteString(space)

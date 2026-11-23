@@ -90,7 +90,7 @@ const (
 type node struct {
 	text              string
 	delim             byte
-	rem               int
+	rem, size         int // size: the run's length as written
 	canOpen, canClose bool
 	style             int
 }
@@ -143,7 +143,7 @@ func tokenize(line string) []node {
 			if j == len(line) {
 				after = ' '
 			}
-			n := node{delim: c, rem: j - i, canOpen: !unicode.IsSpace(after), canClose: !unicode.IsSpace(before)}
+			n := node{delim: c, rem: j - i, size: j - i, canOpen: !unicode.IsSpace(after), canClose: !unicode.IsSpace(before)}
 			if c == '_' { // not within a word
 				n.canOpen = n.canOpen && !isWordRune(before)
 				n.canClose = n.canClose && !isWordRune(after)
@@ -162,6 +162,16 @@ func tokenize(line string) []node {
 
 func isWordRune(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }
 
+// ofThree is Markdown's rule of three: a run of asterisks that can both
+// open and close pairs with another only if their lengths together are no
+// multiple of three (or both are), so that in "**,*’s***" the single one
+// opens italics inside the bold rather than closing on half of the "**".
+func ofThree(opener, closer node) bool {
+	both := opener.canOpen && opener.canClose || closer.canOpen && closer.canClose
+	return opener.delim == '*' && both && (opener.size+closer.size)%3 == 0 &&
+		(opener.size%3 != 0 || closer.size%3 != 0)
+}
+
 // match pairs the marker runs as Markdown does: each closing run with the
 // nearest open run of its marker before it, two asterisks (bold) at a
 // time when both have them, else one (italics); the text between gets
@@ -179,7 +189,8 @@ func match(nodes []node) {
 		for closer.rem > 0 {
 			o := -1
 			for k := c - 1; k >= 0; k-- {
-				if active[k] && nodes[k].delim == closer.delim && nodes[k].canOpen && nodes[k].rem > 0 {
+				if active[k] && nodes[k].delim == closer.delim && nodes[k].canOpen && nodes[k].rem > 0 &&
+					!ofThree(nodes[k], *closer) {
 					o = k
 					break
 				}

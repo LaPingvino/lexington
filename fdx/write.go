@@ -412,13 +412,42 @@ func (f *FDXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	if _, err := io.WriteString(w, `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>`+"\n"); err != nil {
 		return err
 	}
-	enc := xml.NewEncoder(w)
+	var buf bytes.Buffer
+	enc := xml.NewEncoder(&buf)
 	enc.Indent("", "  ")
 	if err := enc.Encode(doc); err != nil {
 		return fmt.Errorf("failed to encode FDX: %w", err)
 	}
-	_, err := io.WriteString(w, "\n")
+	buf.WriteString("\n")
+	_, err := w.Write(plainQuotes(buf.Bytes()))
 	return err
+}
+
+// plainQuotes writes the text's quotes and apostrophes as themselves, as
+// Final Draft does ("John's", not "John&#39;s", which encoding/xml
+// writes): a reader that does not undo character references would show
+// them, or worse. In tags (attributes) they stay as they are; Go's
+// encoder escapes every < and > that is not markup, so what is between >
+// and < is text.
+func plainQuotes(doc []byte) []byte {
+	out := make([]byte, 0, len(doc))
+	inTag := false
+	for i := 0; i < len(doc); i++ {
+		switch c := doc[i]; {
+		case c == '<':
+			inTag = true
+		case c == '>':
+			inTag = false
+		case c == '&' && !inTag && bytes.HasPrefix(doc[i:], []byte("&#39;")):
+			out, i = append(out, '\''), i+4
+			continue
+		case c == '&' && !inTag && bytes.HasPrefix(doc[i:], []byte("&#34;")):
+			out, i = append(out, '"'), i+4
+			continue
+		}
+		out = append(out, doc[i])
+	}
+	return out
 }
 
 // writeTemplate renders a custom template. Templates get the document's
@@ -453,12 +482,13 @@ func escapeParagraph(p FdxParagraph) FdxParagraph {
 	return p
 }
 
-// escapeXML escapes characters that have special meaning in XML.
+// escapeXML escapes characters that have special meaning in XML text
+// (quotes and apostrophes are written as themselves: plainQuotes).
 func escapeXML(s string) string {
 	var b bytes.Buffer
 	if err := xml.EscapeText(&b, []byte(s)); err != nil {
 		// xml.EscapeText should not fail for valid strings, but handle error just in case
 		return s
 	}
-	return b.String()
+	return string(plainQuotes(b.Bytes()))
 }
