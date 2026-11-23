@@ -257,8 +257,8 @@ terms (below, MANUU) has `कट`/`कट टू`, `फेड इन`, `फे�
 `वॉयस ओवर` (also `वायस ओवर`) as a narrator's or a character's voice over the
 picture; it gives them as terms, not as written in a cue.
 
-Sourced in `hi-Deva`: the heading's order and words (NCERT), `कट टू` and
-`डिजॉल्व टू` (NCERT, MANUU), `फेड इन`/`फेड आउट` (MANUU), the extension
+Sourced in `hi-Deva`: the heading's order and words (NCERT), `कट टू` (NCERT,
+MANUU) and `डिजॉल्व टू` (NCERT; MANUU has `डिजॉल्व`), `फेड इन`/`फेड आउट` (MANUU), the extension
 `वॉयस ओवर`/`वायस ओवर` (the term from MANUU; writing it in the cue's brackets,
 `कथावाचक (वॉयस ओवर)`, is Lexington's own, as English writes `(V.O.)`).
 Lexington's own, from no source: the dotted scene words
@@ -296,7 +296,7 @@ in Hindi Film Scripts?" (Hindi film dialogue mostly written in Roman
 letters). Maulana Azad National Urdu University, *जनसंचार माध्यम एवं हिंदी*
 (Jansanchar Madhyam evam Hindi, MA Hindi, 4th semester, self-learning
 material), dde.manuu.edu.in/sites/default/files/DDE/DDE-SelfLearnmaterial/MA-Hindi-4th-Sem/Jansanchar_Madhyam_evam_Hindi.pdf:
-its glossary "सिनेमा की तकनीकी भाषा" (`कट/कट टू`, `फेड आउट`, `फेड इन`,
+its glossary "सिनेमा की तकनीकी भाषा" (section 15.3.4, p. 255) (`कट/कट टू`, `फेड आउट`, `फेड इन`,
 `डिजॉल्व`, `वाइप`) and its pages on `वॉयस ओवर`/`वायस ओवर` (fetched
 2026-11-23). baou.edu.in's पटकथा लेखन course (HNDSEC-201) refused the
 connection and was not read.
