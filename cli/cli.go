@@ -241,6 +241,13 @@ type Options struct {
 	// lines: the pictures' files by the name their board notes give
 	// (pdf.PDFWriter.Pictures; nil: not printed).
 	Pictures map[string][]byte
+	// BundleForm is the form a bundle written (-o x.highland, .accolade,
+	// .textbundle, .textpack) takes: "zip", "folder", or "" for the
+	// bundle's own when it is rewritten, else its type's (bundle.FormOf).
+	BundleForm string
+
+	in   []byte        // the input's text, read from a bundle (nil: Input's)
+	sink *bytes.Buffer // where the output goes, to be put in a bundle
 }
 
 // colorScheme is the color scheme o asks for, on the settings' own.
@@ -305,6 +312,9 @@ func filter(o Options, s lex.Screenplay) (lex.Screenplay, error) {
 // Main runs the command line with args (without the program's name) and
 // returns the exit code.
 func Main(ctx context.Context, args []string) int {
+	if len(args) > 0 && args[0] == "check" {
+		return checkBundles(args[1:])
+	}
 	o, ok, err := parseFlags(args)
 	if err != nil {
 		return 2
@@ -335,8 +345,12 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 	fs.StringVar(&o.Page, "page", "",
 		"Paper size for pdf, docx and odt: letter, a4 or a5 (default: the preset's suggestion, else letter).")
 	fs.BoolVar(&presets, "presets", false, "List the presets for -e (stage play, radio, ...).")
-	fs.StringVar(&o.Input, "i", "-", "Input from provided filename. - means standard input.")
-	fs.StringVar(&o.Output, "o", "-", "Output to provided filename. - means standard output.")
+	fs.StringVar(&o.Input, "i", "-", "Input from provided filename. - means standard input. "+
+		"A bundle (.accolade, .highland, .textbundle, .textpack, zipped or a folder) is read for its text.")
+	fs.StringVar(&o.Output, "o", "-", "Output to provided filename. - means standard output. "+
+		"A bundle (.accolade, .highland, .textbundle, .textpack) gets the script as Fountain, all else in it kept.")
+	fs.StringVar(&o.BundleForm, "form", "",
+		"The form of a bundle written: zip or folder (default: the bundle's own when rewritten, else zip, a .textbundle a folder).")
 	fs.StringVar(&o.From, "from", "", "Input file type. Choose from fountain, lex, fdx, pdf.")
 	fs.StringVar(&o.To, "to", "",
 		"Output file type. Choose from "+formatKeys(false)+", or external formats requiring other programs: "+
@@ -419,13 +433,31 @@ func Convert(ctx context.Context, o Options) error {
 	if o.ConfigFile == "" {
 		o.ConfigFile = "lexington.toml"
 	}
+	src, err := readBundleInput(&o)
+	if err != nil {
+		return err
+	}
+	if o.Output == "" && o.KeepLoose && src != nil {
+		o.Output = o.Input // back into the bundle
+	}
+	if isBundleOutput(o.Output) {
+		return convertToBundle(ctx, o, src)
+	}
+	if src != nil && src.Markdown() {
+		return fmt.Errorf("%s holds Markdown (%s), not a screenplay: Lexington can only repack it into another bundle",
+			filepath.Base(o.Input), src.Text)
+	}
+	return convert(ctx, o)
+}
+
+func convert(ctx context.Context, o Options) error {
 	conf := confOf(o)
 	detectFormats(&o, conf)
 	setDefaults(&o)
 	if _, ok := conf.Elements[o.Elements]; !ok {
 		return fmt.Errorf("no element settings %q in %s or the presets (see -presets)", o.Elements, o.ConfigFile)
 	}
-	in, closeIn, err := openInput(o.Input)
+	in, closeIn, err := openInput(o)
 	if err != nil {
 		return err
 	}
@@ -467,6 +499,9 @@ func Convert(ctx context.Context, o Options) error {
 // Write writes a screenplay as o.To to o.Output (a file, or "-" for
 // standard output), with o's settings.
 func Write(ctx context.Context, screenplay lex.Screenplay, o Options) error {
+	if isBundleOutput(o.Output) {
+		return writeToBundle(ctx, screenplay, o)
+	}
 	setDefaults(&o)
 	conf := confOf(o)
 	if _, ok := conf.Elements[o.Elements]; !ok {
@@ -551,7 +586,7 @@ func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.S
 	if o.Resume != nil && o.To == internal.FormatPDF {
 		return w.Write(nil, screenplay) // the drawing only
 	}
-	out, closeOut, err := openOutput(o.Output)
+	out, closeOut, err := openOutput(o)
 	if err != nil {
 		return err
 	}
@@ -608,6 +643,10 @@ func writeLock(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error 
 		return err
 	}
 	text := w.LockPages(screenplay).Text() + "\n"
+	if o.sink != nil {
+		_, err := o.sink.WriteString(text)
+		return err
+	}
 	if o.Output == "-" || o.Output == "" {
 		_, err := os.Stdout.WriteString(text)
 		return err
@@ -677,7 +716,7 @@ func writeReport(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) erro
 	if err != nil {
 		return err
 	}
-	out, closeOut, err := openOutput(o.Output)
+	out, closeOut, err := openOutput(o)
 	if err != nil {
 		return err
 	}
@@ -784,7 +823,11 @@ func setDefaults(o *Options) {
 	}
 }
 
-func openInput(name string) (io.Reader, func() error, error) {
+func openInput(o Options) (io.Reader, func() error, error) {
+	if o.in != nil {
+		return bytes.NewReader(o.in), func() error { return nil }, nil
+	}
+	name := o.Input
 	if name == "-" || name == "" {
 		return os.Stdin, func() error { return nil }, nil
 	}
@@ -795,7 +838,11 @@ func openInput(name string) (io.Reader, func() error, error) {
 	return f, f.Close, nil
 }
 
-func openOutput(name string) (io.Writer, func() error, error) {
+func openOutput(o Options) (io.Writer, func() error, error) {
+	if o.sink != nil {
+		return o.sink, func() error { return nil }, nil
+	}
+	name := o.Output
 	if name == "-" {
 		return os.Stdout, func() error { return nil }, nil
 	}
@@ -825,7 +872,7 @@ func keepLoose(o Options, conf rules.TOMLConf, in io.Reader) error {
 	if o.Output == "" {
 		o.Output = o.Input
 	}
-	out, closeOut, err := openOutput(o.Output)
+	out, closeOut, err := openOutput(o)
 	if err != nil {
 		return err
 	}
@@ -872,7 +919,7 @@ func writeFountain(o Options, conf rules.TOMLConf, text string) error {
 		text = kept
 		log.Printf("Changed %d places so the script reads as before 1.19", places)
 	}
-	out, closeOut, err := openOutput(o.Output)
+	out, closeOut, err := openOutput(o)
 	if err != nil {
 		return err
 	}

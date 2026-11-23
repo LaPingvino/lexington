@@ -336,6 +336,40 @@ lexington -i script.pdf -o script.fountain
 A scanned script (only images) is read with OCR when tesseract is
 installed; programs can pass any OCR (`pdfin.Options`).
 
+### Bundles: Accolade, Highland, TextBundle
+
+A bundle is a script's text file (`text.fountain`, or `text.md`) with `info.json`, `assets/` and whatever
+other programs keep beside it. It comes in two forms that hold the same files, a zip or a plain folder:
+
+| Type | Zip | Folder |
+|---|---|---|
+| Accolade | `film.accolade` | `film.accolade/` |
+| Highland 2 | `film.highland` | `film.highland/` |
+| TextBundle | `film.textpack` | `film.textbundle/` |
+
+Any bundle works as the input of every output format, and as an output that gets the script as Fountain:
+
+```bash
+lexington -i film.accolade -o film.pdf          # the script inside, printed
+lexington -i film.fountain -o film.highland     # a new Highland file
+lexington -i film.highland -o film.textbundle   # the same files, unzipped
+lexington -i film.accolade -o film-folder.accolade -form folder
+lexington check film.accolade                   # is it whole and readable?
+```
+
+- **Reading:** a zip and a folder are told apart by what is on disk.
+- **The text:** written into a bundle as it is, byte for byte, unless an option changes it (`-strip`,
+  `-number`, `-tag`, …). Then Lexington writes it anew as Fountain.
+- **Everything else is kept:** drafts, sources, sidecars, assets and files no one here knows. The output's
+  own files are kept when it already exists, else the input bundle's.
+- **The form:** a bundle is written back in the form it has. A new one gets its type's form (a `.textbundle`
+  is a folder, the others are zips) unless `-form zip` or `-form folder` says otherwise.
+- **Markdown bundles** can be repacked, but not printed.
+- **For programs:** the `bundle` package does all of this (`bundle.Read`, `bundle.Write`, `bundle.Check`).
+
+The layout is described roughly, as a draft that will change, in
+[Accolade's docs/FORMAT.md](https://github.com/LaPingvino/accolade/blob/main/docs/FORMAT.md).
+
 ### Word and LibreOffice (DOCX, ODT)
 
 Lexington writes `.docx` and `.odt` itself, without pandoc, ready to be

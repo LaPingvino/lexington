@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.44.0] - 2026-11-23
+
+### Added
+- **Bundles** (Joop): package `bundle` reads and writes the TextBundle family. A bundle is the same files either
+  zipped or as a plain folder: `.textpack` ⇄ `.textbundle`, `.accolade` ⇄ `name.accolade/`, `.highland`
+  ⇄ `name.highland/`. Reading tells a zip from a folder by what is on disk. Writing keeps a bundle's form and
+  layout (files at a zip's root, or in one `Name.textbundle/` folder) unless told otherwise, and copies every
+  entry it does not write as it was: zip entries raw, `info.json` edited as text. A form changes in place too.
+  Also in the package: `PickText` (`text.fountain` before a language's `text.eo.fountain`), `TextMarkdown`,
+  `InfoValue`/`SetInfoValue` and `Check`. Moved here from Accolade, which now uses it.
+- The command line reads a bundle as `-i` for every output, and writes one as `-o`: the script as Fountain
+  (byte for byte when no option changes it), with the rest kept from the existing output, else from the
+  input bundle. `-form zip|folder` picks the form, and `lexington check bundle…` validates one (exit code 1
+  on a problem). An `.accolade` with only `text.<lang>.fountain` is read in that language, and a plain-text
+  `.highland` is read as Fountain. `TestBundleOut`, `TestBundleKeepsTheRest`, `TestRoundTrips`, `TestCheck`.
+
 ## [1.43.0] - 2026-11-23
 
 ### Changed
