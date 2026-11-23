@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.39.0] - 2026-11-23
+
+### Added
+- **Writing a heading**: a language's `NewHeading` is the pattern a new
+  scene heading is written by (Accolade's Insert › New Scene…); empty, the
+  first of `Headings`, else Fountain's `{io} {place} - {time}`
+  (`rules.SceneForm`). Japanese's is `○{place}（{time}）`.
+  `Language.HeadingForm` and `IOWords`, `rules.FillPattern`,
+  `ParsePattern`/`JoinPattern` (byte for byte) and `PatternSlots`.
+- `fountain.Dialect.HeadingParts`: a heading read back into its slots
+  (io, place, time, n, any), by a scene word or a pattern.
+
+### Changed
+- A pattern's `{n}` reads a letter before the digits too (`A11`), as
+  after them (`11A`).
+
 ## [1.38.0] - 2026-11-23
 
 ### Changed

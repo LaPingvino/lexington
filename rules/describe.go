@@ -49,6 +49,9 @@ func LanguageFields() []Field {
 		{Key: "Headings", Kind: "list", Doc: "Scene heading patterns for headings that do not start with a scene word, " +
 			"with the slots {n} (a scene number), {io} (one of Settings or Scenes), {time} (one of Times), {place} and {any} (any text): " +
 			"\"{n}. {place} {io}/{time}\"."},
+		{Key: "NewHeading", Kind: "text", Doc: "The pattern a new scene heading is written by (Accolade's Insert > New Scene…), with the slots of Headings: " +
+			"one of Headings, or one that starts with a scene word (\"{io} {place} - {time}\", Fountain's INT. KITCHEN - DAY; \"○{place}（{time}）\"). " +
+			"Empty: the first of Headings, else Fountain's. Only for writing: Scenes and Headings are what a heading is read by."},
 		{Key: "Settings", Kind: "list", Doc: "The words for inside and outside within a heading (INNEN, INT), for the {io} slot."},
 		{Key: "Times", Kind: "list", Doc: "The words for the time of day (TAG, JOUR), for the {time} slot."},
 		{Key: "Matchup", Kind: "list", Doc: "The scene words by role, in this order: inside, outside, both, both the other way, establishing " +

@@ -67,6 +67,12 @@ type Language struct {
 	// slash with or without them. Read after a blank line, as a scene
 	// word is.
 	Headings []string `toml:"Headings"`
+	// NewHeading is the pattern a new scene heading is written by (a
+	// program's New Scene: Accolade's): a pattern as Headings has them,
+	// or one that starts with a scene word ("○{place}（{time}）"). ""
+	// for the first of Headings, else SceneForm (HeadingForm). It is
+	// only for writing: what reads a heading is Scenes and Headings.
+	NewHeading string `toml:"NewHeading,omitempty"`
 	// Settings are its words for inside and outside within a heading
 	// (内, INNEN, INT), Times for the time of day (日, TAG, JOUR).
 	Settings []string `toml:"Settings"`
@@ -153,6 +159,9 @@ func (l Language) over(o Language) Language {
 	}
 	if o.Headings != nil {
 		l.Headings = slices.Clone(o.Headings)
+	}
+	if o.NewHeading != "" {
+		l.NewHeading = o.NewHeading
 	}
 	if o.Settings != nil {
 		l.Settings = slices.Clone(o.Settings)

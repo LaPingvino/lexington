@@ -274,6 +274,7 @@ func defaultLanguages() map[string]Language {
 		"ja": {
 			Scenes:         []string{"○", "◯"},
 			Headings:       none,
+			NewHeading:     "○{place}（{time}）",
 			Settings:       none,
 			Times:          []string{"朝", "昼", "夕", "夜"},
 			Matchup:        []string{"", "", "", "", ""},

@@ -4,6 +4,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -299,5 +300,49 @@ func TestCastCache(t *testing.T) {
 		if !maps.Equal(got.shaped, want.shaped) || !maps.Equal(got.listed, want.listed) {
 			t.Errorf("edit %d: cached %v %v, anew %v %v", i, got.shaped, got.listed, want.shaped, want.listed)
 		}
+	}
+}
+
+// A heading written by each default language's own form, with its own
+// words, reads as a heading in it, its parts as written; a locked
+// script's A11 and 11A read as numbers.
+func TestHeadingFormReadsBack(t *testing.T) {
+	c := rules.DefaultConf()
+	for lang := range rules.DefaultLanguages() {
+		l := c.Language(lang)
+		form := l.HeadingForm()
+		v := map[string]string{"n": "11A", "place": "GARE", "any": "GARE"}
+		if io := l.IOWords(form); len(io) > 0 {
+			v["io"] = io[0]
+		}
+		v["time"] = "DAY"
+		if len(l.Times) > 0 {
+			v["time"] = l.Times[0]
+		}
+		h := rules.FillPattern(form, v)
+		d := NewDialect(l)
+		parts, ok := d.HeadingParts(h)
+		if !ok {
+			t.Errorf("%s: %q (by %q) is no heading", lang, h, form)
+			continue
+		}
+		if slices.Contains(rules.PatternSlots(form), rules.SlotPlace) && parts[rules.SlotPlace] != "GARE" {
+			t.Errorf("%s: %q's place %q (%v)", lang, h, parts[rules.SlotPlace], parts)
+		}
+		if typ := typeOf(t, lang, "Rain.\n\n"+h+"\n\nRain.\n", h); typ != lex.TypeScene {
+			t.Errorf("%s: %q parsed as %s", lang, h, typ)
+		}
+	}
+	d := NewDialect(c.Language("zh"))
+	for _, h := range []string{"场景A11 小区楼下 日 外", "场景11A 小区楼下 日 外"} {
+		if p, ok := d.HeadingParts(h); !ok || p["n"] == "" || p["place"] != "小区楼下" || p["time"] != "日" || p["io"] != "外" {
+			t.Errorf("%q: %v %v", h, p, ok)
+		}
+	}
+	if p, _ := NewDialect(c.Language("ja")).HeadingParts("○駅（朝）"); p["place"] != "駅" || p["time"] != "朝" {
+		t.Errorf("ja: %v", p)
+	}
+	if p, _ := NewDialect(c.Language("en")).HeadingParts("INT./EXT. CAR - NIGHT #4#"); p["io"] != "INT./EXT." || p["place"] != "CAR" || p["time"] != "NIGHT" || p["n"] != "4" {
+		t.Errorf("en: %v", p)
 	}
 }

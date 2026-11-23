@@ -71,7 +71,7 @@ func dialectKey(l rules.Language) string {
 	for _, k := range slices.Sorted(maps.Keys(l.TitleKeys)) {
 		b.WriteString("\x00" + k + "\x1f" + l.TitleKeys[k])
 	}
-	b.WriteString("\x00" + l.Direction)
+	b.WriteString("\x00" + l.Direction + "\x00" + l.NewHeading)
 	return b.String()
 }
 
@@ -79,8 +79,9 @@ func dialectKey(l rules.Language) string {
 func squash(s string) string { return strings.ToUpper(strings.Join(strings.Fields(s), " ")) }
 
 // numberSlot is what a scene number in a heading pattern is: digits
-// (Western, Arabic, Persian, Chinese), a letter after them (15B).
-const numberSlot = `[0-9٠-٩۰-۹零〇一二三四五六七八九十百]+[A-Za-z]?`
+// (Western, Arabic, Persian, Chinese), a letter after them or before
+// them (15B, A15: a locked script's scenes put in between).
+const numberSlot = `[A-Za-z]?[0-9٠-٩۰-۹零〇一二三四五六七八九十百]+[A-Za-z]?`
 
 // headingPattern is a heading pattern as a regular expression over a
 // line in capitals, nil for one that cannot be read.
@@ -107,19 +108,19 @@ func headingPattern(p string, l rules.Language) *regexp.Regexp {
 	for p != "" {
 		switch {
 		case strings.HasPrefix(p, "{n}"):
-			b.WriteString(numberSlot)
+			b.WriteString(`(?P<n>` + numberSlot + `)`)
 			p = p[3:]
 		case strings.HasPrefix(p, "{io}"):
-			b.WriteString(words(l.Settings, l.Scenes))
+			b.WriteString(`(?P<io>` + words(l.Settings, l.Scenes) + `)`)
 			p = p[4:]
 		case strings.HasPrefix(p, "{time}"):
-			b.WriteString(words(l.Times))
+			b.WriteString(`(?P<time>` + words(l.Times) + `)`)
 			p = p[6:]
 		case strings.HasPrefix(p, "{place}"):
-			b.WriteString(`\S.*?`)
+			b.WriteString(`(?P<place>\S.*?)`)
 			p = p[7:]
 		case strings.HasPrefix(p, "{any}"):
-			b.WriteString(`.*?`)
+			b.WriteString(`(?P<any>.*?)`)
 			p = p[5:]
 		default:
 			r := []rune(p)[0]
@@ -176,6 +177,76 @@ func (d *Dialect) Heading(row string) bool {
 		}
 	}
 	return false
+}
+
+// HeadingParts are a scene heading's parts by the slot they are in
+// (rules.Slots: "io", "place", "time", "n", "any"), in capitals, and
+// whether the line is a heading (Heading). A heading by a scene word
+// has the word as its io, the rest up to its last dash as its place and
+// what follows the dash as its time (INT. KITCHEN - DAY); one by a
+// pattern has the slots of the pattern that read it. A #12# at the end
+// is its n where it has none of its own.
+func (d *Dialect) HeadingParts(row string) (map[string]string, bool) {
+	if !d.Heading(row) {
+		return nil, false
+	}
+	upper := squash(strings.TrimPrefix(strings.TrimSpace(row), "."))
+	out := map[string]string{}
+	if m := sceneNumberAtEnd.FindString(upper); m != "" {
+		upper = strings.TrimSpace(strings.TrimSuffix(upper, m))
+		out[rules.SlotNumber] = strings.Trim(strings.TrimSpace(m), "#")
+	}
+	word := ""
+	for _, w := range d.Lang.Scenes {
+		if StartsScene(upper, w) && len(w) > len(word) {
+			word = w
+		}
+	}
+	if word != "" {
+		w := strings.ToUpper(strings.TrimSuffix(word, "."))
+		rest := strings.TrimPrefix(upper[len(w):], ".")
+		out[rules.SlotIO] = strings.TrimSpace(upper[:len(upper)-len(rest)])
+		rest = strings.TrimSpace(rest)
+		cut, at := -1, ""
+		for _, dash := range []string{" - ", " – ", " — ", " -- "} {
+			if i := strings.LastIndex(rest, dash); i > cut {
+				cut, at = i, dash
+			}
+		}
+		if cut >= 0 {
+			out[rules.SlotPlace], out[rules.SlotTime] = strings.TrimSpace(rest[:cut]), strings.TrimSpace(rest[cut+len(at):])
+		} else if place, time := bracketedTime(rest, d.Lang.Times); time != "" {
+			out[rules.SlotPlace], out[rules.SlotTime] = place, time // ○駅（朝）
+		} else if rest != "" {
+			out[rules.SlotPlace] = rest
+		}
+		return out, true
+	}
+	for _, re := range d.headings {
+		m := re.FindStringSubmatch(upper)
+		if m == nil {
+			continue
+		}
+		for i, name := range re.SubexpNames() {
+			if v := strings.TrimSpace(m[i]); name != "" && v != "" {
+				out[name] = v
+			}
+		}
+		return out, true
+	}
+	return out, true
+}
+
+// bracketedTime is a heading's rest split at a time word in brackets at
+// its end ("駅（朝）": "駅", "朝"), "" for none.
+func bracketedTime(rest string, times []string) (place, time string) {
+	place, in := splitExtension(rest)
+	for _, t := range times {
+		if in != "" && squash(t) == in {
+			return place, in
+		}
+	}
+	return rest, ""
 }
 
 // Transition tells whether a line is a transition by the language's

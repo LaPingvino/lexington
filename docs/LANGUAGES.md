@@ -48,6 +48,7 @@ TitleKeys = {}
 |---|---|
 | `Scenes` | the words a scene heading starts with, followed by a dot or a space (or anything, after a word ending in a sign: `○`) |
 | `Headings` | patterns for headings that do not start with a word (below) |
+| `NewHeading` | the pattern a new heading is written by (below); empty: the first of `Headings`, else Fountain's `{io} {place} - {time}` |
 | `Settings`, `Times` | the words for inside/outside and for the time of day that the patterns' `{io}` and `{time}` take (`{io}` takes `Scenes` too) |
 | `Matchup` | the scene words by role — inside, outside, both, both the other way, establishing — for translating headings and the statistics |
 | `Direction` | `rtl` or `ltr`: what a line with no direction of its own takes |
@@ -101,6 +102,29 @@ is a heading after a blank line, as a scene word's is; `#1#` at its end is
 its Fountain scene number. The patterns exist because real scripts write
 headings in other orders (below); Fountain's own way (`INT. PLACE - DAY`,
 the number in `#1#`) is read as it always was.
+
+A `{n}` takes a letter before its digits or after them (`A11`, `11A`): a
+locked script's scene put in between.
+
+### Writing a heading
+
+`NewHeading` is the pattern a program writes a new heading by
+(Accolade's Insert › New Scene…): one of `Headings`, or one that starts
+with a scene word. Left empty it is the first of `Headings`, else
+Fountain's own form, `rules.SceneForm` (`{io} {place} - {time}`: INT.
+KITCHEN - DAY). Japanese writes `○{place}（{time}）`, its hashira
+(○走る阪堺電車・外観（朝）, Sakai City; ○警察署・外観（夜）, ja.wikipedia
+脚本). It is only for writing: `Scenes` and `Headings` are what reads one.
+
+In Go: `Language.HeadingForm()` is the pattern; `Language.IOWords(form)`
+the words its `{io}` takes, the commonest first (the `Matchup` words for a
+form that starts with `{io}`, else `Settings` and then `Matchup`);
+`rules.FillPattern(form, values)` the heading, a slot with no value left
+out with the text joining it; `rules.ParsePattern` and `JoinPattern` take
+a pattern apart and together again, byte for byte; and
+`fountain.Dialect.HeadingParts(line)` reads a heading back into its slots
+(a scene word's heading too: its word, the place, the time after the
+last dash).
 
 ## File extensions
 
