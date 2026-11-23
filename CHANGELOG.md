@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.37.0] - 2026-11-23
+
+### Added
+- **`cli.Options.Pictures`**: the storyboard frames' files for a PDF
+  (`pdf.PDFWriter.Pictures`), so a program going through the CLI's
+  options prints them too.
+
 ## [1.36.0] - 2026-11-23
 
 ### Added

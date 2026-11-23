@@ -237,6 +237,10 @@ type Options struct {
 	// Resume, writing a PDF, draws its pages into Record from a page's
 	// start (pdf.Resume): no PDF is made, Output is not written.
 	Resume *pdf.Resume
+	// Pictures, writing a PDF, prints the storyboard frames under their
+	// lines: the pictures' files by the name their board notes give
+	// (pdf.PDFWriter.Pictures; nil: not printed).
+	Pictures map[string][]byte
 }
 
 // colorScheme is the color scheme o asks for, on the settings' own.
@@ -998,7 +1002,7 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 		}
 		return &pdf.PDFWriter{OutputFile: o.Output, Elements: elements, Page: pageFor(o), Revisions: o.Revisions,
 			Lock: o.Lock, Continueds: o.Continueds, MergeOmitted: o.MergeOmitted, RTL: rtlFor(conf, o),
-			Record: o.Record, Resume: o.Resume}, nil
+			Record: o.Record, Resume: o.Resume, Pictures: o.Pictures}, nil
 	case internal.FormatLex:
 		return &lex.LexWriter{}, nil
 	case internal.FormatFountain:
