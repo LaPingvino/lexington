@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.28.0] - 2026-11-23
+
+### Added
+- **What every setting is** (`rules/describe.go`), for programs that show the
+  configuration to people: `rules.ConfFields`, `LanguageFields`,
+  `ShapeFields`, `CueRuleFields`, `FormatFields`, `ElementKeys` (the
+  elements of a set, in a script's order) and `FormatFileFields` give each
+  setting's key, kind, what it does and the values it takes;
+  `rules.Describe` finds one. A test checks that every field of the
+  configuration, a language, a format and a format file, every element key
+  and every cue rule is described. Accolade's settings and format editors
+  and its Settings Files help page are made from them.
+
 ## [1.27.0] - 2026-11-22
 
 ### Reads differently (check your scripts)
