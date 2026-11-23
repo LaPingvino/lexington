@@ -89,6 +89,10 @@ func TestExternalFormats(t *testing.T) {
 		out := filepath.Join(dir, "barn-"+f.Key+"."+f.Extension())
 		o := Options{Input: in, Output: out, To: f.Key, ConfigFile: filepath.Join(dir, "none.toml")}
 		if err := Convert(context.Background(), o); err != nil {
+			if calibreBroken(f.Key, err) {
+				t.Logf("%s: this Calibre's own PDB writer fails (%v)", f.Key, err)
+				continue
+			}
 			t.Errorf("%s: %v", f.Key, err)
 			continue
 		}
@@ -96,6 +100,14 @@ func TestExternalFormats(t *testing.T) {
 			t.Errorf("%s: %d bytes, %v", f.Key, len(data), err)
 		}
 	}
+}
+
+// calibreBroken tells whether err is Calibre's own failure making format,
+// not Lexington's: the PDB writer of the Calibre Ubuntu ships (CI's)
+// reads a TXT option it never gets (AttributeError:
+// use_alt_text_for_images), whatever the input.
+func calibreBroken(format string, err error) bool {
+	return format == "pdb" && strings.Contains(err.Error(), "use_alt_text_for_images")
 }
 
 // A folder of format files: one based on a preset, with Accolade's part,

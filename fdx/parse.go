@@ -629,7 +629,7 @@ func (r reader) text(p FdxParagraph) string {
 		// far as Fountain reads it back, the rest plain
 		kept := slices.Clone(runs)
 		for i := range kept {
-			if kept[i].note || !(kept[i].Bold || kept[i].Italic || kept[i].Underline) {
+			if kept[i].note || (!kept[i].Bold && !kept[i].Italic && !kept[i].Underline) {
 				continue
 			}
 			try := slices.Clone(kept)
@@ -683,7 +683,7 @@ func markup(runs []run, escape string) string {
 	bare := false  // some of them are not underlined (an underline would show under them)
 	change := func(s lex.Span) {
 		keep := 0 // the markers open that stay open: up to the first that does not
-		for keep < len(open) && markers[open[keep]].on(s) && !(bare && markers[open[keep]].marker == "_") {
+		for keep < len(open) && markers[open[keep]].on(s) && (!bare || markers[open[keep]].marker != "_") {
 			keep++
 		}
 		for i := len(open) - 1; i >= keep; i-- {

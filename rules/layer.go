@@ -124,11 +124,20 @@ func (c TOMLConf) Part(langs, sets []string, titles ...string) TOMLConf {
 	return out
 }
 
-// Item is one named thing in a configuration: a language (Language) or
-// an element set, or the Standard.
+// The kinds of Item.
+const (
+	ItemLanguage  = "language"
+	ItemElements  = "elements"
+	ItemExtension = "extension"
+	ItemTitlePage = "titlepage"
+	ItemStandard  = "standard"
+)
+
+// Item is one named thing in a configuration: a language (Language), an
+// element set, an extension, a title page template, or the Standard.
 type Item struct {
-	Kind string // "language", "elements" or "standard"
-	Key  string // the language or set ("" for the standard)
+	Kind string // one of Item...: ItemLanguage, ItemElements and so on
+	Key  string // the language, set, extension or template ("" for the standard)
 }
 
 // Items are what c holds, languages first, each in key order.
@@ -136,16 +145,19 @@ func (c TOMLConf) Items() []Item {
 	c = c.normalized()
 	var out []Item
 	for _, l := range c.LanguageNames() {
-		out = append(out, Item{"language", l})
+		out = append(out, Item{ItemLanguage, l})
 	}
 	for _, s := range slices.Sorted(maps.Keys(c.Elements)) {
-		out = append(out, Item{"elements", s})
+		out = append(out, Item{ItemElements, s})
 	}
 	for _, e := range slices.Sorted(maps.Keys(c.Extensions)) {
-		out = append(out, Item{"extension", e})
+		out = append(out, Item{ItemExtension, e})
+	}
+	for _, t := range slices.Sorted(maps.Keys(c.TitlePages)) {
+		out = append(out, Item{ItemTitlePage, t})
 	}
 	if c.Standard != "" {
-		out = append(out, Item{"standard", ""})
+		out = append(out, Item{ItemStandard, ""})
 	}
 	return out
 }
@@ -154,17 +166,21 @@ func (c TOMLConf) Items() []Item {
 // whether c has it.
 func (c TOMLConf) Of(it Item) (TOMLConf, bool) {
 	switch it.Kind {
-	case "language":
+	case ItemLanguage:
 		p := c.Part([]string{it.Key}, nil)
 		p.Standard = ""
 		return p, p.Languages != nil
-	case "elements":
+	case ItemElements:
 		p := c.Part(nil, []string{it.Key})
 		p.Standard = ""
 		return p, p.Elements != nil
-	case "standard":
+	case ItemTitlePage:
+		p := c.Part(nil, nil, it.Key)
+		p.Standard = ""
+		return p, p.TitlePages != nil
+	case ItemStandard:
 		return TOMLConf{Standard: c.Standard}, c.Standard != ""
-	case "extension":
+	case ItemExtension:
 		l, ok := c.Extensions[it.Key]
 		return TOMLConf{Extensions: map[string]string{it.Key: l}}, ok
 	}
@@ -179,7 +195,8 @@ func Same(a, b TOMLConf) bool {
 }
 
 // Renamed is a configuration of one item (Of) under another key: a
-// language's words, matchup and direction, or an element set, as to.
+// language's words, matchup and direction, an element set, or a title
+// page template, as to.
 func Renamed(item TOMLConf, it Item, to string) (TOMLConf, error) {
 	to = strings.TrimSpace(to)
 	if to == "" || strings.ContainsAny(to, " .\"'[]=#") {
@@ -187,13 +204,17 @@ func Renamed(item TOMLConf, it Item, to string) (TOMLConf, error) {
 	}
 	out := TOMLConf{}
 	switch it.Kind {
-	case "language":
+	case ItemLanguage:
 		item = item.normalized()
 		if l, ok := item.Languages[it.Key]; ok {
 			out.Languages = map[string]Language{to: l.clone()}
 		}
-	case "elements":
+	case ItemElements:
 		out.Elements = map[string]Set{to: item.Elements[it.Key]}
+	case ItemTitlePage:
+		if t, ok := item.TitlePages[it.Key]; ok {
+			out.TitlePages = map[string]TitlePage{to: t.clone()}
+		}
 	default:
 		return TOMLConf{}, fmt.Errorf("the %s has no name to change", it.Kind)
 	}

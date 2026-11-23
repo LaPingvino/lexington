@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.53.0] - 2026-11-23
+
+### Added
+- **A title page template that travels with the script.** An `.accolade` names its template in `info.json`
+  (`"titlePage"`) and carries one of its own in `assets/lexington/lexington.toml`'s `[TitlePages]`;
+  `lexington -i film.accolade -o film.pdf` prints with it, `-titlepage` still wins, and a template named
+  but not there prints as `standard`, with a word on the log. `rules.TOMLConf.Items`, `Of` and `Renamed`
+  know a title page template (kind `rules.ItemTitlePage`), with the item kinds as constants.
+- `docs/TITLEPAGE.md`, which 1.49 named but did not have.
+
+### Fixed
+- **The formats made with other programs print the chosen title page template:** `htmlpdf`, `latexpdf`
+  and Calibre's e-books (pandoc's had it) start from the HTML and LaTeX Lexington's own writers make,
+  with the page size and title page pictures too.
+- When another program fails, the error says which and why (a TeX error's `!` line, else its last).
+- The LaTeX uses Latin Modern only where it is installed (Debian and Ubuntu have it apart).
+- CI: the lint findings of 1.49–1.51 cleared (unchecked errors, long lines, a shadowed name); the
+  spelling check no longer takes British spelling (colour, centred) for a misspelling.
+
 ## [1.52.0] - 2026-11-23
 
 ### Added

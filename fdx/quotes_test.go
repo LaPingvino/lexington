@@ -54,7 +54,8 @@ func TestQuotesBesideEmphasisFromFDX(t *testing.T) {
 <Paragraph Type="Action"><Text Style="Bold">,</Text><Text Style="Bold+Italic">’s</Text></Paragraph>
 <Paragraph Type="Action"><Text Style="Underline">Jo</Text><Text>hn's </Text><Text Style="Bold">“word”</Text></Paragraph>
 <Paragraph Type="Character"><Text>JOHN</Text></Paragraph>
-<Paragraph Type="Dialogue"><Text>It's </Text><Text Style="Italic">John</Text><Text>’s, “</Text><Text Style="Underline">not</Text><Text>” mine.</Text></Paragraph>`),
+<Paragraph Type="Dialogue"><Text>It's </Text><Text Style="Italic">John</Text>`+
+		`<Text>’s, “</Text><Text Style="Underline">not</Text><Text>” mine.</Text></Paragraph>`),
 		"action=*John*'s coat.",
 		"action=**John**’s coat.",
 		"action=It's _not_ mine.",
@@ -85,7 +86,9 @@ func TestQuotesBesideEmphasisFromFDX(t *testing.T) {
 // in attributes they stay escaped.
 func TestQuotesWrittenPlain(t *testing.T) {
 	fdx, _ := writeFDX(t, "INT. HALL - DAY\n\nJohn's \"coat\" & *O'Brien*'s.\n")
-	for _, want := range []string{`<Text>John's "coat" &amp; </Text>`, `<Text Style="Italic">O'Brien</Text>`, `<Text>'s.</Text>`} {
+	for _, want := range []string{
+		`<Text>John's "coat" &amp; </Text>`, `<Text Style="Italic">O'Brien</Text>`, `<Text>'s.</Text>`,
+	} {
 		if !strings.Contains(fdx, want) {
 			t.Errorf("no %s in\n%s", want, fdx)
 		}
@@ -93,7 +96,8 @@ func TestQuotesWrittenPlain(t *testing.T) {
 	if strings.Contains(fdx, "&#39;") || strings.Contains(fdx, "&#34;") {
 		t.Errorf("character references in\n%s", fdx)
 	}
-	if got := plainQuotes([]byte(`<A B="x&#34;y&#39;">"&#34;&#39;&amp;</A>`)); string(got) != `<A B="x&#34;y&#39;">""'&amp;</A>` {
+	got := plainQuotes([]byte(`<A B="x&#34;y&#39;">"&#34;&#39;&amp;</A>`))
+	if string(got) != `<A B="x&#34;y&#39;">""'&amp;</A>` {
 		t.Errorf("plainQuotes: %s", got)
 	}
 }

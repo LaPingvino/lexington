@@ -41,14 +41,19 @@ func ShaperOf(data []byte) *Shaper {
 	}
 	c := glyphCoded(data)
 	if s, ok := exportedShapers.Load(c); ok {
-		return s.(*Shaper)
+		if sh, ok := s.(*Shaper); ok {
+			return sh
+		}
 	}
 	var out *Shaper
 	if fs := newFontShaper(data); fs != nil {
 		out = &Shaper{s: fs, has: glyphTest(data)}
 	}
-	s, _ := exportedShapers.LoadOrStore(c, out)
-	return s.(*Shaper)
+	s, _ := exportedShapers.LoadOrStore(c, out) // one Shaper per font, whoever stored it first
+	if sh, ok := s.(*Shaper); ok {
+		return sh
+	}
+	return out
 }
 
 // Width is text's width in d's current font (this shaper's) as Cell or

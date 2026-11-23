@@ -71,6 +71,9 @@ func readBundleInput(o *Options) (*bundle.Bundle, error) {
 	if o.carried = readCarried(b); o.carried != nil && o.Elements == "" && o.carried.format != "" {
 		o.Elements, o.carried.chosen = o.carried.format, true
 	}
+	if o.carried != nil && o.TitlePage == "" && o.carried.titlePage != "" {
+		o.TitlePage, o.carried.titleChosen = o.carried.titlePage, true
+	}
 	// text.eo.fountain: a script in that language
 	if parts := strings.Split(strings.ToLower(b.Text), "."); len(parts) == 3 && parts[2] == "fountain" && o.SceneIn == "" {
 		o.SceneIn = parts[1]
@@ -87,7 +90,9 @@ func readBundleInput(o *Options) (*bundle.Bundle, error) {
 //   - assets/lexington/formats/<key>.toml: its format's file (and the
 //     ones it is Based on), as the folders of -formats hold them;
 //   - info.json's "eu.kiefte.Accolade" key: "format", the format's key,
-//     when it is not the screenplay.
+//     when it is not the screenplay; "titlePage", the title page
+//     template's, when it is not Fountain's standard one (a template of
+//     one's own goes in lexington.toml's [TitlePages]).
 //
 // They are laid over the machine's settings for that script, as Accolade
 // does when it opens it: the bundle's win, flags win over both (-e names
@@ -97,6 +102,10 @@ type carried struct {
 	formats map[string][]byte // format files by key
 	format  string            // the script's format, "" for the screenplay
 	chosen  bool              // -e is format, as no flag said otherwise
+	// titlePage is the script's title page template ("" Fountain's):
+	// one of its own is in conf's [TitlePages]
+	titlePage   string
+	titleChosen bool // -titlepage is titlePage, as no flag said otherwise
 }
 
 const (
@@ -115,37 +124,41 @@ func readCarried(b *bundle.Bundle) *carried {
 	c := &carried{}
 	if raw, ok := bundle.InfoValue(b.Info, accoladeKey); ok {
 		c.format, _ = bundle.InfoString(raw, "format")
+		c.titlePage, _ = bundle.InfoString(raw, "titlePage")
 	}
 	for _, name := range b.Files {
-		switch key, isFormat := strings.CutPrefix(name, carriedFormatDir); {
-		case name == carriedConfFile:
-			data, err := b.ReadFile(name)
-			if err == nil {
-				c.conf, err = rules.Decode(data)
-			}
-			if err != nil {
-				log.Printf("%s: %s left out: %v", filepath.Base(b.Path), name, err)
-			}
-		case isFormat:
-			key, ok := strings.CutSuffix(key, ".toml")
-			if !ok || !formatKey(key) {
-				continue
-			}
-			data, err := b.ReadFile(name)
-			if err != nil {
-				log.Printf("%s: %s left out: %v", filepath.Base(b.Path), name, err)
-				continue
-			}
-			if c.formats == nil {
-				c.formats = map[string][]byte{}
-			}
-			c.formats[key] = data
-		}
+		c.read(b, name)
 	}
-	if c.format == "" && len(c.formats) == 0 && len(c.conf.Items()) == 0 {
+	if c.format == "" && c.titlePage == "" && len(c.formats) == 0 && len(c.conf.Items()) == 0 {
 		return nil
 	}
 	return c
+}
+
+// read takes in b's file name if it is part of what b carries.
+func (c *carried) read(b *bundle.Bundle, name string) {
+	key, isFormat := strings.CutPrefix(name, carriedFormatDir)
+	if isFormat {
+		key, isFormat = strings.CutSuffix(key, ".toml")
+		isFormat = isFormat && formatKey(key)
+	}
+	if name != carriedConfFile && !isFormat {
+		return
+	}
+	data, err := b.ReadFile(name)
+	if err == nil && !isFormat {
+		c.conf, err = rules.Decode(data)
+	}
+	if err != nil {
+		log.Printf("%s: %s left out: %v", filepath.Base(b.Path), name, err)
+		return
+	}
+	if isFormat {
+		if c.formats == nil {
+			c.formats = map[string][]byte{}
+		}
+		c.formats[key] = data
+	}
 }
 
 // formatKey tells whether key is a format's key as Accolade makes one
@@ -166,11 +179,14 @@ func formatKey(key string) bool {
 // presets are the formats with the ones c carries over them (by key; a
 // Base among them first).
 func (c *carried) presets(o Options) []rules.Preset {
-	list, _ := rules.PresetsIn(filepath.SplitList(o.FormatDir)...)
+	list, err := rules.PresetsIn(filepath.SplitList(o.FormatDir)...)
+	if err != nil {
+		log.Print(err)
+	}
 	if len(c.formats) == 0 {
 		return list
 	}
-	list, err := rules.WithPresetFiles(list, c.formats)
+	list, err = rules.WithPresetFiles(list, c.formats)
 	if err != nil {
 		log.Print(err)
 	}

@@ -365,7 +365,8 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 	fs.StringVar(&o.SceneIn, "scenein", "", "Configuration to use for scene header detection on input.")
 	fs.StringVar(&o.SceneOut, "sceneout", "", "Configuration to use for scene header detection on output.")
 	fs.StringVar(&o.Elements, "e", "",
-		"Element settings to use: a preset (see -presets) or a set from the settings file (default: an .accolade's own format, else default).")
+		"Element settings to use: a preset (see -presets) or a set from the settings file "+
+			"(default: an .accolade's own format, else default).")
 	fs.StringVar(&o.Page, "page", "",
 		"Paper size for pdf, docx and odt: letter, a4 or a5 (default: the preset's suggestion, else letter).")
 	fs.StringVar(&o.Header, "header", "",
@@ -1163,6 +1164,54 @@ func external(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 	return pandoc(o, screenplay)
 }
 
+// writeAs writes the screenplay as format (HTML or LaTeX, which another
+// program makes o.To from) with o's settings, its title page template
+// among them, as createWriter makes that format's writer.
+func writeAs(format string, o Options, conf rules.TOMLConf, screenplay lex.Screenplay) (*bytes.Buffer, error) {
+	o.To = format
+	w, err := createWriter(o, conf)
+	if err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	if err := w.Write(&buf, screenplay); err != nil {
+		return nil, err
+	}
+	return &buf, nil
+}
+
+// runProgram runs another program, its output shown on standard error
+// as it comes; when it fails, the error says the program and the line
+// that tells why: a TeX error (a line that starts "! "), else its last.
+func runProgram(cmd *exec.Cmd) error {
+	var said bytes.Buffer
+	out := io.MultiWriter(os.Stderr, &said)
+	cmd.Stderr = out
+	if cmd.Stdout == nil {
+		cmd.Stdout = out
+	}
+	err := cmd.Run()
+	if err == nil {
+		return nil
+	}
+	why := ""
+	for _, line := range strings.Split(said.String(), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "! ") {
+			why = line
+			break
+		}
+		if line != "" {
+			why = line
+		}
+	}
+	name := filepath.Base(cmd.Path)
+	if why == "" {
+		return fmt.Errorf("%s: %w", name, err)
+	}
+	return fmt.Errorf("%s: %w: %s", name, err, why)
+}
+
 // tempFile writes data to a temporary file with the pattern's extension;
 // remove removes it.
 func tempFile(pattern string, data []byte) (name string, remove func(), err error) {
@@ -1188,8 +1237,8 @@ func htmlPDF(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 	if err != nil {
 		return errors.New("'htmlpdf' output requires wkhtmltopdf, but it could not be found in your system's PATH")
 	}
-	var buf bytes.Buffer
-	if err = (&html.HTMLWriter{Elements: conf.Elements[o.Elements], RTL: rtlFor(conf, o)}).Write(&buf, screenplay); err != nil {
+	buf, err := writeAs(internal.FormatHTML, o, conf, screenplay)
+	if err != nil {
 		return fmt.Errorf("converting to HTML for wkhtmltopdf: %w", err)
 	}
 	name, remove, err := tempFile("lexington_*.html", buf.Bytes())
@@ -1206,9 +1255,8 @@ func htmlPDF(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 		"--encoding", "UTF-8",
 		"--print-media-type",
 		name, o.Output)
-	cmd.Stderr = os.Stderr
 	log.Printf("Running wkhtmltopdf to create PDF from HTML...")
-	return cmd.Run()
+	return runProgram(cmd)
 }
 
 // latexCommand is the LaTeX installed: pdflatex, xelatex or lualatex.
@@ -1227,9 +1275,8 @@ func latexPDF(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 		return errors.New("'latexpdf' output requires pdflatex, xelatex, or lualatex, " +
 			"but none could be found in your system's PATH")
 	}
-	var buf bytes.Buffer
-	lw := &latex.LaTeXWriter{Template: o.TemplatePath, Elements: conf.Elements[o.Elements]}
-	if err := lw.Write(&buf, screenplay); err != nil {
+	buf, err := writeAs(internal.FormatLaTeX, o, conf, screenplay)
+	if err != nil {
 		return fmt.Errorf("converting to LaTeX: %w", err)
 	}
 	// in a folder of its own: LaTeX writes its .aux and .log beside the PDF
@@ -1244,9 +1291,7 @@ func latexPDF(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 	}
 	log.Printf("Running %s to create PDF from LaTeX...", latexCmd)
 	cmd := exec.Command(latexCmd, "-interaction=nonstopmode", "-output-directory", dir, tex)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stderr
-	if err = cmd.Run(); err != nil {
+	if err = runProgram(cmd); err != nil {
 		return err
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "script.pdf"))
@@ -1275,9 +1320,8 @@ func pandoc(o Options, screenplay lex.Screenplay) error {
 	}
 	cmd := exec.Command(pandoc, args...)
 	cmd.Stdin = &buf
-	cmd.Stderr = os.Stderr
 	log.Printf("Running pandoc to create %s...", o.Output)
-	return cmd.Run()
+	return runProgram(cmd)
 }
 
 // titleAuthor are the title page's title and author.
@@ -1306,8 +1350,8 @@ func calibre(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 		return err
 	}
 	defer os.RemoveAll(dir)
-	var buf bytes.Buffer
-	if err = (&html.HTMLWriter{Elements: conf.Elements[o.Elements], RTL: rtlFor(conf, o)}).Write(&buf, screenplay); err != nil {
+	buf, err := writeAs(internal.FormatHTML, o, conf, screenplay)
+	if err != nil {
 		return fmt.Errorf("converting to HTML for ebook-convert: %w", err)
 	}
 	in := filepath.Join(dir, "script.html")
@@ -1329,9 +1373,8 @@ func calibre(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) error {
 		}
 	}
 	cmd := exec.Command(convert, args...)
-	cmd.Stderr = os.Stderr
 	log.Printf("Running ebook-convert to create %s...", o.Output)
-	if err = cmd.Run(); err != nil {
+	if err = runProgram(cmd); err != nil {
 		return err
 	}
 	data, err := os.ReadFile(out)

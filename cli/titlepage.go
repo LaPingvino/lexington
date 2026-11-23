@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -17,6 +18,12 @@ import (
 // title page names.
 func titlePageFor(o *Options, conf rules.TOMLConf, s lex.Screenplay) error {
 	tpl, ok := titlepage.For(conf, o.TitlePage, o.SceneIn)
+	if !ok && o.carried != nil && o.carried.titleChosen {
+		// a template the .accolade names but does not carry
+		log.Printf("%s: its title page template %q is not here; printed as Fountain's", filepath.Base(o.Input), o.TitlePage)
+		o.TitlePage = ""
+		tpl, ok = titlepage.For(conf, "", o.SceneIn)
+	}
 	if !ok {
 		return fmt.Errorf("no title page template %q in %s or the presets (see -titlepages)", o.TitlePage, o.ConfigFile)
 	}

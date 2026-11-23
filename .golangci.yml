@@ -28,7 +28,8 @@ linters:
     lll:
       line-length: 120
     misspell:
-      locale: US
+      # no locale: the project writes British English (colour, centred);
+      # misspell still flags real misspellings
       ignore-rules:
         - dialogue
         - cancelled

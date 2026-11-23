@@ -132,3 +132,36 @@ func TestExtensions(t *testing.T) {
 		t.Errorf("carried:\n%s", text)
 	}
 }
+
+// A title page template of one's own is an item: listed, taken alone,
+// renamed, and carried by Part (a preset's name is not: it travels by
+// its name alone).
+func TestTitlePageItem(t *testing.T) {
+	c := TOMLConf{TitlePages: map[string]TitlePage{"mine": {Name: "Mine", Centre: 3, Keys: []TitleKey{{Key: "Title"}}}}}
+	if items := c.Items(); !slices.Equal(items, []Item{{ItemTitlePage, "mine"}}) {
+		t.Fatalf("items %v", items)
+	}
+	one, ok := c.Of(Item{ItemTitlePage, "mine"})
+	if !ok || one.TitlePages["mine"].Name != "Mine" || one.Standard != "" {
+		t.Fatalf("of: %+v", one)
+	}
+	if _, ok := c.Of(Item{ItemTitlePage, "bold"}); ok {
+		t.Fatal("a preset is no item of c's")
+	}
+	r, err := Renamed(one, Item{ItemTitlePage, "mine"}, "yours")
+	if err != nil || r.TitlePages["yours"].Centre != 3 {
+		t.Fatalf("renamed: %+v %v", r, err)
+	}
+	part := c.Part(nil, nil, "mine", "bold")
+	text, err := part.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := Decode(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(back.TitlePages) != 1 || !Same(part, back) {
+		t.Fatalf("part:\n%s", text)
+	}
+}
