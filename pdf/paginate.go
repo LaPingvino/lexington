@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/LaPingvino/lexington/lekhan"
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/rules"
 )
@@ -162,13 +163,26 @@ func (t *Tree) wrap(f rules.Format, text string, width float64) (string, []int) 
 // in the PDF's font, as MultiCell wraps them: at the last space that
 // fits, or within a word that does not, and at each new line. Unless
 // core (a standard font, or a line MultiCell prints), what takes no cell
-// (zeroCell) has no width, and a word breaks between its clusters.
+// (zeroCell) has no width, Devanagari takes its cells by the Lekhan width,
+// and a word breaks between its clusters.
 func (t *Tree) breaks(chars []string, width float64, core bool) []int {
 	pdf := t.PDF
 	_, size := pdf.GetFontSize()
 	wmax := int(math.Ceil((width - 2*pdf.GetCellMargin()) * 1000 / size))
 	widths := map[string]int{}
 	starts := []int{0}
+	// Devanagari by its clusters (Lekhan width): a cluster's cells on its
+	// runes, a cell as wide as a space
+	var rs []rune
+	var shares []int
+	cell := pdf.GetStringSymbolWidth(" ")
+	if !core {
+		rs = make([]rune, len(chars))
+		for k, c := range chars {
+			rs[k], _ = utf8.DecodeRuneInString(c)
+		}
+		shares = lekhan.Cells(rs)
+	}
 	sep, i, j, l := -1, 0, 0, 0
 	for i < len(chars) {
 		c := chars[i]
@@ -182,6 +196,9 @@ func (t *Tree) breaks(chars []string, width float64, core bool) []int {
 			sep = i
 		}
 		w, ok := widths[c]
+		if !core && lekhan.Devanagari(rs[i]) {
+			w, ok = shares[i]*cell, true
+		}
 		if !ok {
 			w = pdf.GetStringSymbolWidth(c)
 			if r, _ := utf8.DecodeRuneInString(c); !core && len(c) > 1 && zeroCell(r) {
@@ -195,9 +212,7 @@ func (t *Tree) breaks(chars []string, width float64, core bool) []int {
 				// within a word: not inside a cluster (a conjunct, a letter
 				// and its marks), unless it is the line's only one
 				for k := i; !core && k > j+1; k-- {
-					a, _ := utf8.DecodeRuneInString(chars[k-1])
-					b, _ := utf8.DecodeRuneInString(chars[k])
-					if !joinsBefore(a, b) {
+					if lekhan.Boundary(rs, k) {
 						i = k
 						break
 					}

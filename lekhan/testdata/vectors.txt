@@ -1,0 +1,97 @@
+# Lekhan monospace test vectors (docs/LEKHAN.md). CC0 / public domain.
+#
+# One per line: the text with its clusters split by "|", a tab, each
+# cluster's cells, a tab, a note. Joiners are written as <ZWJ> and <ZWNJ>, any other
+# character as <U+XXXX>.
+# A conforming implementation finds these clusters and these cells; a
+# conforming font shapes each line's text exactly (sum of cells) x its
+# cell wide.
+#
+## One cell: a consonant or a vowel with its signs.
+क	1	ka
+का	1	ka + aa sign
+कि	1	ka + i sign (drawn before it)
+की	1	ka + ii sign
+कु	1	ka + u sign
+कू	1	ka + uu sign
+कृ	1	ka + vocalic r sign
+के	1	ka + e sign
+कै	1	ka + ai sign
+को	1	ka + o sign
+कौ	1	ka + au sign
+कं	1	ka + anusvara
+कँ	1	ka + candrabindu
+कः	1	ka + visarga (a spacing sign)
+कॉ	1	ka + candra o (Marathi, English loans)
+क़	1	qa, ka + nukta
+क़ि	1	qa (U+0958) + i sign
+ड़ी	1	rra + ii sign
+दुः	1	da + u sign + visarga
+हु	1	ha + u sign
+माँ	1	ma + aa sign + candrabindu
+न|हीं	1 1	na, ha + ii sign + anusvara
+आ	1	independent aa
+ई	1	independent ii
+ऋ	1	vocalic r
+औ	1	independent au
+ॲ	1	Marathi candra a
+ॐ	1	om
+ऽ	1	avagraha
+।	1	danda
+॥	1	double danda
+०	1	digit zero
+क्	1	ka + virama, no consonant after it: one cell
+न्	1	the final n of shrimaan
+ह्	1	ha + virama
+## Two cells: two or more consonants joined by the virama (a conjunct).
+क्ष	2	ksha, one ligature in most fonts
+ज्ञ	2	jnya
+त्र	2	tra
+त्न	2	half ta + na
+श्र	2	shra
+द्ध	2	ddha
+द्व	2	dva
+प्र	2	pa + rakar
+क्र	2	ka + rakar
+र्य	2	reph + ya
+र्क	2	reph + ka
+ट्ट	2	tta + virama + tta (stacked or with a visible virama)
+ड्ड	2	dda + virama + dda
+ङ्क	2	nga + virama + ka
+ह्म	2	ha + virama + ma
+स्क	2	half sa + ka
+क्षि	2	ksha + i sign
+र्कि	2	reph + ka + i sign
+र्की	2	reph + ka + ii sign
+श्री	2	shra + ii sign
+द्या	2	dya + aa sign
+स्क्री	2	three consonants: half sa, ka, rakar, ii sign
+स्त्र	2	three consonants
+क्ष्म	2	three consonants: ksha + ma
+द्द्व	2	three consonants (Sanskrit)
+न्त्र्य	2	four consonants
+स्क्रीं	2	three consonants, ii sign, anusvara
+क्<ZWJ>ष	2	half ka asked for with a joiner: still one cluster
+र्<ZWJ>य	2	eyelash ra (Marathi)
+ऱ्य	2	rra + virama + ya (Marathi eyelash ra)
+## Words: the clusters one after another.
+क्<ZWNJ>|ष	1 1	a non-joiner after the virama ends the cluster: ka + virama, ssa
+हि|न्दी	1 2	hindi
+श्री|मा|न्	2 1 1	shriimaan
+क्ष|त्रि|य	2 2 1	kshatriya
+सं|स्कृ|त	1 2 1	sanskrit
+वि|द्या|र्थी	1 2 2	vidyaarthii
+ब|हा|उ|ल्ला|ह	1 1 1 2 1	bahaaullaah
+प्रा|र्थ|ना	2 2 1	praarthanaa
+रा|ष्ट्र	1 2	raashtra
+अ|र्थ	1 2	artha
+ज़ि|न्द|गी	1 2 1	zindagii
+आ|त्मा	1 2	aatmaa
+उ|द्दे|श्य	1 2 2	uddeshya
+## Marks without a letter are drawn on a dotted circle: one cell.
+ा	1	aa sign alone
+ं	1	anusvara alone
+## Other scripts keep their own widths.
+A	1	Latin
+e<U+0301>	1	e + combining acute
+日	2	East Asian wide

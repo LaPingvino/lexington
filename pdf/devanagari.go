@@ -10,22 +10,24 @@ import (
 	"github.com/go-text/typesetting/language"
 	"github.com/go-text/typesetting/shaping"
 	"golang.org/x/image/math/fixed"
+
+	"github.com/LaPingvino/lexington/lekhan"
 )
 
 // Devanagari is shaped by the font's own features (Courier Badi's, from
 // Noto Sans Devanagari: conjuncts, half forms, reph, the i-matra before
 // its consonant), by go-text's port of HarfBuzz, at print time: a line is
-// wrapped and measured in its characters, by cells as Accolade counts
-// them (cellWidth), and each Devanagari run of it is printed as shaped:
-// its glyphs where the shaper puts them (their advances, the font's GPOS:
-// mark anchors, the cells a conjunct takes past its first), a glyph no
-// character maps to by the private-use code glyphCoded gives it, all in
+// wrapped and measured in its characters, by cells as the Lekhan width
+// counts them (package lekhan, as Accolade does), and each Devanagari run
+// of it is printed as shaped: its glyphs where the shaper puts them (their
+// advances, the font's GPOS: mark anchors, the cluster's cells), a glyph
+// no character maps to by the private-use code glyphCoded gives it, all in
 // a span whose ActualText is the run as written: what is read out of the
 // PDF (a copy, a search, pdftotext, Lexington's PDF import).
 //
-// Courier Badi draws each cluster over as many cells as it has letters
-// and spacing vowel signs (none for combining marks and joiners), so the
-// shaped run is as wide as the cells counted.
+// Courier Badi draws each cluster in Lekhan monospace (its
+// docs/LEKHAN.md): a simple cluster in one cell, a conjunct in two, so
+// the shaped run is as wide as the cells counted.
 
 // devaRune tells whether a character is shaped with the Devanagari run
 // around it: a Devanagari letter or sign (Devanagari, its Extended
@@ -56,21 +58,14 @@ func hasDevanagari(text string) bool {
 	return false
 }
 
-// zeroCell tells whether a character takes no cell (Accolade's rule,
-// wrap.Width): a combining mark, a joiner or a zero-width space, a
+// zeroCell tells whether a character takes no cell by itself (Lekhan's
+// RuneWidth 0): a combining mark, a joiner or a zero-width space, a
 // direction mark or control.
-func zeroCell(r rune) bool {
-	return unicode.In(r, unicode.Mn, unicode.Me) || r >= 0x200B && r <= 0x200F ||
-		r >= 0x202A && r <= 0x202E || r >= 0x2066 && r <= 0x2069
-}
+func zeroCell(r rune) bool { return lekhan.RuneWidth(r) == 0 }
 
 // joinsBefore tells whether a line cannot break between a and b (they
-// are of one cluster): b a mark or a joiner, a after a joiner, or a
-// Devanagari consonant after a virama.
-func joinsBefore(a, b rune) bool {
-	return unicode.In(b, unicode.Mn, unicode.Mc, unicode.Me) || b == 0x200C || b == 0x200D || a == 0x200D ||
-		a == 0x094D && devaRune(b)
-}
+// are of one cluster): lekhan.Joins.
+func joinsBefore(a, b rune) bool { return lekhan.Joins(a, b) }
 
 // cellWidth is text's width in the current font as its cells count it:
 // gofpdf's, without what takes no cell (a joiner has a blank cell's

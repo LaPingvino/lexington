@@ -13,6 +13,7 @@ import (
 
 	"github.com/LaPingvino/lexington/font"
 	"github.com/LaPingvino/lexington/fountain"
+	"github.com/LaPingvino/lexington/lekhan"
 	"github.com/LaPingvino/lexington/pdfin"
 	"github.com/LaPingvino/lexington/rules"
 )
@@ -22,16 +23,9 @@ import (
 // rakar, the eyelash ra (र्‍), the candrabindu.
 var devaWords = []string{"क्षत्रिय", "कि", "की", "धर्म", "श्रद्धा", "ज्ञान", "र्\u200dय", "कृष्ण", "हिन्दी", "शर्मा", "माँ", "ट्रेन"}
 
-// cells is how many cells a text takes as Accolade counts them.
-func cells(s string) int {
-	n := 0
-	for _, r := range s {
-		if !zeroCell(r) {
-			n++
-		}
-	}
-	return n
-}
+// cells is how many cells a text takes: its Lekhan width, as Accolade
+// counts it.
+func cells(s string) int { return lekhan.Width(s) }
 
 // Shaped, each word is as wide as its cells, in each style, with a glyph
 // for each of its letters (no dotted circle, no glyph left out).
@@ -264,7 +258,7 @@ func TestDevanagariDrawn(t *testing.T) {
 		t.Error("no shaped glyph drawn")
 	}
 	// _ज्ञान र्‍य_: underlined from end to end in the drawing too, its
-	// cells (4, a space, 2) at 7.2 pt each
+	// cells (ज्ञा 2 and न 1, a space, र्‍य 2: Lekhan) at 7.2 pt each
 	type span struct{ a, b float64 }
 	var lines []span
 	for _, p := range d.Pages {
@@ -283,7 +277,7 @@ func TestDevanagariDrawn(t *testing.T) {
 		}
 		merged = append(merged, l)
 	}
-	if len(merged) != 1 || abs(merged[0].b-merged[0].a-7*7.2) > 0.5 {
-		t.Errorf("the underline drawn: %v, want one 50.4 pt long", merged)
+	if len(merged) != 1 || abs(merged[0].b-merged[0].a-6*7.2) > 0.5 {
+		t.Errorf("the underline drawn: %v, want one 43.2 pt long", merged)
 	}
 }

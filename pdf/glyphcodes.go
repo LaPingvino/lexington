@@ -17,8 +17,8 @@ import (
 // characters printed and maps each to its glyph through the font's cmap.
 // A shaped glyph that no character maps to (a Devanagari conjunct, a half
 // form, a word's end form) it cannot print. So the font the PDF embeds is
-// the font file with a private-use character (U+E000 on) given to each
-// such glyph in its cmap: printing that character prints the glyph. The
+// the font file with a private-use character (U+E000 on; past U+F8FF, a
+// CJK ideograph the font lacks) given to each such glyph in its cmap: printing that character prints the glyph. The
 // codes are only shown, never read: the text is printed beside them, as
 // written, invisible (devanagari.go), and they are wrapped in an empty
 // ActualText.
@@ -91,16 +91,30 @@ func makeCoded(data []byte) *coded {
 			c.ign[g] = true
 		}
 	}
-	next := rune(0xE000)
+	// the private-use area first; a font with more glyphs than it has
+	// codes (Courier Badi's Devanagari, drawn at many widths) goes on in
+	// the CJK ideographs, which gofpdf's format 4 cmap still reaches: they
+	// are only shown, the text is read from the ActualText
+	ranges := [][2]rune{{0xE000, 0xF8FF}, {0x3400, 0x4DBF}, {0x4E00, 0x9FFF}}
+	k, next := 0, ranges[0][0]
 	added := false
 	for g := gofont.GID(1); int(g) < f.NumGlyphs(); g++ {
 		if _, ok := c.code[g]; ok {
 			continue
 		}
-		for _, used := mapping[next]; used; _, used = mapping[next] {
+		for {
+			if next > ranges[k][1] {
+				if k++; k == len(ranges) {
+					break
+				}
+				next = ranges[k][0]
+			}
+			if _, used := mapping[next]; !used {
+				break
+			}
 			next++
 		}
-		if next > 0xF8FF {
+		if k == len(ranges) {
 			break
 		}
 		mapping[next], c.code[g] = g, next
@@ -114,7 +128,7 @@ func makeCoded(data []byte) *coded {
 		c.data = out
 	} else { // unchanged: the glyphs without a character stay so
 		for r, g := range mapping {
-			if r >= 0xE000 && r <= 0xF8FF && c.code[g] == r {
+			if (r >= 0xE000 && r <= 0xF8FF || r >= 0x3400 && r <= 0x9FFF) && c.code[g] == r {
 				delete(c.code, g)
 			}
 		}

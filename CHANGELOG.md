@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.54.0] - 2026-11-23
+
+### Changed
+- **Devanagari in Lekhan monospace.** Courier Badi 1.105 (embedded) draws a simple Devanagari cluster
+  (a consonant or a vowel with its signs: आ कि ला) in one cell and a conjunct (two or more consonants
+  joined by the virama: क्ष त्न स्क्री र्य) in two, as one double-width glyph; 1.103 gave every letter and
+  spacing vowel sign a cell. The PDF wraps Devanagari by the same count.
+- **More glyphs than private-use codes** (1.105 draws Devanagari at several widths): the PDF's glyph
+  codes go on in CJK ideographs the font lacks; they are only shown, the text is read from the ActualText.
+
+### Added
+- **Package `lekhan`**: the Lekhan width (Courier Badi's docs/LEKHAN.md), the one cell count Lexington's
+  PDF wrap and Accolade's editor share: `Width`, `Cells` (each character's share of its cluster's
+  cells), `ClusterEnd`, `ClusterCells`, `Boundary` (extended grapheme clusters with Unicode 15.1's virama
+  rule), `RuneWidth`, `Joins`; tested against the spec's vectors. `pdf.JoinsBefore` is `lekhan.Joins`.
+
 ## [1.53.0] - 2026-11-23
 
 ### Added
