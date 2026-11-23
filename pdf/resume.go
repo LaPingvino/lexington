@@ -186,7 +186,9 @@ func (t *Tree) pageStarted() {
 }
 
 // resumable reports whether the tree draws pages one can start from.
-func (t *Tree) resumable() bool { return t.revs == nil && t.lock == nil && t.measure == nil }
+func (t *Tree) resumable() bool {
+	return t.revs == nil && t.lock == nil && t.measure == nil && t.pictures == nil
+}
 
 // startHere is the start of page (the PDF's), begun now.
 func (t *Tree) startHere(page int) PageStart {
@@ -409,7 +411,7 @@ func Reflow(ctx context.Context, old Drawing, line int, draw func(*Resume) (Draw
 		if err != nil {
 			return old, Reflowed{From: from}, err
 		}
-		out := Drawing{Fonts: d.Fonts, Pages: slices.Clone(old.Pages[:from])}
+		out := Drawing{Fonts: d.Fonts, Images: mergeImages(old.Images, d.Images), Pages: slices.Clone(old.Pages[:from])}
 		if rows := d.rows(); rows != nil { // the pages before: of the rows as edited (the same before them)
 			for i := range out.Pages {
 				out.Pages[i].Start = out.Pages[i].Start.of(rows)
@@ -470,7 +472,7 @@ func Redraw(old Drawing, first, last int, draw func(*Resume) (Drawing, error)) (
 		if err != nil {
 			return old, from, 0, err
 		}
-		out := Drawing{Fonts: old.Fonts, Pages: slices.Clone(old.Pages)}
+		out := Drawing{Fonts: old.Fonts, Images: mergeImages(old.Images, d.Images), Pages: slices.Clone(old.Pages)}
 		n := 0
 		for _, p := range d.Pages {
 			if i := from + n; i < len(out.Pages) {

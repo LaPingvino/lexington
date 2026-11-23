@@ -86,6 +86,8 @@ func (r *Rasterizer) Paint(p DrawnPage, scale float64) *image.RGBA {
 			r.box(img, m, scale)
 		case Text:
 			r.text(img, m, scale)
+		case Image:
+			r.image(img, m, scale)
 		}
 	}
 	return img

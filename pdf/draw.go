@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"bytes"
+	"image"
 	"image/color"
 	"io"
 	"math"
@@ -33,6 +34,8 @@ type Drawer interface {
 	Write(h float64, text string)
 	Ln(h float64)
 	Rect(x, y, w, h float64, style string)
+	RegisterImageOptionsReader(name string, options gofpdf.ImageOptions, r io.Reader) *gofpdf.ImageInfoType
+	ImageOptions(name string, x, y, w, h float64, flow bool, options gofpdf.ImageOptions, link int, linkURL string)
 
 	SetTextColor(r, g, b int)
 	SetFillColor(r, g, b int)
@@ -82,6 +85,8 @@ type Drawing struct {
 	// lower case and the style, "B", "I" or "BI" ("courierprimeBI"). The
 	// standard fonts (courier, helvetica, times) have none.
 	Fonts map[string][]byte
+	// Images are the pictures drawn (Image marks), by their name.
+	Images map[string]image.Image
 	// Next, in a drawing a Resume stopped, is the start of the page it
 	// stopped before.
 	Next *PageStart
@@ -118,7 +123,7 @@ type Link struct {
 	id         int // the internal link's (AddLink), resolved by Drawing
 }
 
-// A Mark is a Text or a Box.
+// A Mark is a Text, a Box or an Image.
 type Mark interface{ mark() }
 
 // Paint is how a mark is painted: its opacity and blend mode ("Normal",
@@ -154,8 +159,17 @@ type Box struct {
 	Paint
 }
 
-func (Text) mark() {}
-func (Box) mark()  {}
+// Image is a picture placed in the rectangle X, Y, W, H (its top left
+// corner and size, in points): Name is its key in the Drawing's Images.
+type Image struct {
+	X, Y, W, H float64
+	Name       string
+	Paint
+}
+
+func (Text) mark()  {}
+func (Box) mark()   {}
+func (Image) mark() {}
 
 // Recorder draws through gofpdf and records what is drawn, page by page:
 // gofpdf measures, breaks and places everything as it would alone (its
@@ -195,7 +209,7 @@ func NewRecorder(f *gofpdf.Fpdf) *Recorder {
 	w, h := f.GetPageSize()
 	k := f.GetConversionRatio()
 	return &Recorder{Fpdf: f, utf8: map[string]bool{}, upos: map[string]float64{}, uthick: map[string]float64{},
-		drawing: Drawing{Fonts: map[string][]byte{}}, defaultW: w * k, defaultH: h * k}
+		drawing: Drawing{Fonts: map[string][]byte{}, Images: map[string]image.Image{}}, defaultW: w * k, defaultH: h * k}
 }
 
 // Drawing is what was drawn, a page for each of the PDF's.

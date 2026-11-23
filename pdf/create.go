@@ -5,6 +5,7 @@ package pdf
 
 import (
 	"bytes"
+	"cmp"
 	"io"
 	"os"
 	"strconv"
@@ -51,6 +52,15 @@ type PDFWriter struct {
 	// Resume, when set, draws the pages from a page's start (resume.go)
 	// into Record, and makes no PDF.
 	Resume *Resume
+	// Pictures, when set, prints the storyboard frames (lex.Board: a
+	// board note alone on its line) under the lines they illustrate: the
+	// pictures' files by the name the note gives (PNG, JPEG, GIF, WebP).
+	// A frame whose file is missing prints as a box with its name. Pages
+	// with frames cannot be drawn again from a page's start (Resume).
+	Pictures map[string][]byte
+	// PictureLines is how many lines high a frame prints (0: 12, two
+	// inches); a frame wider than the action is made smaller to fit.
+	PictureLines int
 }
 
 // fixedDate, when set (by the tests), is every PDF's creation date, so
@@ -110,6 +120,7 @@ type Tree struct {
 	stopAt    int            // the page the Resume stopped before (0: none)
 	colorOf   map[int]string // each colour block's colour, by its number
 	offset    int            // the document's pages before the PDF's first (a Resume's)
+	pictures  *pictures      // the storyboard frames printed (nil: none)
 }
 
 // span is where printed text is on a page: from its top to its foot.
@@ -334,6 +345,9 @@ func (t *Tree) Render() {
 				t.newPage(!headingAhead(rows, i+1))
 			}
 			s.locks[t.PDF.PageNo()] = row.Contents
+			continue
+		case lex.TypePicture:
+			t.printPicture(row.Contents)
 			continue
 		case typeMore:
 			f := t.Rules.Get(lex.TypeSpeaker)
@@ -957,6 +971,9 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 	if p.MergeOmitted {
 		screenplay = lex.MergeOmittedRuns(screenplay)
 	}
+	if p.Pictures != nil {
+		screenplay = lex.WithPictures(screenplay)
+	}
 	paper, continueds := p.Page, p.Continueds
 	if p.Lock != nil { // a lock is a layout: its paper, its CONTINUEDs
 		continueds = p.Lock.Continueds
@@ -1018,6 +1035,9 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 	}
 	if _, ok := pdf.(*Recorder); ok {
 		t.starts, t.pageLines = map[int]PageStart{}, map[int][2]int{}
+	}
+	if p.Pictures != nil {
+		t.pictures = &pictures{files: p.Pictures, lines: cmp.Or(p.PictureLines, 12), added: map[string]bool{}}
 	}
 	return t
 }

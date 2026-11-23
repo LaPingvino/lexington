@@ -97,6 +97,8 @@ func (t *Tree) height(a, text string) int {
 	switch a {
 	case lex.TypeEmpty, typeMore:
 		return 1
+	case lex.TypePicture:
+		return t.pictureLines(text)
 	}
 	key := [2]string{a, text}
 	if n, ok := t.heights[key]; ok {
@@ -385,6 +387,7 @@ walk:
 		// in the row (also when it fits: a transition after it may need
 		// some of it to go over with it)
 		switch {
+		case r.Type == lex.TypePicture: // a picture is never broken
 		case p.Keep && unbreakable(r.Type):
 		case inSpeech && p.More && r.Type == lex.TypeDialog:
 			t.speechBreaks(r, j, used, room, speech, used+h > room, func(k, rest int) bool {

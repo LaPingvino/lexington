@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.36.0] - 2026-11-23
+
+### Added
+- **Pictures in a PDF** (`pdf.AddImage`, `pdf.DrawImage`): PNG, JPEG, GIF
+  and WebP; what gofpdf cannot read as it is (GIF, WebP, interlaced or
+  16-bit PNG) goes in as an 8-bit PNG, and a file that is no picture is
+  `AddImage`'s error (`ErrImage`), never the whole PDF's. `pdf.ImageSize`
+  reads a picture's size. The `Drawer` has gofpdf's
+  `RegisterImageOptionsReader` and `ImageOptions`.
+- **The drawing has pictures**: an `Image` mark (its rectangle and name)
+  and the pictures decoded in `Drawing.Images`; the `Rasterizer` paints
+  them as Poppler does (smooth, in blocks when enlarged more than four
+  times; within a pixel or two of pdftoppm's). `Reflow` and `Redraw` keep
+  them.
+- **Storyboard frames** in Storyboard Fountain's notation
+  (`[[board: shot.png, duration: 2.50, continued: true]]` alone on its
+  line): `lex.ParseBoard`, `Board.String`, `lex.BoardOf`,
+  `lex.WithPictures`, and `PDFWriter.Pictures` (the frames' files by name)
+  prints them under the lines they illustrate, at the action's margin,
+  `PictureLines` high (12: two inches; smaller when wider than the
+  action), never broken over pages; a missing file prints as a box with
+  its name. Without `Pictures` the PDF is as before. A PDF with frames
+  cannot be drawn again from a page's start (`ErrNotResumable`).
+
 ## [1.35.0] - 2026-11-23
 
 ### Fixed
