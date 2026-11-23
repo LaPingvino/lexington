@@ -98,8 +98,11 @@ func PatternSlots(p string) []string {
 // FillPattern is a heading written by a pattern: each slot's value from
 // values, the text between the slots as it is. A slot with no value is
 // left out with the text that joins it to the slot before it (the first
-// slot with the text before it and after it; the last with the text
-// after it too), so "{n}. {io} {any}" with no {any} is "12. INT":
+// slot with the text after it, and a number with its label before it; the last with the text
+// after it too; one between two others with the text after it where
+// that is plainer or the text before ends the slot before: "INT.
+// KITCHEN", "INT. DAY", "12. 日 内"), so "{n}. {io} {any}" with no {any}
+// is "12. INT":
 // whether what is left reads as a heading is the language's to say
 // (fountain.Dialect.Heading).
 func FillPattern(p string, values map[string]string) string {
@@ -123,12 +126,22 @@ func FillPattern(p string, values map[string]string) string {
 		}
 		switch {
 		case i == first:
-			if i > 0 {
+			// the text before a number is its label (场景, SÉQUENCE, مشهد):
+			// it goes with it; before another slot it says what the line
+			// is (○), and stays
+			number := pt.Slot == SlotNumber
+			if i > 0 && number {
 				keep[i-1] = false
 			}
-			if i+1 < len(parts) && parts[i+1].Slot == "" && i+1 != len(parts)-1 {
+			if i+1 < len(parts) && parts[i+1].Slot == "" && i+1 != len(parts)-1 &&
+				(number || closes(parts[i+1].Text) || strings.TrimSpace(parts[i+1].Text) == "") {
 				keep[i+1] = false
 			}
+		case i != last && i > 0 && parts[i-1].Slot == "" && i+1 < len(parts) && parts[i+1].Slot == "" && keep[i-1] &&
+			(closes(parts[i-1].Text) || !closes(parts[i+1].Text) && len(strings.TrimSpace(parts[i-1].Text)) <= len(strings.TrimSpace(parts[i+1].Text))):
+			// between two kept: the text that ends the slot before stays
+			// ("12. 日 内"), else the plainer ("INT. DAY", not "INT. - DAY")
+			keep[i+1] = false
 		default:
 			if i > 0 && parts[i-1].Slot == "" {
 				keep[i-1] = false
@@ -149,6 +162,16 @@ func FillPattern(p string, values map[string]string) string {
 		}
 	}
 	return strings.TrimSpace(b.String())
+}
+
+// closes tells whether text between slots starts with a sign that ends
+// the slot before it (the dot of "12. ", the slash of "/"), not a space,
+// a dash or a bracket that starts the one after.
+func closes(text string) bool {
+	for _, r := range text {
+		return !strings.ContainsRune(" \t-–—([（【", r)
+	}
+	return false
 }
 
 // HeadingForm is the pattern a new scene heading in the language is
@@ -195,4 +218,68 @@ func (l Language) IOWords(form string) []string {
 		add(l.Scenes)
 	}
 	return out
+}
+
+// PatternVariants are a pattern and the patterns it is with slots left
+// out (Joop: "the new format keeps working when used partially"), as
+// FillPattern leaves an empty slot out with the text joining it: "{n}.
+// {place} {io}/{time}" is also "{n}. {place} {io}" and "{place}
+// {io}/{time}". A pattern with slots left out must still say it is a
+// heading: a word of the language's ({io} or {time}) or the text it
+// starts with ("场景", "مشهد"), and besides it a second sign — another
+// such, a number, or a sign between the slots kept ("/", ".", "（") — so
+// "{place} {io}" (any sentence ending in INNEN) and "{n}. {place}" (a
+// numbered list) are no headings. The pattern itself comes first, as
+// it is, whatever it has.
+func PatternVariants(p string) []string {
+	out := []string{p}
+	slots := PatternSlots(p)
+	if len(slots) > 8 {
+		return out
+	}
+	for mask := 1; mask < 1<<len(slots); mask++ {
+		vals := map[string]string{}
+		parts := ParsePattern(p)
+		// a slot's own placeholder; slots twice in a pattern go together
+		k := 0
+		for _, pt := range parts {
+			if pt.Slot == "" {
+				continue
+			}
+			if mask&(1<<k) == 0 {
+				vals[pt.Slot] = "{" + pt.Slot + "}"
+			}
+			k++
+		}
+		if len(vals) == 0 {
+			continue
+		}
+		v := FillPattern(p, vals)
+		if v != p && signs(v) && !slices.Contains(out, v) {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// signs tells whether a pattern with slots left out still says it is a
+// heading (PatternVariants).
+func signs(p string) bool {
+	parts := ParsePattern(p)
+	word, n := false, 0
+	for i, pt := range parts {
+		switch {
+		case pt.Slot == SlotIO || pt.Slot == SlotTime:
+			word = true
+			n++
+		case pt.Slot == SlotNumber:
+			n++
+		case i == 0 && strings.TrimSpace(pt.Text) != "": // the text it starts with
+			word = true
+			n++
+		case strings.TrimFunc(pt.Text, func(r rune) bool { return r == ' ' || r == '-' || r == '–' || r == '—' }) != "":
+			n++
+		}
+	}
+	return word && n >= 2
 }

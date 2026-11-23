@@ -86,3 +86,47 @@ func TestHeadingForm(t *testing.T) {
 		t.Error("a form without {io} has io words")
 	}
 }
+
+// Slots left out: the text that belonged to them goes too, no dangling
+// " - " or "（）"; the variants a pattern is read by.
+func TestFillPartial(t *testing.T) {
+	v := map[string]string{"io": "INT.", "time": "DAY"}
+	for p, want := range map[string]string{
+		SceneForm:                   "INT. DAY",
+		"{n}. {place} {time} {io}":  "日 内",
+		"○{place}（{time}）":          "○KITCHEN",
+		"{n}. {place} {io}/{time}":  "KÜCHE INNEN/TAG",
+		"{place}/{time}/{io}":       "रसोई/अंदर",
+		"场景{n} {place} {time} {io}": "场景2 厨房 内",
+	} {
+		vals := map[string]string{}
+		switch p {
+		case "{n}. {place} {time} {io}":
+			vals = map[string]string{"time": "日", "io": "内"}
+		case "○{place}（{time}）":
+			vals = map[string]string{"place": "KITCHEN"}
+		case "{n}. {place} {io}/{time}":
+			vals = map[string]string{"place": "KÜCHE", "io": "INNEN", "time": "TAG"}
+		case "{place}/{time}/{io}":
+			vals = map[string]string{"place": "रसोई", "io": "अंदर"}
+		case "场景{n} {place} {time} {io}":
+			vals = map[string]string{"n": "2", "place": "厨房", "io": "内"}
+		default:
+			vals = v
+		}
+		if got := FillPattern(p, vals); got != want {
+			t.Errorf("%q: %q, want %q", p, got, want)
+		}
+	}
+	got := PatternVariants("{n}. {place} {io}/{time}")
+	for _, want := range []string{"{n}. {place} {io}/{time}", "{n}. {place} {io}", "{place} {io}/{time}", "{n}. {io}/{time}"} {
+		if !slices.Contains(got, want) {
+			t.Errorf("variants %q lack %q", got, want)
+		}
+	}
+	for _, not := range []string{"{place} {io}", "{n}. {place}", "{place}"} {
+		if slices.Contains(got, not) {
+			t.Errorf("variants %q have %q, which says nothing of a heading", got, not)
+		}
+	}
+}

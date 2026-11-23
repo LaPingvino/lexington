@@ -103,6 +103,16 @@ its Fountain scene number. The patterns exist because real scripts write
 headings in other orders (below); Fountain's own way (`INT. PLACE - DAY`,
 the number in `#1#`) is read as it always was.
 
+A heading may leave slots out — no time (`INT. KITCHEN`, `场景2 厨房 内`,
+`○台所`), no place, no number — with the text that belonged to them
+(`rules.PatternVariants`, as `FillPattern` writes it). What is left must
+still say it is a heading: a word of the language's (`{io}`, `{time}`) or
+the text the pattern starts with, and a second sign besides — another
+such, a number, or a sign between the slots kept (`/`, `.`, `（`). So
+`{place} {io}` (any sentence ending in INNEN) and `{n}. {place}` (a
+numbered list) are not read as headings. A heading by a scene word reads
+however much of it there is.
+
 A `{n}` takes a letter before its digits or after them (`A11`, `11A`): a
 locked script's scene put in between.
 

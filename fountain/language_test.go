@@ -346,3 +346,46 @@ func TestHeadingFormReadsBack(t *testing.T) {
 		t.Errorf("en: %v", p)
 	}
 }
+
+// A heading written partly still reads (Joop: "the new format keeps
+// working when used partially"): each language's own form, and
+// Fountain's for one with scene words, full, without its time, without
+// its place, without its number; and a sentence stays action.
+func TestPartialHeadings(t *testing.T) {
+	c := rules.DefaultConf()
+	for _, lang := range []string{"en", "eo", "zh", "hi-Deva", "ar", "he", "ja", "de", "fr", "it", "ru", "nl"} {
+		l := c.Language(lang)
+		forms := []string{l.HeadingForm()}
+		if len(l.Scenes) > 0 && l.Scenes[0] != "○" {
+			forms = append(forms, rules.SceneForm)
+		}
+		for _, form := range forms {
+			full := map[string]string{"n": "7", "place": "GARE", "any": "GARE", "time": "DAY"}
+			if io := l.IOWords(form); len(io) > 0 {
+				full["io"] = io[0]
+			}
+			if len(l.Times) > 0 {
+				full["time"] = l.Times[0]
+			}
+			for _, drop := range []string{"", "time", "place", "n"} {
+				if drop != "" && !slices.Contains(rules.PatternSlots(form), drop) {
+					continue
+				}
+				v := maps.Clone(full)
+				delete(v, drop)
+				h := rules.FillPattern(form, v)
+				if typ := typeOf(t, lang, "Rain.\n\n"+h+"\n\nRain.\n", h); typ != lex.TypeScene {
+					t.Errorf("%s by %q without %q: %q is %s", lang, form, drop, h, typ)
+				}
+				if p, ok := NewDialect(l).HeadingParts(h); !ok || drop != "place" && slices.Contains(rules.PatternSlots(form), "place") && p["place"] != "GARE" {
+					t.Errorf("%s %q: parts %v", lang, h, p)
+				}
+			}
+		}
+		for _, action := range []string{"Inside the house it was dark.", "1. Buy milk", "Sie ist innen", "他在外", "वह अंदर"} {
+			if typ := typeOf(t, lang, "Rain.\n\n"+action+"\n\nRain.\n", action); typ == lex.TypeScene {
+				t.Errorf("%s: %q read as a heading", lang, action)
+			}
+		}
+	}
+}

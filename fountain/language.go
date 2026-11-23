@@ -84,8 +84,22 @@ func squash(s string) string { return strings.ToUpper(strings.Join(strings.Field
 const numberSlot = `[A-Za-z]?[0-9٠-٩۰-۹零〇一二三四五六七八九十百]+[A-Za-z]?`
 
 // headingPattern is a heading pattern as a regular expression over a
-// line in capitals, nil for one that cannot be read.
+// line in capitals, nil for one that cannot be read: the pattern, or it
+// with slots left out (rules.PatternVariants: "场景2 厨房 内", no time).
 func headingPattern(p string, l rules.Language) *regexp.Regexp {
+	var alts []string
+	for _, v := range rules.PatternVariants(p) {
+		alts = append(alts, headingBody(v, l))
+	}
+	re, err := regexp.Compile(`^(?:` + strings.Join(alts, "|") + `)\s*$`)
+	if err != nil {
+		return nil
+	}
+	return re
+}
+
+// headingBody is one pattern as a regular expression's body.
+func headingBody(p string, l rules.Language) string {
 	words := func(ws ...[]string) string {
 		var alts []string
 		for _, list := range ws {
@@ -104,7 +118,6 @@ func headingPattern(p string, l rules.Language) *regexp.Regexp {
 		p = strings.ReplaceAll(strings.ReplaceAll(p, " "+sep, sep), sep+" ", sep)
 	}
 	var b strings.Builder
-	b.WriteString(`^`)
 	for p != "" {
 		switch {
 		case strings.HasPrefix(p, "{n}"):
@@ -137,12 +150,7 @@ func headingPattern(p string, l rules.Language) *regexp.Regexp {
 			p = p[len(string(r)):]
 		}
 	}
-	b.WriteString(`\s*$`)
-	re, err := regexp.Compile(b.String())
-	if err != nil {
-		return nil
-	}
-	return re
+	return b.String()
 }
 
 // HasPatterns tells whether the language has heading patterns.

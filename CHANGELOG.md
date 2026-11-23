@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.42.0] - 2026-11-23
+
+### Changed
+- **Partial headings read**: a heading pattern also reads a heading with
+  slots left out (no time, no place, no number), with the text that
+  belonged to them, as long as what is left still says it is a heading
+  (a word of the language's or the pattern's opening text, and a second
+  sign): `场景2 厨房 内`, `KÜCHE INNEN/TAG`, `रसोई/अंदर`.
+  `rules.PatternVariants` lists them.
+- `rules.FillPattern` leaves an empty slot out with the text that is
+  its own: `INT. DAY` (not `INT. - DAY`), `12. 日 内`, `○（朝）`; a
+  number's label goes with it, other opening text stays.
+
 ## [1.41.0] - 2026-11-23
 
 ### Changed
