@@ -106,7 +106,31 @@ func PatternSlots(p string) []string {
 // whether what is left reads as a heading is the language's to say
 // (fountain.Dialect.Heading).
 func FillPattern(p string, values map[string]string) string {
-	parts := ParsePattern(p)
+	return FillParts(ParsePattern(p), values)
+}
+
+// FillParts is FillPattern for a pattern taken apart, whose text parts
+// may be other text than the pattern's: a heading's own, as it was typed
+// between its slots ("场景12  厨房", two spaces), so a slot left out or
+// put in changes nothing else of it (fountain.Dialect.WithHeadingNumber).
+func FillParts(parts []PatternPart, values map[string]string) string {
+	keep := FillKept(parts, values)
+	var b strings.Builder
+	for i, pt := range parts {
+		switch {
+		case !keep[i]:
+		case pt.Slot != "":
+			b.WriteString(strings.TrimSpace(values[pt.Slot]))
+		default:
+			b.WriteString(pt.Text)
+		}
+	}
+	return strings.TrimSpace(b.String())
+}
+
+// FillKept are the parts FillParts writes, part by part: the slots with
+// a value and the text it keeps beside them.
+func FillKept(parts []PatternPart, values map[string]string) []bool {
 	keep := make([]bool, len(parts))
 	for i, pt := range parts {
 		keep[i] = pt.Slot == "" || strings.TrimSpace(values[pt.Slot]) != ""
@@ -151,17 +175,7 @@ func FillPattern(p string, values map[string]string) string {
 			keep[i+1] = false
 		}
 	}
-	var b strings.Builder
-	for i, pt := range parts {
-		switch {
-		case !keep[i]:
-		case pt.Slot != "":
-			b.WriteString(strings.TrimSpace(values[pt.Slot]))
-		default:
-			b.WriteString(pt.Text)
-		}
-	}
-	return strings.TrimSpace(b.String())
+	return keep
 }
 
 // closes tells whether text between slots starts with a sign that ends

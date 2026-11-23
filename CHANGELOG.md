@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.45.0] - 2026-11-23
+
+### Added
+- **A heading's own number** (Joop: number-based heading formats "easily auto-numbered"): `Dialect.HeadingNumber`
+  reads the number a heading has in its words by a pattern with `{n}` (`场景12 厨房 日 内`, `12. פנים. משרד – יום`),
+  in Western digits (`١٢` and `十二` read as `12`); `Dialect.WithHeadingNumber` writes it there: in place of the one
+  there is, put in by the pattern a heading without one is that pattern without its number (`厨房 日 内` →
+  `场景5 厨房 日 内`, a Hebrew heading by its scene word `פנים. …` → `7. פנים. …`), or left out with its label
+  (`""`), every other character of the line as typed; a Fountain `#n#` at its end is kept equal. A number in
+  Arabic-Indic, Persian or Chinese numerals is written in them again. `Dialect.TakesNumber` tells whether a
+  heading's words have a number or can have one. `rules.FillParts`/`FillKept`: `FillPattern` over a pattern
+  taken apart, with other text between its slots. `TestHeadingNumber`, `TestHeadingNumberRead`.
+
+### Changed
+- A heading pattern's `{n}` reads the letters a locked script gives on either side (`10AA`, `10aA`, `AB11`), not
+  only one. `HeadingParts` prefers a pattern that reads a number: `3. रसोई/दिन/अंदर` is scene 3 in `रसोई`, not a
+  place `3. रसोई`.
+
 ## [1.44.0] - 2026-11-23
 
 ### Added

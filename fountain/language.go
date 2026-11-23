@@ -24,6 +24,9 @@ type Dialect struct {
 	ext      map[string]bool
 	trans    map[string]bool
 	maxWord  int // the longest scene word, in bytes
+
+	formsOnce sync.Once
+	forms     []numberForm // the patterns' forms with a number or without (heading_number.go)
 }
 
 // maxShort is how long (in bytes) a line read as a heading by a pattern,
@@ -79,9 +82,10 @@ func dialectKey(l rules.Language) string {
 func squash(s string) string { return strings.ToUpper(strings.Join(strings.Fields(s), " ")) }
 
 // numberSlot is what a scene number in a heading pattern is: digits
-// (Western, Arabic, Persian, Chinese), a letter after them or before
-// them (15B, A15: a locked script's scenes put in between).
-const numberSlot = `[A-Za-z]?[0-9٠-٩۰-۹零〇一二三四五六七八九十百]+[A-Za-z]?`
+// (Western, Arabic, Persian, Chinese), letters after them or before
+// them (15B, A15, 15AA, 15aA, AB15: a locked script's scenes put in
+// between, lex.NumberStyle).
+const numberSlot = `[A-Za-z]{0,4}[0-9٠-٩۰-۹零〇一二三四五六七八九十百]+[A-Za-z]{0,4}`
 
 // headingPattern is a heading pattern as a regular expression over a
 // line in capitals, nil for one that cannot be read: the pattern, or it
@@ -230,17 +234,32 @@ func (d *Dialect) HeadingParts(row string) (map[string]string, bool) {
 		}
 		return out, true
 	}
+	// the first pattern that reads it, one that reads a number in it
+	// before one without ("3. रसोई/दिन/अंदर" is scene 3 in रसोई, not in "3.
+	// रसोई")
+	var first map[string]string
 	for _, re := range d.headings {
 		m := re.FindStringSubmatch(upper)
 		if m == nil {
 			continue
 		}
+		parts := maps.Clone(out)
+		numbered := false
 		for i, name := range re.SubexpNames() {
 			if v := strings.TrimSpace(m[i]); name != "" && v != "" {
-				out[name] = v
+				parts[name] = v
+				numbered = numbered || name == rules.SlotNumber
 			}
 		}
-		return out, true
+		if numbered {
+			return parts, true
+		}
+		if first == nil {
+			first = parts
+		}
+	}
+	if first != nil {
+		return first, true
 	}
 	return out, true
 }
