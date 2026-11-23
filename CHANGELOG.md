@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.32.0] - 2026-11-23
+
+### Added
+- **A scan's garbled text layer**: `pdfin.TextLayers` says how each page's
+  own text reads (`TextQuality`: words that look like no word — stray marks
+  of the scan as | _ ~ alone or at a line's ends, glued punctuation, case
+  or script changing inside a word, letters and digits mixed, letters
+  spread by spaces — and lines whose words sit at two heights, as a skewed
+  scan's layer has them) and whether the page is a scan OCR can read;
+  `GarbledPages`/`CountGarbled` count the scans whose layer scores below
+  `GarbledBar` (0.97; printed text scores 1), when the layers together do.
+  `Options.OCRText` has OCR read those scans in place of their layer (a
+  page OCR cannot read keeps it): a program offers it, never on its own.
+- **Layered scans (the Internet Archive's)**: a JPEG 2000 foreground shown
+  through a 1-bit mask is read through the mask, which is the ink; JPEG
+  2000 itself still cannot be decoded.
+
 ## [1.31.0] - 2026-11-23
 
 ### Fixed

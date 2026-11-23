@@ -17,6 +17,18 @@ import (
 
 // pageImage is the largest image on a page: the scan of a scanned page.
 func pageImage(p pdf.Page) (image.Image, error) {
+	x := scanOf(p)
+	if x.IsNull() {
+		return nil, fmt.Errorf("no text and no image on the page")
+	}
+	return decodeImage(x)
+}
+
+// scanOf is the image on a page OCR reads: the largest; for a scan in
+// layers (the Internet Archive's: a JPEG 2000 foreground, coloured,
+// shown through a 1-bit mask), the mask, which is the ink. Null if the
+// page has no image.
+func scanOf(p pdf.Page) pdf.Value {
 	xobjects := p.V.Key("Resources").Key("XObject")
 	var best pdf.Value
 	area := int64(0)
@@ -29,11 +41,27 @@ func pageImage(p pdf.Page) (image.Image, error) {
 			best, area = x, a
 		}
 	}
-	if area == 0 {
-		return nil, fmt.Errorf("no text and no image on the page")
+	if filterOf(best) == "JPXDecode" {
+		if m := best.Key("SMask"); m.Kind() == pdf.Stream && m.Key("BitsPerComponent").Int64() == 1 && readable(m) {
+			return m
+		}
 	}
-	return decodeImage(best)
+	return best
 }
+
+// filterOf is the name of an image's own filter (the last one).
+func filterOf(x pdf.Value) string {
+	filter := x.Key("Filter")
+	if filter.Kind() == pdf.Array {
+		if n := filter.Len(); n > 0 {
+			filter = filter.Index(n - 1)
+		}
+	}
+	return filter.Name()
+}
+
+// readable says if decodeImage can decode an image (JPEG 2000 it cannot).
+func readable(x pdf.Value) bool { return !x.IsNull() && filterOf(x) != "JPXDecode" }
 
 // decodeImage decodes a PDF image: JPEG, fax (CCITT) or plain pixels.
 func decodeImage(x pdf.Value) (img image.Image, err error) {

@@ -26,6 +26,10 @@ type Options struct {
 	// OCR reads pages without text (a scanned script); without it such
 	// a PDF is an error.
 	OCR OCR
+	// OCRText has OCR read the scanned pages that carry a text layer too
+	// (a poor OCR's, made with the scan: see GarbledPages), in place of
+	// it; a page OCR cannot read keeps its layer.
+	OCRText bool
 	// Progress, if set, is told how many of the pages are read.
 	Progress func(done, pages int)
 	// Skipped, if set, is told of a page that could not be read (a broken

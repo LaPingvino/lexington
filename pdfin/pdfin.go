@@ -92,14 +92,26 @@ func ReadFileWith(path string, opts Options) (lex.Screenplay, error) {
 // (scanned: OCR reads them) and all its pages, without reading them, so a
 // program can ask how to read them first.
 func ScannedPages(path string) (scanned, pages int, err error) {
+	err = eachPage(path, func(i int, p pdf.Page) {
+		pages++
+		if len(lines(i, p)) == 0 {
+			scanned++
+		}
+	})
+	return scanned, pages, err
+}
+
+// eachPage gives do every page of the PDF file at path, numbered from 1
+// (a page the PDF lacks is left out).
+func eachPage(path string, do func(i int, p pdf.Page)) (err error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return 0, 0, err
+		return err
 	}
 	defer f.Close()
 	st, err := f.Stat()
 	if err != nil {
-		return 0, 0, err
+		return err
 	}
 	defer func() {
 		if p := recover(); p != nil { // the PDF library panics on some files
@@ -108,19 +120,14 @@ func ScannedPages(path string) (scanned, pages int, err error) {
 	}()
 	doc, err := pdf.NewReader(f, st.Size())
 	if err != nil {
-		return 0, 0, err
+		return err
 	}
 	for i := 1; i <= doc.NumPage(); i++ {
-		p := doc.Page(i)
-		if p.V.IsNull() {
-			continue
-		}
-		pages++
-		if len(lines(i, p)) == 0 {
-			scanned++
+		if p := doc.Page(i); !p.V.IsNull() {
+			do(i, p)
 		}
 	}
-	return scanned, pages, nil
+	return nil
 }
 
 // Read reads the screenplay in a PDF.
@@ -211,23 +218,32 @@ func readPage(ctx context.Context, i int, p pdf.Page, width float64, opts Option
 		}
 	}()
 	ls = lines(i, p)
-	if len(ls) == 0 && opts.OCR != nil { // a scanned page
-		img, err := pageImage(p)
-		if err != nil {
-			return nil, err
+	if opts.OCR != nil && (len(ls) == 0 || opts.OCRText && isScan(p)) { // a scanned page
+		read, err := ocrPage(ctx, i, p, width, opts.OCR)
+		if err == nil || len(ls) == 0 || ctx.Err() != nil {
+			return read, err
 		}
-		hocr, err := opts.OCR.HOCR(ctx, img)
-		if err != nil {
-			return nil, err
-		}
-		ls = hocrLines(i, hocr, float64(img.Bounds().Dx())/width)
-		if rtlPage(ls) {
-			mirror(ls, width, false)
-		}
-		return ls, nil
+		// OCR could not read it: its own text layer, then
 	}
 	if rtlPage(ls) {
 		mirror(ls, width, true)
+	}
+	return ls, nil
+}
+
+// ocrPage is a page's lines as OCR reads its scan.
+func ocrPage(ctx context.Context, i int, p pdf.Page, width float64, ocr OCR) ([]line, error) {
+	img, err := pageImage(p)
+	if err != nil {
+		return nil, err
+	}
+	hocr, err := ocr.HOCR(ctx, img)
+	if err != nil {
+		return nil, err
+	}
+	ls := hocrLines(i, hocr, float64(img.Bounds().Dx())/width)
+	if rtlPage(ls) {
+		mirror(ls, width, false)
 	}
 	return ls, nil
 }
