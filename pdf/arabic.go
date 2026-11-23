@@ -77,6 +77,18 @@ func arabicRune(r rune) bool {
 		!(r >= 0x0660 && r <= 0x0669) && !(r >= 0x06F0 && r <= 0x06F9) || r == 0x200C || r == 0x200D
 }
 
+// arabicRunEnd is where the Arabic run starting at rs[i] ends. The vowel
+// marks (fatha, shadda, sukun…) are of no script of their own
+// (Inherited): the run goes on over them, or a vowelled word would be
+// shaped letter by letter, unjoined.
+func arabicRunEnd(rs []rune, i int) int {
+	j := i
+	for j < len(rs) && (arabicRune(rs[j]) || unicode.Is(unicode.Mn, rs[j])) {
+		j++
+	}
+	return j
+}
+
 // shape is text with its Arabic runs shaped; unshaped is how many of its
 // letters could not be (no character for their form).
 func (s *arabicShaper) shape(text string) (out string, unshaped int) {
@@ -88,10 +100,7 @@ func (s *arabicShaper) shape(text string) (out string, unshaped int) {
 			i++
 			continue
 		}
-		j := i
-		for j < len(rs) && arabicRune(rs[j]) {
-			j++
-		}
+		j := arabicRunEnd(rs, i)
 		run, n := s.shapeRun(rs[i:j])
 		b, unshaped = append(b, run...), unshaped+n
 		i = j

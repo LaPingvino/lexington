@@ -72,10 +72,7 @@ func TestArabicShapedAsHarfBuzz(t *testing.T) {
 					i++
 					continue
 				}
-				j := i
-				for j < len(rs) && arabicRune(rs[j]) {
-					j++
-				}
+				j := arabicRunEnd(rs, i)
 				out := sh.Shape(shaping.Input{Text: rs[i:j], RunEnd: j - i, Direction: di.DirectionRTL, Face: face,
 					Size: fixed.I(12), Script: language.Arabic, Language: language.NewLanguage("ar")})
 				for k := len(out.Glyphs) - 1; k >= 0; k-- {
@@ -115,6 +112,8 @@ func TestArabicForms(t *testing.T) {
 		"لا":      "\uFEFB",                   // lam-alef
 		"سمير ١٢": "\uFEB3\uFEE4\uFEF4\uFEAE ١٢",
 		"Hello":   "Hello",
+		// vowelled: the marks stay after their letters, the letters joined
+		"سِمْسِمْ": "\uFEB3\u0650\uFEE4\u0652\uFEB4\u0650\uFEE2\u0652",
 	} {
 		if got, _ := s.shape(in); got != want {
 			t.Errorf("%q: %+q, want %+q", in, got, want)

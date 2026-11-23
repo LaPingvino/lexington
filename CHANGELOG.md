@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.31.0] - 2026-11-23
+
+### Fixed
+- **Vowelled Arabic in the PDF is joined**: the vowel marks (fatha, kasra,
+  shadda, sukun…) are of the Inherited script, not Arabic, so a vowelled
+  word was shaped letter by letter and printed unjoined (اِفْتَحْ يَا
+  سِمْسِمْ). An Arabic run now goes on over the marks.
+
 ## [1.30.0] - 2026-11-23
 
 ### Added
