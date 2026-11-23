@@ -233,32 +233,42 @@ examples, and its fades `פייד אין`, `פייד אאוט`; Chinese `OS`/`VO
 
 ## Hindi
 
-Three keys, one per way of writing (Joop, 2026-11-23):
+Three keys (Joop, 2026-11-23): each writes its own words first (what a
+program writes: New's template, a new heading, a title key) and reads
+English Fountain's too.
 
-- **`hi-Latn`**, Hindi in Latin letters, what most Hindi Fountain scripts
-  are: English Fountain as it is — `INT./EXT.`, `CUT TO:`, `V.O.`,
-  cues in capitals — with the dialogue in Hindi
-  ("Tumhein lagta hai main yahaan apni marzi se aaya hoon?"). Its time
-  words add `DIN`, `RAAT`, `SUBAH`, `SHAAM` to English's (Lexington's own
-  spelling; no source wrote the time in Hindi in Latin letters). No Hindi
-  scene words in Latin letters: none were found, and `ANDAR`/`BAHAR`
-  before a space would make every action line starting "Andar se…" a
-  heading. Its title page keys are the Devanagari ones in Latin letters
-  (below).
+- **`hi`**, Hindi as most scripts are written, English first: it writes
+  English Fountain's words — `INT. … - DAY`, `V.O.`, `O.S.`, `CONT'D`,
+  `CUT TO:`, `FADE OUT.`, the standard title keys (`Title`, `Author`…) —
+  with the dialogue in Hindi, and reads everything `hi-Latn` and `hi-Deva`
+  read: `hi-Deva`'s rules (cues without capitals, its headings) with every
+  word list English's first, `FADE OUT.` among its transitions, and
+  `NewHeading` Fountain's `{io} {place} - {time}`. The one shown by
+  default; the other two are its variants.
+- **`hi-Latn`**, Hindi in Latin letters, written so as far as there are
+  words for it: English Fountain — `INT./EXT.`, `CUT TO:`, `V.O.`, cues in
+  capitals — with the dialogue in Hindi ("Tumhein lagta hai main yahaan
+  apni marzi se aaya hoon?"), its time words `DIN`, `RAAT`, `SUBAH`,
+  `SHAAM` first (English's still read; Lexington's own spelling, no source
+  wrote the time in Hindi in Latin letters) and its title keys in Latin
+  letters (below). No Hindi scene words, extensions or transitions in
+  Latin letters: none were found (Hindi in Latin letters writes them in
+  English), and `ANDAR`/`BAHAR` before a space would make every action
+  line starting "Andar se…" a heading.
 - **`hi-Deva`**, Hindi in Devanagari: headings place first, time, then
   inside/outside, slash-separated, as NCERT's textbook writes them
   (`शिक्षा अधिकारी का दफ़्तर (बाहरी कक्ष)/दिन/अंदर`; also numbered,
   `3. घर का आँगन / रात / बाहर`); `अंदर`/`बाहर` for inside and outside,
   `दिन`, `रात`, `सुबह`, `शाम` (and `दोपहर`) for the time; the transitions
   `कट टू` and `(डिजॉल्व टू)` (its brackets are `TransitionMarks`). English's
-  scene words, extensions and ` TO:` are kept: many Indian scripts write
-  English headings and action with Devanagari dialogue. Cues without
-  capitals (`list`, `parenthetical`, `extension`, `repeat`), as Hebrew's;
-  a Latin name in capitals is a cue as before; `।` and `॥` end a sentence.
-- **`hi`**, both at once: `hi-Deva`'s rules with English's scene words
-  first and `hi-Latn`'s time words and title keys too; a writer writes in either script or
-  mixes them. Everything `hi-Latn` and `hi-Deva` read, `hi` reads
-  (`TestHindiBoth`).
+  scene words, time words, extensions, ` TO:` and the standard title keys
+  are read after its own: many Indian scripts write English headings and
+  action with Devanagari dialogue. Cues without capitals (`list`,
+  `parenthetical`, `extension`, `repeat`), as Hebrew's; a Latin name in
+  capitals is a cue as before; `।` and `॥` end a sentence.
+
+`TestHindi`, `TestHindiWrites` and `TestHindiWords` check each reads the
+others' and English's.
 
 No standard for Devanagari screenplay terms was found: Hindi guides and
 the textbook write `INT.`/`EXT.` and the transitions in English or in

@@ -118,17 +118,23 @@ func (l Language) with(headings, settings, times, extensions, transitions, ends 
 // with the dialogue in Hindi; Devanagari scripts write the heading place
 // first, inside/outside last ("शिक्षा अधिकारी का दफ़्तर (बाहरी कक्ष)/दिन/अंदर",
 // NCERT's अभिव्यक्ति और माध्यम), "कट टू", "(डिजॉल्व टू)"; many keep INT./EXT.
-// in English beside Devanagari dialogue. hi is both at once.
+// in English beside Devanagari dialogue. Each writes its own words and
+// reads English's too (Joop, 2026-11-23): hi writes English Fountain's
+// and reads all three; hi-Latn writes its Hindi in Latin letters (time
+// words, title keys); hi-Deva its Devanagari.
 
-// hindiTimes are the time words in Latin letters: English's, and the
-// Hindi words written so (Lexington's own spelling).
-var hindiTimes = []string{"DAY", "NIGHT", "MORNING", "EVENING", "DUSK", "DAWN", "DIN", "RAAT", "SUBAH", "SHAAM"}
+// englishTimes are English's time words, as Hindi reads them;
+// latinTimes the Hindi ones in Latin letters (Lexington's own spelling).
+var (
+	englishTimes = []string{"DAY", "NIGHT", "MORNING", "EVENING", "DUSK", "DAWN"}
+	latinTimes   = []string{"DIN", "RAAT", "SUBAH", "SHAAM"}
+)
 
-// hindiLatin is Hindi in Latin letters: English Fountain, the Hindi time
-// words beside English's.
+// hindiLatin is Hindi in Latin letters: English Fountain with its Hindi
+// time words and title keys first, English's read beside them.
 func hindiLatin() Language {
 	l := english()
-	l.Times = slices.Clone(hindiTimes)
+	l.Times = slices.Concat(latinTimes, englishTimes)
 	l.TitleKeys = maps.Clone(hindiLatinKeys)
 	return l
 }
@@ -163,8 +169,9 @@ var devanagari = struct {
 }
 
 // hindiDevanagari is Hindi in Devanagari: its own words, English
-// Fountain's scene words, extensions and " TO:" accepted after them;
-// cues without capitals (a Latin name in capitals still is one).
+// Fountain's scene words, time words, extensions and " TO:" accepted
+// after them (its title keys beside the standard ones every language
+// reads); cues without capitals (a Latin name in capitals still is one).
 func hindiDevanagari() Language {
 	d := devanagari
 	return Language{
@@ -172,7 +179,7 @@ func hindiDevanagari() Language {
 		Matchup:         slices.Clone(d.matchup),
 		Headings:        slices.Clone(d.headings),
 		Settings:        slices.Clone(d.settings),
-		Times:           slices.Clone(d.times),
+		Times:           slices.Concat(d.times, englishTimes),
 		Direction:       "ltr",
 		Cues:            slices.Clone(noCaps),
 		Extensions:      slices.Concat(d.extensions, english().Extensions),
@@ -185,15 +192,26 @@ func hindiDevanagari() Language {
 	}
 }
 
-// hindi is Hindi in either script or both mixed: Devanagari's rules with
-// the Latin time words and title keys too, and English's scene words
-// first (INT.: what most Hindi scripts write).
+// hindi is Hindi as most scripts write it, English first: it writes
+// English Fountain's words (INT. … - DAY, V.O., CUT TO:, FADE OUT., the
+// standard title keys) and reads Hindi's in either script too, both
+// mixed: Devanagari's rules (cues without capitals, its headings) with
+// every word list English's first.
 func hindi() Language {
 	l := hindiDevanagari()
 	l.Scenes = slices.Concat(english().Scenes, devanagari.scenes)
 	l.Matchup = slices.Clone(english().Matchup)
-	l.Times = slices.Concat(hindiTimes, devanagari.times)
+	l.NewHeading = SceneForm
+	l.Times = slices.Concat(englishTimes, latinTimes, devanagari.times)
+	l.Extensions = slices.Concat(english().Extensions, devanagari.extensions)
+	// FADE OUT. last: New's template closes with the last
+	l.Transitions = append(slices.Clone(devanagari.transitions), "FADE OUT.")
+	l.TitleKeys = map[string]string{}
+	for _, k := range []string{"Title", "Credit", "Author", "Source", "Draft", "Draft date", "Date", "Contact", "Notes", "Copyright"} {
+		l.TitleKeys[k] = k // written as they are
+	}
 	maps.Copy(l.TitleKeys, hindiLatinKeys)
+	maps.Copy(l.TitleKeys, devanagari.titleKeys)
 	return l
 }
 

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.43.0] - 2026-11-23
+
+### Changed
+- **Hindi, English first** (Joop): `hi` writes English Fountain's words
+  (`INT. … - DAY`, `V.O.`, `CUT TO:`, `FADE OUT.`, the standard title keys,
+  `NewHeading` Fountain's) and reads Hindi's in either script; `hi-Latn`
+  writes its time words (`DIN`…) and Latin-letter title keys first;
+  `hi-Deva` its Devanagari. Each reads English's too (`hi-Deva` now
+  English's time words as well). `TestHindiWrites`.
+
 ## [1.42.0] - 2026-11-23
 
 ### Changed

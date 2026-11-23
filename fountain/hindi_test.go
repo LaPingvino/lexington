@@ -1,6 +1,7 @@
 package fountain
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -18,13 +19,13 @@ func TestHindi(t *testing.T) {
 		text, row string
 		want      string
 	}{
-		{[]string{"hi-Latn", "hi"}, latin, "MUMBAI APARTMENT", lex.TypeScene},
-		{[]string{"hi-Latn", "hi"}, latin, "khidki", lex.TypeAction},
-		{[]string{"hi-Latn", "hi"}, latin, "ARJUN (V.O.)", lex.TypeSpeaker},
-		{[]string{"hi-Latn", "hi"}, latin, "marzi", lex.TypeDialog},
-		{[]string{"hi-Latn", "hi"}, latin, "CUT TO:", lex.TypeTrans},
-		{[]string{"hi-Latn", "hi"}, latin, "DHARAVI", lex.TypeScene},
-		{[]string{"hi-Latn", "hi"}, latin, "awaaz", lex.TypeAction},
+		{[]string{"hi-Latn", "hi-Deva", "hi"}, latin, "MUMBAI APARTMENT", lex.TypeScene},
+		{[]string{"hi-Latn", "hi-Deva", "hi"}, latin, "khidki", lex.TypeAction},
+		{[]string{"hi-Latn", "hi-Deva", "hi"}, latin, "ARJUN (V.O.)", lex.TypeSpeaker},
+		{[]string{"hi-Latn", "hi-Deva", "hi"}, latin, "marzi", lex.TypeDialog},
+		{[]string{"hi-Latn", "hi-Deva", "hi"}, latin, "CUT TO:", lex.TypeTrans},
+		{[]string{"hi-Latn", "hi-Deva", "hi"}, latin, "DHARAVI", lex.TypeScene},
+		{[]string{"hi-Latn", "hi-Deva", "hi"}, latin, "awaaz", lex.TypeAction},
 		{[]string{"hi-Deva", "hi"}, deva, "शिक्षा अधिकारी", lex.TypeScene},
 		{[]string{"hi-Deva", "hi"}, deva, "कमरे में", lex.TypeAction},
 		{[]string{"hi-Deva", "hi"}, deva, "चपरासी", lex.TypeParen},
@@ -72,5 +73,36 @@ func TestHindiWords(t *testing.T) {
 				t.Errorf("%s: no %s in %v", c.lang, k, got)
 			}
 		}
+	}
+}
+
+// TestHindiWrites: each Hindi writes its own words first and reads
+// English's too (Joop, 2026-11-23): hi English Fountain's, hi-Latn its
+// Hindi in Latin letters, hi-Deva its Devanagari.
+func TestHindiWrites(t *testing.T) {
+	c := rules.DefaultConf()
+	hi, latn, deva := c.Language("hi"), c.Language("hi-Latn"), c.Language("hi-Deva")
+	if hi.HeadingForm() != rules.SceneForm || hi.Matchup[0] != "INT." || hi.Times[0] != "DAY" || hi.Extensions[0] != "V.O." ||
+		hi.Transitions[len(hi.Transitions)-1] != "FADE OUT." || hi.TitleKeys["Author"] != "Author" || hi.TitleKeys["Title"] != "Title" {
+		t.Errorf("hi does not write English first: %q %q %q %q %q", hi.HeadingForm(), hi.Times[:2], hi.Extensions[:2], hi.Transitions, hi.TitleKeys)
+	}
+	if latn.Times[0] != "DIN" || !slices.Contains(latn.Times, "DAY") || latn.TitleKeys["Sheershak"] != "Title" {
+		t.Errorf("hi-Latn: %q %q", latn.Times, latn.TitleKeys)
+	}
+	if deva.Times[0] != "दिन" || !slices.Contains(deva.Times, "NIGHT") || deva.Extensions[0] != "वॉयस ओवर" || !slices.Contains(deva.Extensions, "CONT'D") {
+		t.Errorf("hi-Deva: %q %q", deva.Times, deva.Extensions)
+	}
+	english := "Title: The Well\nAuthor: Accolade\nDraft date: 1\n\nEXT. VILLAGE WELL - NIGHT\n\nRaat ho chuki hai.\n\nMEERA\n(dheere se)\nKaun hai?\n\nRAVI (O.S.)\nMain hoon.\n\nMEERA (CONT'D)\nAndar aao.\n\nCUT TO:\n\nINT. MEERA'S HOUSE - DAY\n\n> FADE OUT.\n"
+	for _, lang := range []string{"hi", "hi-Latn", "hi-Deva"} {
+		for row, want := range map[string]string{"VILLAGE WELL": lex.TypeScene, "MEERA": lex.TypeSpeaker, "RAVI (O.S.)": lex.TypeSpeaker,
+			"MEERA (CONT'D)": lex.TypeSpeaker, "Kaun": lex.TypeDialog, "CUT TO:": lex.TypeTrans, "HOUSE": lex.TypeScene,
+			"FADE OUT": lex.TypeTrans, "The Well": "Title", "Raat ho": lex.TypeAction} {
+			if got := typeOf(t, lang, english, row); got != want {
+				t.Errorf("%s %q: %s, want %s", lang, row, got, want)
+			}
+		}
+	}
+	if got := typeOf(t, "hi", "INT. ROOM - DAY\n\nFADE OUT.\n", "FADE OUT"); got != lex.TypeTrans {
+		t.Errorf("hi: FADE OUT. read as %s", got)
 	}
 }
