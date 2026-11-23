@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/LaPingvino/lexington/bundle"
 	"github.com/LaPingvino/lexington/fdx"
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/html"
@@ -443,9 +444,9 @@ func Convert(ctx context.Context, o Options) error {
 	if isBundleOutput(o.Output) {
 		return convertToBundle(ctx, o, src)
 	}
-	if src != nil && src.Markdown() {
-		return fmt.Errorf("%s holds Markdown (%s), not a screenplay: Lexington can only repack it into another bundle",
-			filepath.Base(o.Input), src.Text)
+	if src != nil && src.Kind() != bundle.Fountain {
+		return fmt.Errorf("%s holds %s (%s), not a screenplay: Lexington can only repack it into another bundle",
+			filepath.Base(o.Input), src.Kind(), src.Text)
 	}
 	return convert(ctx, o)
 }

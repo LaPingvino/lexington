@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.46.0] - 2026-11-23
+
+### Added
+- **Real Highland files** (Joop): five `.highland` samples from
+  [eugenefischer/highwater-too](https://github.com/eugenefischer/highwater-too) (MIT) are in
+  `bundle/testdata/highland/`, with their licence. MarkerTest was saved by Highland 2 itself. Highwater-too's
+  scripts wrote the others the way Highland 2 writes a new document, and Highland 2 opened and printed them.
+  Each one, and all 30 upstream files when `LEXINGTON_HIGHLAND_SAMPLES` names a folder of them, goes through
+  these steps: read, `check`, copy to another name, zip → folder → zip, a save in place under a new file name,
+  print to PDF and HTML, and Fountain written back. Every file and `info.json` survive byte for byte.
+  `TestHighlandSamples`, `TestHighlandSamplesCLI`.
+- **Plain text**: `bundle.Kind` (Fountain, Markdown, plain text) and `Bundle.Kind()`. `text.txt` with
+  `public.plain.text` (Highland's Plain Text template) is plain text. Before, it was read as Fountain and
+  printed as a screenplay. It is now repacked only, as Markdown is. `Bundle.Template()` is the Highland template
+  `info.json` names. `check` shows both: `text.md (Markdown, Highland's Manuscript template)`.
+- **Highland's directives are not printed**: `{{HEADER: …}}`, `{{FOOTER: …}}`, `{{PAGENUMBER: n}}`,
+  `{{TOC}}`, `{{INCLUDE: file}}`, markers `{{%m: …}}`, and the tags of `{{REVISION: #…}}…{{/REVISION}}` (the text
+  between them stays). A line with nothing else is left out, as a line of notes is. Before, they printed
+  literally in PDF, HTML and FDX. Lexington does not do what they ask: no header or footer, and no included
+  file. `{{SERIES}}` and `{{TIMESTAMP}}` still print as written. Fountain written back keeps all of them.
+  `lex.StripDirectives`, `lex.IsDirectiveLine`; `TestStripDirectives`, `TestPrintableDirectives`.
+- FDX tests for apostrophes and quotes next to emphasis, in both directions: `John's`, `*John*'s`,
+  `it's _not_`, `O'Brien's **"word"**`, and the same with ’ “ ”. They all passed as they were, so Lexington
+  does not turn `John's` into `John**s`. `TestQuotesBesideEmphasis`, `TestQuotesBesideEmphasisFromFDX`.
+
+### Changed
+- A bundle's zip folder is named after the file it is written to, also when saved in place: a renamed
+  `Draft.highland` is saved with `Draft.textbundle/`, which is how Highland names it. Files at a zip's root
+  stay there.
+- A written `.highland` has no zip entries for folders that hold files (Highland writes none). Empty folders
+  keep theirs.
+- When a `.highland`'s text changes, its `revisions/current.json` is left out, as highwater-too does.
+  Highland builds that file again from the `{{REVISION}}` tags.
+- `check` on a `.highland` folder no longer says Highland opens only the zip, which no one had verified. It
+  now says that Highland 2's files are zips holding one `Name.textbundle/`, and that whether Highland opens
+  the folder form is not known.
+- FDX → Fountain escapes only the emphasis markers that need it. In `John's *star* and snake_case`, the
+  underscores are no longer escaped.
+
+### Fixed
+- `bundle/testdata/textbundle`'s three sample folders were missing from 1.44.0. `.gitignore`'s `*.md` and
+  `*.json` had kept their files out, so `TestCheck` failed on a fresh checkout. They are now restored from
+  Accolade, and `.gitignore` lets `bundle/testdata` keep them.
+
 ## [1.45.0] - 2026-11-23
 
 ### Added

@@ -26,9 +26,9 @@ func (r Report) OK() bool { return len(r.Problems) == 0 }
 func (r Report) String() string {
 	var s strings.Builder
 	if b := r.Bundle; b != nil {
-		kind := "Fountain"
-		if b.Markdown() {
-			kind = "Markdown"
+		kind := b.Kind().String()
+		if t := b.Template(); t != "" {
+			kind += ", Highland's " + t + " template"
 		}
 		form := "a folder"
 		if b.Zipped {
@@ -99,7 +99,7 @@ func Check(p string) Report {
 			r.Problems = append(r.Problems, fmt.Sprintf("%d top-level folders and no files at the root: which is the bundle is unclear", len(tops)))
 		}
 		if root && b.Prefix == "" && len(b.Files) > 0 {
-			r.Notes = append(r.Notes, "its files are at the zip's root; TextBundle's own reader expects them in one Name.textbundle/ folder")
+			r.Notes = append(r.Notes, "its files are at the zip's root; TextBundle's own reader expects them in one Name.textbundle/ folder, as Highland 2 keeps them")
 		}
 		if junk {
 			r.Notes = append(r.Notes, "it holds macOS's __MACOSX/ or .DS_Store entries (ignored, copied through)")
@@ -108,7 +108,8 @@ func Check(p string) Report {
 	if t, ok := TypeOf(p); ok && t.Form != b.Form() && t.Ext != ".highland" && t.Ext != ".accolade" {
 		r.Notes = append(r.Notes, fmt.Sprintf("a %s is a %s elsewhere; this one is a %s (Lexington and Accolade read both)", t.Ext, t.Form, b.Form()))
 	} else if t.Ext == ".highland" && st.IsDir() {
-		r.Notes = append(r.Notes, "Highland itself opens the zip, not this folder form")
+		r.Notes = append(r.Notes, "a .highland seen from Highland 2 is a zip holding one Name.textbundle/ folder;"+
+			" whether Highland opens this folder form is not known (Lexington and Accolade read both)")
 	}
 	if b.Text == "" {
 		r.Problems = append(r.Problems, "no text file (text.fountain, text.md…) at the bundle's root")

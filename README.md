@@ -364,7 +364,12 @@ lexington check film.accolade                   # is it whole and readable?
   own files are kept when it already exists, else the input bundle's.
 - **The form:** a bundle is written back in the form it has. A new one gets its type's form (a `.textbundle`
   is a folder, the others are zips) unless `-form zip` or `-form folder` says otherwise.
-- **Markdown bundles** can be repacked, but not printed.
+- **Markdown and plain-text bundles** (Highland's Manuscript, Novel and other prose templates, and its Plain
+  Text template's `text.txt`) can be repacked, but not printed.
+- **Highland:** checked against real `.highland` files (`bundle/testdata/highland`). A zip holds one
+  `Name.textbundle/` folder, named after the file on every save. Highland's directives that print nothing
+  (`{{HEADER}}`, `{{FOOTER}}`, `{{INCLUDE}}`, markers `{{%m}}`, `{{REVISION}}` tags…) are left out of the
+  print and kept in the Fountain. Lexington does not do what they ask.
 - **For programs:** the `bundle` package does all of this (`bundle.Read`, `bundle.Write`, `bundle.Check`).
 
 The layout is described roughly, as a draft that will change, in

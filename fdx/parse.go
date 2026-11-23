@@ -623,7 +623,7 @@ func (r reader) text(p FdxParagraph) string {
 		runs = runs[1:]
 	}
 	text := ""
-	for _, escape := range []bool{false, true} {
+	for _, escape := range []string{"", "*", "_", "*_"} { // as few escaped as will do
 		if s := markup(runs, escape); same(lex.Emphasis(lex.StripNotes(s)), runs) {
 			text = s
 			break
@@ -637,7 +637,7 @@ func (r reader) text(p FdxParagraph) string {
 			}
 			plain = append(plain, t)
 		}
-		text = markup(plain, true)
+		text = markup(plain, "*_")
 	}
 	for _, n := range lead {
 		text = strings.TrimRightFunc(text, unicode.IsSpace) + " " + n.Text
@@ -656,9 +656,9 @@ var markers = []struct {
 }
 
 // markup writes runs with Fountain's emphasis markers, escaping the ones
-// in their text if escape. A marker opens and closes where the style
+// in their text that are in escape ("*", "_", "*_"). A marker opens and closes where the style
 // changes, next to the text: the spaces around a change are outside it.
-func markup(runs []run, escape bool) string {
+func markup(runs []run, escape string) string {
 	var b strings.Builder
 	var open []int // markers open, in order
 	space := ""    // spaces not yet written
@@ -694,8 +694,8 @@ func markup(runs []run, escape bool) string {
 			continue
 		}
 		text := t.Text
-		if escape {
-			text = lex.EscapeEmphasis(text)
+		for _, m := range escape {
+			text = strings.ReplaceAll(text, string(m), `\`+string(m))
 		}
 		content := strings.TrimSpace(text)
 		if content == "" {

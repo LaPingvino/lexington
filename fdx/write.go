@@ -134,7 +134,10 @@ func buildRevised(screenplay lex.Screenplay, revs *lex.Revisions, lock *lex.Page
 	for k := i; k < len(screenplay); k++ {
 		line := screenplay[k]
 		b.row = k
-		if lex.IsNoteLine(line) {
+		// Highland's directives that print nothing: Final Draft would print them
+		directives := lex.IsDirectiveLine(line)
+		line.Contents = lex.StripDirectives(line.Contents)
+		if directives || lex.IsNoteLine(line) {
 			b.notes = append(b.notes, lex.Notes(line.Contents)...)
 			if b.blanks > 0 && k+1 < len(screenplay) && screenplay[k+1].Type == lex.TypeEmpty {
 				b.blanks-- // one blank line around it goes, as in print

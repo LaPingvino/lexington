@@ -126,11 +126,36 @@ func FormOf(p string) Form {
 // ErrNotZip: the file is no zip (a .highland that is plain Fountain).
 var ErrNotZip = errors.New("not a zip file")
 
-// The UTIs info.json's "type" has for the two kinds of text.
+// The UTIs info.json's "type" has for the kinds of text (plain text's as
+// Highland writes it with text.txt, for its Plain Text template).
 const (
 	FountainUTI = "com.quoteunquoteapps.fountain"
 	MarkdownUTI = "net.daringfireball.markdown"
+	PlainUTI    = "public.plain.text"
 )
+
+// HighlandKey is the key of Highland 2's own settings in info.json (its
+// "templateName" among them).
+const HighlandKey = "com.quoteunquoteapps.highland2"
+
+// Kind is the kind of text a bundle holds.
+type Kind int
+
+const (
+	Fountain Kind = iota
+	Markdown
+	Plain // plain text: Highland's Plain Text template's text.txt
+)
+
+func (k Kind) String() string {
+	switch k {
+	case Markdown:
+		return "Markdown"
+	case Plain:
+		return "plain text"
+	}
+	return "Fountain"
+}
 
 // Yield, if set, is called for every entry a zip is written with (a
 // browser's page gets to draw meanwhile).
@@ -330,6 +355,20 @@ func (b *Bundle) ReadText() ([]byte, error) {
 // Markdown tells whether the bundle's text is Markdown (TextMarkdown).
 func (b *Bundle) Markdown() bool { return TextMarkdown(b.Text, b.Info, b.Path) }
 
+// Kind is the kind of text the bundle holds (TextKind).
+func (b *Bundle) Kind() Kind { return TextKind(b.Text, b.Info, b.Path) }
+
+// Template is the Highland template info.json names ("Screenplay",
+// "Manuscript", "Stage Play"…), "" for none.
+func (b *Bundle) Template() string {
+	raw, ok := InfoValue(b.Info, HighlandKey)
+	if !ok {
+		return ""
+	}
+	s, _ := InfoString(raw, "templateName")
+	return s
+}
+
 // Form is the form the bundle is in.
 func (b *Bundle) Form() Form {
 	if b.Zipped {
@@ -420,28 +459,37 @@ func IsTextName(name string) bool {
 	return strings.HasPrefix(strings.ToLower(name), "text.") && len(name) > len("text.")
 }
 
-// TextMarkdown tells whether a bundle's text is Markdown: as its name says
-// (text.md, text.fountain), else as info.json's "type" does, else as the
-// bundle's type does (TextBundle's default, Markdown; Highland's and
-// Accolade's, Fountain).
+// TextMarkdown tells whether a bundle's text is Markdown (TextKind).
 func TextMarkdown(textName string, info []byte, bundlePath string) bool {
+	return TextKind(textName, info, bundlePath) == Markdown
+}
+
+// TextKind is the kind of a bundle's text: as its name says (text.md,
+// text.fountain), else as info.json's "type" does (public.plain.text,
+// Highland's for text.txt: plain text), else as the bundle's type does
+// (TextBundle's default, Markdown; Highland's and Accolade's, Fountain).
+func TextKind(textName string, info []byte, bundlePath string) Kind {
 	switch strings.ToLower(path.Ext(textName)) {
 	case ".md", ".markdown":
-		return true
+		return Markdown
 	case ".fountain", ".spmd":
-		return false
+		return Fountain
 	}
 	if t, ok := InfoString(info, "type"); ok {
 		t = strings.ToLower(t)
 		switch {
 		case strings.Contains(t, "fountain"):
-			return false
+			return Fountain
 		case strings.Contains(t, "markdown"):
-			return true
+			return Markdown
+		case strings.Contains(t, "plain"):
+			return Plain
 		}
 	}
-	t, _ := TypeOf(bundlePath)
-	return !t.Screenplay
+	if t, _ := TypeOf(bundlePath); t.Screenplay {
+		return Fountain
+	}
+	return Markdown
 }
 
 // NewInfo is info.json for a new bundle, made by creator (a reverse-DNS
@@ -490,18 +538,33 @@ func SaveText(b *Bundle, dst string, form Form, text []byte, markdown bool, crea
 	if b.Text == "" {
 		return nil, fmt.Errorf("%s holds no text file to write", filepath.Base(b.Path))
 	}
-	return Write(b, dst, form, []File{{b.Text, text}}, nil)
+	var gone []string
+	if t, _ := TypeOf(dst); t.Ext == ".highland" && slices.Contains(b.Files, highlandRevisions) {
+		if old, err := b.ReadText(); err == nil && !bytes.Equal(old, text) {
+			gone = append(gone, highlandRevisions)
+		}
+	}
+	return Write(b, dst, form, []File{{b.Text, text}}, gone)
 }
+
+// highlandRevisions is Highland's cache of a text's revisions, which it
+// builds again from the text's {{REVISION}} tags: left out when the text
+// changes, as highwater-too (which reads Highland 2's files) does, so that
+// it never disagrees with them.
+const highlandRevisions = "revisions/current.json"
 
 // Write writes a bundle to dst in form: b's entries (none for a new
 // bundle) copied through, files replacing theirs or added after them,
 // those gone (names relative to the bundle) left out. The bundle as
 // written is returned.
 //
-// A zip keeps its layout when written to its own file; to another, files
-// at its root stay there and a folder is renamed for the new file; a new
-// zip, or one from a folder, has its files in Name.textbundle/, as
-// TextBundle's own writer and Highland do. A folder written to its own
+// A zip keeps its layout: files at its root stay there, and its folder is
+// named for the file it is written to when it is a Name.textbundle/ one
+// (as Highland names it on every save) or the zip is written to another
+// file; a new zip, or one from a folder, has its files in
+// Name.textbundle/, as TextBundle's own writer and Highland do. (A
+// .highland gets no entry for that folder itself, as Highland writes
+// none, nor for any other folder with files in it.) A folder written to its own
 // path changes only the files written; anywhere else it is made whole and
 // put in place (over an empty file, or a bundle of either form).
 func Write(b *Bundle, dst string, form Form, files []File, gone []string) (*Bundle, error) {
@@ -521,10 +584,11 @@ func Write(b *Bundle, dst string, form Form, files []File, gone []string) (*Bund
 	}
 	base := strings.TrimSuffix(filepath.Base(dst), filepath.Ext(dst))
 	prefix := base + ".textbundle/"
-	if b != nil && b.Zipped && (SameFile(b.Path, dst) || b.Prefix == "") {
+	if b != nil && b.Zipped && (b.Prefix == "" || SameFile(b.Path, dst) && !strings.EqualFold(path.Ext(strings.TrimSuffix(b.Prefix, "/")), ".textbundle")) {
 		prefix = b.Prefix
 	}
-	data, err := zipBundle(b, prefix, files, gone)
+	t, _ := TypeOf(dst)
+	data, err := zipBundle(b, prefix, files, gone, t.Ext != ".highland")
 	if err != nil {
 		return nil, err
 	}
@@ -585,7 +649,9 @@ func dirRoot(dir string) []string {
 }
 
 // zipBundle is the zip of a bundle, its files in prefix.
-func zipBundle(b *Bundle, prefix string, files []File, gone []string) ([]byte, error) {
+// (dirEntry: with entries for folders, prefix's when it is new, and
+// those from a folder; else only for empty ones, as Highland writes them.)
+func zipBundle(b *Bundle, prefix string, files []File, gone []string, dirEntry bool) ([]byte, error) {
 	es, err := b.Entries()
 	if err != nil {
 		return nil, err
@@ -633,7 +699,7 @@ func zipBundle(b *Bundle, prefix string, files []File, gone []string) ([]byte, e
 		_, err = w.Write(data)
 		return err
 	}
-	if (b == nil || !b.Zipped) && prefix != "" {
+	if (b == nil || !b.Zipped) && prefix != "" && dirEntry {
 		if err := write(prefix, nil, nil); err != nil {
 			return nil, err
 		}
@@ -685,6 +751,11 @@ func zipBundle(b *Bundle, prefix string, files []File, gone []string) ([]byte, e
 				return nil, err
 			}
 		case strings.HasSuffix(name, "/"):
+			if !dirEntry && slices.ContainsFunc(es, func(o Entry) bool { // a folder not empty: implied
+				return len(o.Name) > len(e.Name) && strings.HasPrefix(o.Name, e.Name)
+			}) {
+				continue
+			}
 			if err := write(name, nil, nil); err != nil {
 				return nil, err
 			}

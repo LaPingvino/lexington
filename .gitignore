@@ -20,3 +20,7 @@ testdata/output/
 !pdfin/testdata/*.pdf
 dist/
 !web/*.html
+
+# bundle samples: their text.md, info.json and README.md
+!bundle/testdata/**/*.md
+!bundle/testdata/**/*.json

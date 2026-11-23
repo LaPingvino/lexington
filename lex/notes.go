@@ -107,7 +107,9 @@ func NoteColor(s string) string {
 }
 
 // Printable is a screenplay as a format prints it, without its notes:
-// every line's text without them (StripNotes). Lines that are only notes
+// every line's text without them (StripNotes), and without Highland's
+// directives that print nothing (StripDirectives; a line of nothing else
+// is left out, as one of notes is when notes are not printed). Lines that are only notes
 // are left out, unless the format prints them (hides(TypeNote) is false):
 // then they are kept, as TypeNote lines with the notes' text. Other lines
 // the format does not print (hides: sections, synopses, the boneyard in
@@ -156,6 +158,11 @@ func Printable(s Screenplay, hides func(ElementType) bool) Screenplay {
 		if i == skip {
 			continue
 		}
+		if IsDirectiveLine(l) { // Highland's: never printed
+			hidden(i)
+			continue
+		}
+		l.Contents = StripDirectives(l.Contents)
 		if IsNoteLine(l) {
 			if hides(TypeNote) {
 				hidden(i)

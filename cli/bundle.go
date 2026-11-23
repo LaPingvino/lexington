@@ -109,7 +109,10 @@ func convertToBundle(ctx context.Context, o Options, src *bundle.Bundle) error {
 		return err
 	}
 	var text []byte
-	markdown := src != nil && src.Markdown()
+	kind := bundle.Fountain
+	if src != nil {
+		kind = src.Kind()
+	}
 	if !transforms(o) {
 		if text = o.in; text == nil {
 			r, closeIn, err := openInput(o)
@@ -122,8 +125,8 @@ func convertToBundle(ctx context.Context, o Options, src *bundle.Bundle) error {
 			}
 		}
 	} else {
-		if markdown {
-			return fmt.Errorf("%s holds Markdown: it can be repacked, not converted", filepath.Base(o.Input))
+		if kind != bundle.Fountain {
+			return fmt.Errorf("%s holds %s: it can be repacked, not converted", filepath.Base(o.Input), kind)
 		}
 		var buf bytes.Buffer
 		o.sink = &buf
@@ -132,7 +135,7 @@ func convertToBundle(ctx context.Context, o Options, src *bundle.Bundle) error {
 		}
 		text = buf.Bytes()
 	}
-	return saveBundle(base, o.Output, form, text, markdown)
+	return saveBundle(base, o.Output, form, text, kind)
 }
 
 // outputBase is the bundle a bundle written to dst keeps the rest of: the
@@ -152,15 +155,14 @@ func outputBase(dst string, src *bundle.Bundle) (*bundle.Bundle, error) {
 
 // saveBundle writes text as base's text into dst (a new bundle for base
 // nil, or one with no text).
-func saveBundle(base *bundle.Bundle, dst string, form bundle.Form, text []byte, markdown bool) error {
-	if base != nil && base.Text != "" && base.Markdown() != markdown {
-		kind := map[bool]string{true: "Markdown", false: "Fountain"}
-		return fmt.Errorf("%s holds %s (%s); the input is %s", filepath.Base(dst), kind[base.Markdown()], base.Text, kind[markdown])
+func saveBundle(base *bundle.Bundle, dst string, form bundle.Form, text []byte, kind bundle.Kind) error {
+	if base != nil && base.Text != "" && base.Kind() != kind {
+		return fmt.Errorf("%s holds %s (%s); the input is %s", filepath.Base(dst), base.Kind(), base.Text, kind)
 	}
 	if base != nil && base.Text == "" {
 		base = nil
 	}
-	_, err := bundle.SaveText(base, dst, form, text, markdown, "")
+	_, err := bundle.SaveText(base, dst, form, text, kind == bundle.Markdown, "")
 	return err
 }
 
@@ -188,7 +190,7 @@ func writeToBundle(ctx context.Context, screenplay lex.Screenplay, o Options) er
 	if err := w.Write(&buf, filtered); err != nil {
 		return err
 	}
-	return saveBundle(base, o.Output, form, buf.Bytes(), false)
+	return saveBundle(base, o.Output, form, buf.Bytes(), bundle.Fountain)
 }
 
 // checkBundles is `lexington check bundle...`: each bundle's outline and
