@@ -69,14 +69,25 @@ func joinsBefore(a, b rune) bool { return lekhan.Joins(a, b) }
 
 // cellWidth is text's width in the current font as its cells count it:
 // gofpdf's, without what takes no cell (a joiner has a blank cell's
-// advance in Courier Badi). In a standard font, gofpdf's.
+// advance in Courier Badi), its Devanagari by the Lekhan width (a cluster
+// one cell, a conjunct two, as a space is wide), as the shaped text is
+// printed. In a standard font, gofpdf's.
 func cellWidth(pdf Drawer, text string, core bool) float64 {
 	w := pdf.GetStringWidth(text)
 	if core {
 		return w
 	}
-	for _, r := range text {
-		if zeroCell(r) {
+	rs := []rune(text)
+	var shares []int
+	space := 0.0
+	for i, r := range rs {
+		switch {
+		case lekhan.Devanagari(r):
+			if shares == nil {
+				shares, space = lekhan.Cells(rs), pdf.GetStringWidth(" ")
+			}
+			w += float64(shares[i])*space - pdf.GetStringWidth(string(r))
+		case zeroCell(r):
 			w -= pdf.GetStringWidth(string(r))
 		}
 	}

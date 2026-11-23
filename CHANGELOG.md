@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.55.0] - 2026-11-23
+
+### Fixed
+- **Devanagari's headline in the PDF.** Courier Badi 1.106: the headline between two clusters of a word
+  showed as a gap in poppler (Evince, Okular) and Ghostscript at text sizes; the font draws it so they
+  show it now.
+- **A styled, right-aligned or centred Devanagari piece of a line** is placed by its Lekhan width:
+  `cellWidth` counted a spacing vowel sign as a cell of its own, so the piece after a styled word, or a
+  right-aligned or centred line, sat off by those cells.
+- The shaped-width test takes every Lekhan test vector, and marks without a letter, in all four styles.
+
 ## [1.54.0] - 2026-11-23
 
 ### Changed

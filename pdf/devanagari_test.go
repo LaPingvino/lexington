@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"cmp"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -27,14 +28,38 @@ var devaWords = []string{"क्षत्रिय", "कि", "की", "धर
 // counts it.
 func cells(s string) int { return lekhan.Width(s) }
 
-// Shaped, each word is as wide as its cells, in each style, with a glyph
-// for each of its letters (no dotted circle, no glyph left out).
+// vectorWords are the Devanagari texts of Lekhan monospace's test
+// vectors (lekhan/testdata), and marks without a letter after a space.
+func vectorWords(t *testing.T) []string {
+	data, err := os.ReadFile("../lekhan/testdata/vectors.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := []string{" \u093e", " \u0902", "\u0915 \u0902"}
+	for _, line := range strings.Split(string(data), "\n") {
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		text, _, _ := strings.Cut(line, "\t")
+		text = strings.NewReplacer("|", "", "<ZWJ>", "\u200d", "<ZWNJ>", "\u200c").Replace(text)
+		if hasDevanagari(text) && !strings.Contains(text, "<") {
+			out = append(out, text)
+		}
+	}
+	return out
+}
+
+// Shaped, each word is as wide as its cells (the Lekhan width), in each
+// style, with a glyph for each of its letters (no dotted circle, no
+// glyph left out): go-text as HarfBuzz (Courier Badi's
+// check-devanagari.py).
 func TestDevanagariShapedCells(t *testing.T) {
+	words := append(slices.Clone(devaWords), vectorWords(t)...)
 	for _, style := range []string{"", "B", "I", "BI"} {
 		s := newFontShaper(font.GetFont(font.CourierPrimeName, style))
 		cell := float64(s.face.HorizontalAdvance(mustGlyph(t, s, 'क'))) / float64(s.face.Upem())
 		dotted, _ := s.face.NominalGlyph(0x25CC)
-		for _, w := range devaWords {
+		for _, w := range words {
 			runs, width := s.devanagari([]rune(w))
 			if want := float64(cells(w)) * cell; abs(width-want) > 1e-6 {
 				t.Errorf("%s %q: %.4f em wide, %d cells are %.4f", style, w, width, cells(w), want)
@@ -44,7 +69,8 @@ func TestDevanagariShapedCells(t *testing.T) {
 			}
 			for _, r := range runs {
 				for _, c := range r.Text {
-					if g, ok := s.face.NominalGlyph(c); ok && g == dotted {
+					if g, ok := s.face.NominalGlyph(c); ok && g == dotted && !strings.HasPrefix(w, " ") &&
+						!strings.HasSuffix(w, " \u0902") && w != "\u093e" && w != "\u0902" {
 						t.Errorf("%s %q: a dotted circle", style, w)
 					}
 				}
@@ -279,5 +305,24 @@ func TestDevanagariDrawn(t *testing.T) {
 	}
 	if len(merged) != 1 || abs(merged[0].b-merged[0].a-6*7.2) > 0.5 {
 		t.Errorf("the underline drawn: %v, want one 43.2 pt long", merged)
+	}
+}
+
+// A piece of a line is as wide as it prints: cellWidth counts Devanagari
+// by the Lekhan width, as the shaped run is wide (a styled word in a line,
+// a right-aligned or centred line are placed by it).
+func TestDevanagariCellWidth(t *testing.T) {
+	pdf := NewFpdf("P", "in", "Letter")
+	AddFont(pdf, "CourierPrime", "", font.GetFont("CourierPrime", ""))
+	pdf.SetFont("CourierPrime", "", 12)
+	sh := newFontShaper(font.GetFont(font.CourierPrimeName, ""))
+	space := pdf.GetStringWidth(" ")
+	for _, w := range append(slices.Clone(devaWords), "का कि क्ष", "मगरमच्छ की पत्नी", "हिन्दी।", "(श्रीमान्)") {
+		if got, want := cellWidth(pdf, w, false), float64(cells(w))*space; abs(got-want) > 1e-6 {
+			t.Errorf("%q: cellWidth %.3f, %d cells are %.3f", w, got, cells(w), want)
+		}
+		if _, total := shapedParts(pdf, sh, w); abs(total-cellWidth(pdf, w, false)) > 2e-3 { // (the shaper's fixed point)
+			t.Errorf("%q: printed %.3f wide, cellWidth %.3f", w, total, cellWidth(pdf, w, false))
+		}
 	}
 }
