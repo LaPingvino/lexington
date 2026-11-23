@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.41.0] - 2026-11-23
+
+### Changed
+
+- Courier Badi 1.102: Arabic fits the 12 pt screenplay line (ascenders shortened, descenders flattened below the body, marks smaller and closer, so single-spaced Arabic lines no longer touch in the usual case); a larger Hebrew dagesh, clearly visible in yod and lamed. Very heavily vowelled lines (a shadda with a vowel on a tall letter above a kasra under a deep letter) can still touch.
+
 ## [1.40.0] - 2026-11-23
 
 ### Added

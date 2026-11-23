@@ -339,8 +339,8 @@ func TestArabicMarksPlaced(t *testing.T) {
 	}
 	raised := 0
 	for _, m := range marks {
-		if up := base - m.Y; m.Text == "\u064e" && up > 0.3*m.Size {
-			raised++ // on the hamza (0.39 em), on the shadda (0.48 em); on a letter 0
+		if up := base - m.Y; m.Text == "\u064e" && up > 0.2*m.Size {
+			raised++ // on the hamza (0.27 em with Courier Badi 1.102), on the shadda; on a letter 0
 		} else if math.Abs(up) > 0.1*m.Size && m.Text != "\u0651" {
 			t.Errorf("%q moved %.1f pt up", m.Text, up)
 		}
