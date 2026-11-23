@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.33.0] - 2026-11-23
+
+### Added
+- **Hindi**: three languages, `hi-Latn` (Hindi in Latin letters: English
+  Fountain's words, Hindi time words beside them), `hi-Deva` (Devanagari:
+  headings `place/दिन/अंदर` as Hindi scripts write them, `कट टू`,
+  `(डिजॉल्व टू)`, cues without capitals, English's words kept) and `hi`
+  (both at once). Where each word comes from, and that no Devanagari
+  standard was found, is in docs/LANGUAGES.md.
+- **Language tags with a script or region**: `TOMLConf.Lookup` reads a
+  BCP 47 tag as itself in any case (`hi-deva`, `hi_Deva`), else without its
+  last subtag down to the language (`hi-Deva-IN` → `hi-Deva`, `de-CH` →
+  `de`); `Language`, `Knows` and `Scenes` follow it, so
+  `script.hi-Deva.fountain` and `-scenein de-CH` read right. `rules.Tag`
+  writes a tag as BCP 47 does.
+
 ## [1.32.0] - 2026-11-23
 
 ### Added

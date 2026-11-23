@@ -8,6 +8,13 @@ no code for any one language. `script.zh.fountain` is read with Chinese's,
 `-scenein zh` says so for any file, and a `.hekaya` file is read with
 Hekaya's fixed rules (below).
 
+A language is named by its BCP 47 tag, so one language can have a key per
+script: `hi-Latn`, `hi-Deva`, `hi`. A tag reads as itself in any case and
+with `_` for `-` (`hi-deva`, `hi_Deva`), else as itself without its last
+subtag, down to the language: `script.hi-Deva-IN.fountain` is read with
+`hi-Deva`'s rules, `de-CH` with `de`'s, `hi-Arab` with `hi`'s
+(`TOMLConf.Lookup`, `rules.Tag`).
+
 Every language carries its whole definition: `lexington -dumpconfig`
 writes each one in full, and a script that travels with its configuration
 (`TOMLConf.Part`, Accolade's `.accolade`) takes its language in full. A
@@ -177,6 +184,7 @@ verbatim; the Arabic and Japanese layouts are given in reading order.
 | Dutch | prefix: `EXT. KAPSALON – DAG`, `INT. KANTOOR PETER – DAG`; `off`, `O.S.`, `V.O.`, `VERVOLGT` | havicinfo.nl/images/pdf/workshops/Speelfilm_maken-zonder_achtergrond.pdf |
 | Russian | numbered prefix, full stops: `1. НАТ. ГОРОДСКАЯ ПЛОЩАДЬ. НОЧЬ`; `(за кадром)`, `(продолжает)` | «Самый лучший день», kinodramaturg.ru |
 | English | `INT./EXT. PLACE - TIME`, Fountain's | fountain.io/syntax; finaldraft.com/blog/everything-that-should-and-should-not-be-in-a-scene-heading |
+| Hindi | in Latin letters, English sluglines (`INT. MUMBAI APARTMENT - LIVING ROOM - NIGHT`); in Devanagari, place first, inside/outside last: `शिक्षा अधिकारी का दफ़्तर (बाहरी कक्ष)/दिन/अंदर`, `कट टू`, `(डिजॉल्व टू)` | below, "Hindi" |
 | Esperanto, toki pona | no evidence found; Lexington's own words | — |
 
 So other word orders are in real use — Chinese (place or time first),
@@ -188,6 +196,56 @@ its first line (`場：1 …`) as the heading. Words marked here as
 Lexington's own are not from a source: German `ABEND`, `MORGEN`; French
 `NUIT`, `SOIR`, `MATIN`; Hebrew and Japanese time words beyond the
 examples, and its fades `פייד אין`, `פייד אאוט`; Chinese `OS`/`VO`; Esperanto's and toki pona's.
+
+## Hindi
+
+Three keys, one per way of writing (Joop, 2026-11-23):
+
+- **`hi-Latn`**, Hindi in Latin letters, what most Hindi Fountain scripts
+  are: English Fountain as it is — `INT./EXT.`, `CUT TO:`, `V.O.`,
+  cues in capitals — with the dialogue in Hindi
+  ("Tumhein lagta hai main yahaan apni marzi se aaya hoon?"). Its time
+  words add `DIN`, `RAAT`, `SUBAH`, `SHAAM` to English's (Lexington's own
+  spelling; no source wrote the time in Hindi in Latin letters). No Hindi
+  scene words in Latin letters: none were found, and `ANDAR`/`BAHAR`
+  before a space would make every action line starting "Andar se…" a
+  heading.
+- **`hi-Deva`**, Hindi in Devanagari: headings place first, time, then
+  inside/outside, slash-separated, as NCERT's textbook writes them
+  (`शिक्षा अधिकारी का दफ़्तर (बाहरी कक्ष)/दिन/अंदर`; also numbered,
+  `3. घर का आँगन / रात / बाहर`); `अंदर`/`बाहर` for inside and outside,
+  `दिन`, `रात`, `सुबह`, `शाम` (and `दोपहर`) for the time; the transitions
+  `कट टू` and `(डिजॉल्व टू)` (its brackets are `TransitionMarks`). English's
+  scene words, extensions and ` TO:` are kept: many Indian scripts write
+  English headings and action with Devanagari dialogue. Cues without
+  capitals (`list`, `parenthetical`, `extension`, `repeat`), as Hebrew's;
+  a Latin name in capitals is a cue as before; `।` and `॥` end a sentence.
+- **`hi`**, both at once: `hi-Deva`'s rules with English's scene words
+  first and `hi-Latn`'s time words too; a writer writes in either script or
+  mixes them. Everything `hi-Latn` and `hi-Deva` read, `hi` reads
+  (`TestHindiBoth`).
+
+No standard for Devanagari screenplay terms was found: Hindi guides and
+the textbook write `INT.`/`EXT.` and the transitions in English or in
+English transliterated (`कट टू`), and no Devanagari words for V.O., O.S. or
+CONT'D. Lexington's own, from no source: the dotted scene words
+`अंदर.`, `बाहर.`, `अंदर/बाहर.`, `बाहर/अंदर.` (a heading starting with
+them, `अंदर. रसोई - सुबह`, for New's template and for translating headings;
+the dot keeps "अंदर से…" action), `दोपहर`, the fades `फ़ेड इन`/`फ़ेड आउट`
+(transliterated as Hebrew's are), the title keys `शीर्षक` (Title), `लेखक`
+and `पटकथा` (Author), `स्रोत` (Source), `तिथि` (Date), `संपर्क` (Contact).
+Not read: the textbook's `रजनी : …`, a cue on its speech's line (as
+Chinese's `张三：…`), and its scene labels in words (`दृश्य-चार`).
+
+Sources (fetched 2026-11-23, normally; a site that refused was skipped):
+the NCERT textbook अभिव्यक्ति और माध्यम's chapter कथा-पटकथा, with the
+screenplay of रजनी, hindwi.org/creative-writing/katha-pataktha-unknown-creative-writing
+(the heading's order: number, place, time दिन/रात/सुबह/शाम, inside or
+outside); proofscript.in/learn/indian-screenplay-format-template/ (English
+sluglines, dialogue in English, in Hindi in Latin letters or in
+Devanagari); hollywoodreporterindia.com, "Why Is There a Dearth of Hindi
+in Hindi Film Scripts?" (Hindi film dialogue mostly written in Roman
+letters).
 
 ## Hekaya
 

@@ -259,6 +259,9 @@ func (c TOMLConf) Language(lang string) Language {
 	if lang == Hekaya {
 		return hekaya()
 	}
+	if k, ok := c.lookup(lang, true); ok {
+		lang = k // hi-Deva-IN as hi-Deva, de-CH as de
+	}
 	base, ok := defaultLanguage(lang)
 	if !ok {
 		base = custom()
@@ -275,13 +278,112 @@ func (c TOMLConf) Language(lang string) Language {
 }
 
 // Knows tells whether c has a language: one with scene words of its
-// own (Hekaya always).
+// own (Hekaya always), lang's tag or one it falls back to (Lookup).
 func (c TOMLConf) Knows(lang string) bool {
 	if lang == Hekaya {
 		return true
 	}
-	_, ok := c.Languages[lang]
+	_, ok := c.lookup(lang, false)
 	return ok
+}
+
+// Lookup is the language of c (or of the default configuration) that a
+// BCP 47 tag reads as: the tag itself, in any case and with _ for -
+// (hi-deva, hi_Deva: hi-Deva), else the tag without its last subtag, and
+// so on (hi-Deva-IN, hi-Deva, hi; de-CH, de). False for none.
+func (c TOMLConf) Lookup(lang string) (string, bool) {
+	if lang == Hekaya {
+		return Hekaya, true
+	}
+	return c.lookup(lang, true)
+}
+
+// lookup is Lookup in c's languages, and the default's too if defaults.
+func (c TOMLConf) lookup(lang string, withDefaults bool) (string, bool) {
+	if _, ok := c.Languages[lang]; ok {
+		return lang, true // asked often: the exact key first
+	}
+	for _, t := range fallbacks(lang) {
+		if _, ok := c.Languages[t]; ok {
+			return t, true
+		}
+		for _, k := range slices.Sorted(maps.Keys(c.Languages)) {
+			if strings.EqualFold(k, t) {
+				return k, true // [Languages.hi-deva] written so
+			}
+		}
+		if withDefaults {
+			if _, ok := defaults()[t]; ok {
+				return t, true
+			}
+		}
+	}
+	return "", false
+}
+
+// fallbacks are the tags a language tag reads as, in order: itself as
+// BCP 47 writes it, then without its last subtag, down to the language
+// (hi-Deva-IN, hi-Deva, hi). A name that is no tag ("my lang") is only
+// itself.
+func fallbacks(lang string) []string {
+	t := Tag(lang)
+	if t == "" {
+		if lang == "" {
+			return nil
+		}
+		return []string{lang}
+	}
+	var out []string
+	for {
+		out = append(out, t)
+		i := strings.LastIndex(t, "-")
+		if i < 0 {
+			return out
+		}
+		t = t[:i]
+	}
+}
+
+// Tag is a language tag as BCP 47 writes it: the language in small
+// letters, a script (four letters) with a capital, a region (two
+// letters) in capitals, the rest in small letters, joined by -
+// ("HI_deva_in": "hi-Deva-IN"). "" for what is no tag: empty, a subtag
+// empty or longer than eight, or of other than letters and digits, or a
+// language that is not letters.
+func Tag(lang string) string {
+	parts := strings.FieldsFunc(lang, func(r rune) bool { return r == '-' || r == '_' })
+	if len(parts) == 0 || strings.Count(lang, "-")+strings.Count(lang, "_") != len(parts)-1 {
+		return ""
+	}
+	for i, p := range parts {
+		if len(p) > 8 {
+			return ""
+		}
+		letters := true
+		for _, r := range p {
+			switch {
+			case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z':
+			case r >= '0' && r <= '9':
+				letters = false
+			default:
+				return ""
+			}
+		}
+		switch {
+		case i == 0:
+			if !letters {
+				return ""
+			}
+			parts[i] = strings.ToLower(p)
+		case letters && len(p) == 4:
+			parts[i] = strings.ToUpper(p[:1]) + strings.ToLower(p[1:])
+		case letters && len(p) == 2:
+			parts[i] = strings.ToUpper(p)
+		default:
+			parts[i] = strings.ToLower(p)
+		}
+	}
+	return strings.Join(parts, "-")
 }
 
 // LanguageNames are the languages c has, in order (Hekaya, fixed, not
@@ -291,15 +393,20 @@ func (c TOMLConf) LanguageNames() []string {
 }
 
 // Scenes is lang's scene heading words (Language(lang).Scenes), nil for
-// a language c does not have.
+// a language c does not have (by Lookup's fallback: hi-Deva-IN is
+// hi-Deva's).
 func (c TOMLConf) Scenes(lang string) []string {
-	if !c.Knows(lang) {
+	if lang == Hekaya {
+		return hekaya().Scenes
+	}
+	k, ok := c.lookup(lang, false)
+	if !ok {
 		return nil
 	}
-	if l, ok := c.Languages[lang]; ok && l.Scenes != nil {
+	if l := c.Languages[k]; l.Scenes != nil {
 		return l.Scenes // asked often (per key): the words alone, not the whole language
 	}
-	return c.Language(lang).Scenes
+	return c.Language(k).Scenes
 }
 
 // normalized is c with the tables of configuration files from before

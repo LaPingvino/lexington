@@ -1,6 +1,9 @@
 package rules
 
-import "maps"
+import (
+	"maps"
+	"slices"
+)
 
 // The default configuration's languages, each in full. Where each word
 // comes from is in docs/LANGUAGES.md; a word no source gave is marked
@@ -110,6 +113,79 @@ func (l Language) with(headings, settings, times, extensions, transitions, ends 
 	return l
 }
 
+// Hindi (docs/LANGUAGES.md, "Hindi"): scripts in Latin letters keep
+// English Fountain's words (INT. MUMBAI APARTMENT - NIGHT, CUT TO:, V.O.)
+// with the dialogue in Hindi; Devanagari scripts write the heading place
+// first, inside/outside last ("शिक्षा अधिकारी का दफ़्तर (बाहरी कक्ष)/दिन/अंदर",
+// NCERT's अभिव्यक्ति और माध्यम), "कट टू", "(डिजॉल्व टू)"; many keep INT./EXT.
+// in English beside Devanagari dialogue. hi is both at once.
+
+// hindiTimes are the time words in Latin letters: English's, and the
+// Hindi words written so (Lexington's own spelling).
+var hindiTimes = []string{"DAY", "NIGHT", "MORNING", "EVENING", "DUSK", "DAWN", "DIN", "RAAT", "SUBAH", "SHAAM"}
+
+// hindiLatin is Hindi in Latin letters: English Fountain, the Hindi time
+// words beside English's.
+func hindiLatin() Language {
+	l := english()
+	l.Times = slices.Clone(hindiTimes)
+	return l
+}
+
+// devanagari are Devanagari Hindi's own words: scene words (with their
+// dot, so a line starting "अंदर से…" stays action), the heading patterns,
+// inside/outside and time words, transitions, title keys.
+var devanagari = struct {
+	scenes, matchup, headings, settings, times, transitions []string
+	ends                                                    []string
+	titleKeys                                               map[string]string
+}{
+	scenes:   []string{"अंदर.", "बाहर.", "अंदर/बाहर.", "बाहर/अंदर."},
+	matchup:  []string{"अंदर.", "बाहर.", "अंदर/बाहर.", "बाहर/अंदर.", ""},
+	headings: []string{"{place}/{time}/{io}", "{place}/{time}/{io} {any}", "{n}. {place}/{time}/{io}", "{n}. {place}/{time}/{io} {any}"},
+	settings: []string{"अंदर", "बाहर", "अंदर/बाहर", "बाहर/अंदर", "INT", "EXT", "INT.", "EXT."},
+	times:    []string{"दिन", "रात", "सुबह", "शाम", "दोपहर"},
+	// ending on a fade out: New's template closes with the last
+	transitions: []string{"कट टू", "डिजॉल्व टू", "डिज़ॉल्व टू", "फ़ेड इन", "फेड इन", "फेड आउट", "फ़ेड आउट"},
+	ends:        []string{" TO:", " टू", " टू:"},
+	titleKeys: map[string]string{"शीर्षक": "Title", "लेखक": "Author", "पटकथा": "Author", "स्रोत": "Source",
+		"तिथि": "Date", "संपर्क": "Contact"},
+}
+
+// hindiDevanagari is Hindi in Devanagari: its own words, English
+// Fountain's scene words, extensions and " TO:" accepted beside them;
+// cues without capitals (a Latin name in capitals still is one).
+func hindiDevanagari() Language {
+	d := devanagari
+	return Language{
+		Scenes:          slices.Concat(d.scenes, english().Scenes),
+		Matchup:         slices.Clone(d.matchup),
+		Headings:        slices.Clone(d.headings),
+		Settings:        slices.Clone(d.settings),
+		Times:           slices.Clone(d.times),
+		Direction:       "ltr",
+		Cues:            slices.Clone(noCaps),
+		Extensions:      english().Extensions,
+		Shape:           Shape{Words: 3, Ends: ".!?,;:।॥"},
+		Repeat:          2,
+		TransitionEnds:  slices.Clone(d.ends),
+		Transitions:     slices.Clone(d.transitions),
+		TransitionMarks: "():",
+		TitleKeys:       maps.Clone(d.titleKeys),
+	}
+}
+
+// hindi is Hindi in either script or both mixed: Devanagari's rules with
+// the Latin time words too, and English's scene words first (INT.: what
+// most Hindi scripts write).
+func hindi() Language {
+	l := hindiDevanagari()
+	l.Scenes = slices.Concat(english().Scenes, devanagari.scenes)
+	l.Matchup = slices.Clone(english().Matchup)
+	l.Times = slices.Concat(hindiTimes, devanagari.times)
+	return l
+}
+
 // none is an empty list: a field that has nothing, said so.
 var none = []string{}
 
@@ -154,7 +230,10 @@ func defaultLanguages() map[string]Language {
 			[]string{"ЗА КАДРОМ", "ПРОДОЛЖАЕТ", "V.O.", "O.S.", "CONT'D"}, nil, nil),
 		"tok": latin([]string{"INSA", "KON", "INSA/KON", "I./K", "I/K", "KON/INSA", "K./I", "K/I"},
 			[]string{"INSA.", "KON.", "INSA/KON.", "KON/INSA.", ""}, nil, nil).with(none, none, none, nil, nil, nil),
-		"ar": ar,
+		"ar":      ar,
+		"hi-Latn": hindiLatin(),
+		"hi-Deva": hindiDevanagari(),
+		"hi":      hindi(),
 		// "1. פנים. משרד דפנה – יום." (dlg.co.il), דיזולב ל: / קאט ל (akolnoa)
 		"he": {
 			Scenes:          []string{"פנים", "חוץ", "פנים/חוץ", "חוץ/פנים"},
