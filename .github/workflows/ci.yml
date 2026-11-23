@@ -37,7 +37,9 @@ jobs:
         run: GOOS=js GOARCH=wasm go vet ./cmd/lexington-web
 
       - name: Run tests
-        run: go test -race -coverprofile=coverage.out ./...
+        # the pdf package takes some 10 minutes under -race (Courier Badi 1.105+:
+        # four times the glyphs to code and shape)
+        run: go test -race -timeout 25m -coverprofile=coverage.out ./...
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
