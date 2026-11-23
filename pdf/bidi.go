@@ -264,24 +264,7 @@ func (t Tree) visualLines(f rules.Format, text string, rtl bool, width float64) 
 			}
 			p := &line[len(line)-1]
 			if len(pending) > 0 { // the letter of the marks held: placed on it
-				cluster := []rune{[]rune(c)[0]}
-				for k := len(pending) - 1; k >= 0; k-- {
-					cluster = append(cluster, []rune(pending[k].mark)[0])
-				}
-				var dx, dy []float64
-				ok := false
-				if sh := shaper(s); sh != nil {
-					dx, dy, ok = sh.markOffsets(cluster)
-				}
-				at := utf8.RuneCountInString(p.text)
-				for k := range pending {
-					m := pending[len(pending)-1-k] // in logical order
-					m.at = at
-					if ok {
-						m.dx, m.dy = dx[k], dy[k]
-					}
-					p.marks = append(p.marks, m)
-				}
+				p.marks = append(p.marks, placeMarks(shaper(s), c, pending, utf8.RuneCountInString(p.text))...)
 				pending = pending[:0]
 			}
 			p.text += c
@@ -337,39 +320,68 @@ func printPiece(pdf Drawer, sh *fontShaper, fontName, style string, size float64
 	}
 }
 
+// placeMarks are the marks held for a letter (pending, in visual order:
+// the last is the first written) placed on it, the letter at rune index
+// at of its piece, printed as base: in logical order, each where sh (the
+// font's shaper; nil: none) puts it by the font's GPOS, else where it
+// stands unplaced.
+func placeMarks(sh *fontShaper, base string, pending []placed, at int) []placed {
+	cluster := []rune{[]rune(base)[0]}
+	for k := len(pending) - 1; k >= 0; k-- {
+		cluster = append(cluster, []rune(pending[k].mark)[0])
+	}
+	var dx, dy []float64
+	ok := false
+	if sh != nil {
+		dx, dy, ok = sh.markOffsets(cluster)
+	}
+	out := make([]placed, 0, len(pending))
+	for k := range pending {
+		m := pending[len(pending)-1-k] // in logical order
+		m.at = at
+		if ok {
+			m.dx, m.dy = dx[k], dy[k]
+		}
+		out = append(out, m)
+	}
+	return out
+}
+
 // printMarks prints the marks of a line's pieces (printed from starts),
 // each offset from its letter's origin as the font places it: the line's
 // cells moved by the offset, with no page break (a mark below the last
 // line of a page stays on it).
 func (t Tree) printMarks(fontName string, f rules.Format, line []piece, starts []float64) {
-	pdf := t.PDF
+	for i, p := range line {
+		drawMarks(t.PDF, fontName, fontStyle(f.Style, p.style), f.Size, lineHeight, p, starts[i])
+	}
+}
+
+// drawMarks draws a piece's placed marks, the piece printed from start
+// in fontName, style, size points, in cells h high: each offset from its
+// letter's origin as the font places it, the position kept, with no
+// page break (a mark below the last line of a page stays on it). They
+// are shown, not text: the copy printPiece prints invisible where they
+// stood is what is read out.
+func drawMarks(pdf Drawer, fontName, style string, size, h float64, p piece, start float64) {
+	if len(p.marks) == 0 {
+		return
+	}
 	x0, y := pdf.GetX(), pdf.GetY()
 	auto, margin := pdf.GetAutoPageBreak()
-	moved := false
-	for i, p := range line {
-		if len(p.marks) == 0 {
-			continue
-		}
-		if !moved {
-			pdf.SetAutoPageBreak(false, margin)
-			moved = true
-		}
-		pdf.SetFont(fontName, fontStyle(f.Style, p.style), f.Size)
-		_, em := pdf.GetFontSize()
-		rs := []rune(p.text)
-		for _, m := range p.marks {
-			at := starts[i] + cellWidth(pdf, string(rs[:min(m.at, len(rs))]), false)
-			pdf.SetXY(at+m.dx*em, y-m.dy*em)
-			// shown, not text: the copy above is what is read out
-			pdf.RawWriteStr("/Span <</ActualText ()>> BDC")
-			pdf.CellFormat(markWidth, lineHeight, m.mark, "", 0, "L", false, 0, "")
-			pdf.RawWriteStr("EMC")
-		}
+	pdf.SetAutoPageBreak(false, margin)
+	pdf.SetFont(fontName, style, size)
+	_, em := pdf.GetFontSize()
+	rs := []rune(p.text)
+	for _, m := range p.marks {
+		at := start + cellWidth(pdf, string(rs[:min(m.at, len(rs))]), false)
+		pdf.SetXY(at+m.dx*em, y-m.dy*em)
+		pdf.RawWriteStr("/Span <</ActualText ()>> BDC")
+		pdf.CellFormat(markWidth, h, m.mark, "", 0, "L", false, 0, "")
+		pdf.RawWriteStr("EMC")
 	}
-	if moved {
-		pdf.SetAutoPageBreak(auto, margin)
-		pdf.SetXY(x0, y)
-	}
+	pdf.SetAutoPageBreak(auto, margin)
+	pdf.SetXY(x0, y)
 }
 
 // markWidth is the width of a mark's cell (it has no advance of its own).

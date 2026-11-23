@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.52.0] - 2026-11-23
+
+### Added
+- **`pdf.Shaper` prints right-to-left text for a program's own layout** (Accolade's prose PDF), as the
+  screenplay PDF prints it, without its `Tree` or `rules.Format`:
+  - `Compose` joins Arabic (each letter's contextual form, lam-alef, as presentation forms) and gives
+    pointed Hebrew letters their presentation forms, in logical order, before the text is measured and
+    wrapped;
+  - `Levels` resolves a paragraph's bidi levels (UAX #9), `VisualRuns` gives a wrapped line's runs in
+    visual order (rule L2), `Mirror` a bracket as a right-to-left run shows it;
+  - `CellRTL` prints a right-to-left run turned around, its brackets mirrored, its marks (Arabic vowels,
+    Hebrew points) where the font's GPOS puts them, a copy of them invisible in place so the text reads
+    back whole. The PDF holds such text in the order it is seen, as browsers print it: pdftotext gives it
+    back as written.
+  - `Width` leaves out what takes no room (marks, joiners, direction controls); `Cell` prints no
+    direction controls.
+  The screenplay's mark placing and drawing are the same code (`placeMarks`, `drawMarks`).
+
 ## [1.51.0] - 2026-11-23
 
 ### Added
