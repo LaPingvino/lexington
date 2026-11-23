@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.29.0] - 2026-11-23
+
+### Added
+- **The `/* Fix-Up */` end block** (`fountain.EndFixUp`): the rules
+  Accolade's pattern fixer applied to an imported script, one a line, to
+  apply again after a re-import. `EndBlocks` finds it, `-strip` takes it
+  out with Accolade's other blocks.
+
+### Reads differently (check your PDF imports)
+- **PDF import, older and unusual layouts** (`pdfin`), each only where it
+  is sure, the line left as printed otherwise:
+  - headings numbered with a word, "Scene 12 - int. kitchen, day -", read as
+    `INT. KITCHEN, DAY #12#` (the number kept as the scene number);
+  - a scene number on the line above its heading joins it, and a heading
+    whose scene word and next word are in capitals is one
+    ("EXT – MARKET in OLD TOWN – DAY");
+  - a name with a blank line before its speech, a short speech centred
+    under it, a parenthetical under the name wherever it stands: a cue, its
+    parenthetical and its speech;
+  - a name in capitals at its speech's indent (a typescript's), and a name
+    glued to its parenthetical, `THE GUARD(quietly)`: the cue and the
+    parenthetical apart;
+  - a scan's stray marks alone on a line ("•") dropped, and they no longer
+    halve the line step (which made every line a paragraph of its own);
+    an action margin that wanders over two tenths of an inch is found;
+  - a line of action much shorter than the next, at the same indent with no
+    gap, keeps its line break (a book's name above its speech);
+  - a word broken with a hyphen at a line's end is joined where the script
+    has the whole word elsewhere ("sol-" "diers" and "soldiers"); the rest
+    stay as printed ("bas- kets").
+- **Fountain writer**: action that starts with one of Fountain's marks
+  (". .. and then", "> a sign", "#7 is the house") is written forced with
+  `!`, so it reads back as action.
+
 ## [1.28.0] - 2026-11-23
 
 ### Added

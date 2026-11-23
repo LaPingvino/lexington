@@ -99,7 +99,8 @@ transition without blank lines around it `>`.
 another app, an actor, a reader — and writes the rest as it was, byte for
 byte (with `-to pdf`, `html`, … it converts what is left). It always takes
 out Accolade's data: its end blocks (`/* Notes */` and, before it,
-`/* Source */`, `/* Adaptation */`, `/* Production */`, `/* Characters */`),
+`/* Source */`, `/* Adaptation */`, `/* Production */`, `/* Characters */`,
+`/* Fix-Up */`),
 the language line after them (`/* Language: eo */`) and the links to the
 source story (`[[from: …]]`, wherever they are, in a boneyard kept too). It takes a comma list of presets and
 options, which add up:

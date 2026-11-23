@@ -193,13 +193,26 @@ func (state *WriteState) writeLyrics(line lex.Line) error {
 
 func (state *WriteState) writeAction(line lex.Line) error {
 	// action that would read as a name, a transition or a heading
-	if bare := lex.StripNotes(line.Contents); AllCaps(bare) || (state.afterBlank() && state.isSceneSupported(bare)) {
+	if bare := lex.StripNotes(line.Contents); AllCaps(bare) || (state.afterBlank() && state.isSceneSupported(bare)) || markStart(bare) {
 		if _, err := fmt.Fprint(state.writer, "!"); err != nil {
 			return err
 		}
 	}
 	_, err := fmt.Fprintln(state.writer, line.Contents)
 	return err
+}
+
+// markStart: text that starts with one of Fountain's marks, so that it
+// would read as another element (". .. and then" a heading, "> …" a
+// transition, "# …" a section).
+func markStart(s string) bool {
+	switch {
+	case strings.HasPrefix(s, ".") && !strings.HasPrefix(s, ".."),
+		strings.HasPrefix(s, "@"), strings.HasPrefix(s, ">"), strings.HasPrefix(s, "~"),
+		strings.HasPrefix(s, "="), strings.HasPrefix(s, "#"), strings.HasPrefix(s, "!"):
+		return true
+	}
+	return false
 }
 
 func (state *WriteState) writeDefault(line lex.Line) error {

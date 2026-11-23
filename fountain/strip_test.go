@@ -63,6 +63,10 @@ cut:
 lock: 2026-11-20
 */
 
+/* Fix-Up
+heading: Scene <number> - <text> → <text> #<number>#
+*/
+
 /* Notes
 call the producer
 */

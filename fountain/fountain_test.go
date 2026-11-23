@@ -211,3 +211,27 @@ func TestBoneyard(t *testing.T) {
 		t.Errorf("not written back:\n%s", out.String())
 	}
 }
+
+// Action that starts with one of Fountain's marks (". .. and then", "> a
+// sign") is written forced, so it reads back as action.
+func TestActionStartingWithAMark(t *testing.T) {
+	scenes := []string{"INT", "EXT"}
+	in := lex.Screenplay{
+		{Type: lex.TypeScene, Contents: "INT. HALL - DAY"},
+		{Type: lex.TypeEmpty},
+		{Type: lex.TypeAction, Contents: ". .. and then the stones skip."},
+		{Type: lex.TypeEmpty},
+		{Type: lex.TypeAction, Contents: "> a sign points left"},
+		{Type: lex.TypeEmpty},
+		{Type: lex.TypeAction, Contents: "#7 is the house."},
+	}
+	var b bytes.Buffer
+	if err := (&FountainWriter{SceneConfig: scenes}).Write(&b, in); err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range Parse(scenes, strings.NewReader(b.String())) {
+		if l.Type != lex.TypeAction && l.Type != lex.TypeEmpty && l.Type != lex.TypeScene {
+			t.Errorf("read back as %s: %q\n%s", l.Type, l.Contents, b.String())
+		}
+	}
+}

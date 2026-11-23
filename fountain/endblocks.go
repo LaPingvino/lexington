@@ -38,11 +38,15 @@ const (
 	EndAdaptation = "Adaptation"
 	EndProduction = "Production"
 	EndCharacters = "Characters"
+	// EndFixUp holds the pattern fixer's rules: how an imported script's
+	// lines were set right ("heading: Scene <number> - <text> → <text>
+	// #<number>#"), one a line, to apply again after a re-import
+	EndFixUp = "Fix-Up"
 )
 
 // EndBlockNames are the blocks before the notes block, which come in any
 // order.
-var EndBlockNames = []string{EndSource, EndAdaptation, EndProduction, EndCharacters}
+var EndBlockNames = []string{EndSource, EndAdaptation, EndProduction, EndCharacters, EndFixUp}
 
 // BlockMarks are how a block at the end of a text is written: the line
 // that opens it, the mark that closes it, and that mark as it is kept

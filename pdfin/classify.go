@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/LaPingvino/lexington/lex"
 )
@@ -67,7 +69,13 @@ func classify(pages [][]line, width float64, scene *regexp.Regexp) lex.Screenpla
 		}
 		if prev != nil {
 			gap := l.Y - prev.Y
-			if (l.Page == prev.Page && gap > 1.5*step) || (l.Page != prev.Page && blankAcrossPages(prevType, l, margin)) {
+			// a blank line between a name and its speech (some scripts set
+			// one) is not the speech's end: elementOf read the name as a cue
+			// for the speech after it
+			afterCue := prevType == lex.TypeSpeaker ||
+				prevType == lex.TypeParen && len(out) >= 2 && out[len(out)-2].Type == lex.TypeSpeaker
+			cueGap := afterCue && l.Page == prev.Page && gap <= 2.6*step
+			if !cueGap && ((l.Page == prev.Page && gap > 1.5*step) || (l.Page != prev.Page && blankAcrossPages(prevType, l, margin))) {
 				out = append(out, lex.Line{Type: lex.TypeEmpty})
 				prevType = lex.TypeEmpty
 			}
@@ -78,30 +86,116 @@ func classify(pages [][]line, width float64, scene *regexp.Regexp) lex.Screenpla
 			prevType, prev, i = lex.TypeDialog, &body[j-1], j-1
 			continue
 		}
-		var next *line
+		var next, after *line // the next line, and the next after one blank line
 		if i+1 < len(body) && body[i+1].Page == l.Page && body[i+1].Y-l.Y <= 1.5*step {
 			next = &body[i+1]
+		} else if i+1 < len(body) && body[i+1].Page == l.Page && body[i+1].Y-l.Y <= 2.6*step {
+			after = &body[i+1]
 		}
-		t, text := elementOf(l, next, margin, width, prevType, scene)
+		t, text := elementOf(l, next, after, margin, width, prevType, scene)
+		// a name glued to its parenthetical: THE WOMAN(very calmly)
+		if t == lex.TypeSpeaker {
+			if m := gluedCue.FindStringSubmatch(text); m != nil && !contd.MatchString(text) && !extension.MatchString(m[2]) {
+				out = append(out, lex.Line{Type: lex.TypeSpeaker, Contents: strings.TrimSpace(m[1])}, lex.Line{Type: lex.TypeParen, Contents: "(" + m[2] + ")"})
+				prevType, prev = lex.TypeSpeaker, &body[i] // the speech after it as after a name
+				continue
+			}
+		}
 		if resume && t == lex.TypeDialog && len(out) > 0 && out[len(out)-1].Type == lex.TypeDialog {
 			out[len(out)-1].Contents += " " + text
 			resume, prevType, prev = false, t, &body[i]
 			continue
 		}
 		resume = false
+		// a scene number on the line above its heading: "3." / "EXT. …"
+		if t == lex.TypeScene && prevType == lex.TypeAction && prev != nil && l.Y-prev.Y <= 1.5*step && len(out) > 0 &&
+			sceneNumber.MatchString(out[len(out)-1].Contents) && !strings.HasSuffix(text, "#") {
+			text += " #" + strings.TrimSuffix(out[len(out)-1].Contents, ".") + "#"
+			out = out[:len(out)-1]
+		}
 		// a speech or paragraph wrapped over several lines is one element
 		if (t == lex.TypeDialog || t == lex.TypeAction || t == lex.TypeParen) && t == prevType && prev != nil &&
 			l.Y-prev.Y <= 1.5*step && l.Page == prev.Page && math.Abs(l.x()-prev.x()) < 0.35 && len(out) > 0 &&
-			!(t == lex.TypeParen && strings.HasSuffix(out[len(out)-1].Contents, ")")) {
-			out[len(out)-1].Contents += " " + text
+			!(t == lex.TypeParen && strings.HasSuffix(out[len(out)-1].Contents, ")")) && !hardBreak(t, *prev, l) {
+			out[len(out)-1].Contents = joinWrapped(out[len(out)-1].Contents, text)
 			prev = &body[i]
 			continue
 		}
 		out = append(out, lex.Line{Type: t, Contents: text})
 		prevType, prev = t, &body[i]
 	}
-	return out
+	return dehyphenate(out)
 }
+
+// hardBreak: a line of action much shorter than the one after it, which
+// goes on at the same indent without a gap, ends where the printed line
+// was broken on purpose (a name above its speech in a book's layout, a
+// list): the break is kept, not the line joined to the next.
+func hardBreak(t lex.ElementType, prev, l line) bool {
+	if t != lex.TypeAction {
+		return false
+	}
+	p, n := prev.end()-prev.x(), l.end()-l.x()
+	return n > 2.5 && p < 0.55*n && !strings.HasSuffix(prev.text(), "-")
+}
+
+// wrapMark stands where a word broken at a line's end ("sol-" / "diers")
+// was joined, until dehyphenate sees the whole script.
+const wrapMark = "\x00"
+
+// joinWrapped joins a wrapped line to the text before it: with a space,
+// or a word broken with a hyphen marked for dehyphenate.
+func joinWrapped(before, text string) string {
+	if r, _ := utf8.DecodeRuneInString(text); unicode.IsLower(r) && brokenEnd.MatchString(before) {
+		return before + wrapMark + text
+	}
+	return before + " " + text
+}
+
+// brokenEnd is a word broken with a hyphen at a line's end.
+var brokenEnd = regexp.MustCompile(`\p{L}-$`)
+
+// dehyphenate joins the words broken at line ends where the script has
+// the whole word elsewhere ("sol-" "diers" and "soldiers"); the rest are
+// left as printed, with a space ("sol- diers"), never guessed.
+func dehyphenate(s lex.Screenplay) lex.Screenplay {
+	marked := false
+	words := map[string]bool{}
+	for _, l := range s {
+		if strings.Contains(l.Contents, wrapMark) {
+			marked = true
+		}
+		for _, w := range wordRe.FindAllString(strings.ReplaceAll(l.Contents, wrapMark, " "), -1) {
+			words[strings.ToLower(w)] = true
+		}
+	}
+	if !marked {
+		return s
+	}
+	for i, l := range s {
+		if !strings.Contains(l.Contents, wrapMark) {
+			continue
+		}
+		parts := strings.Split(l.Contents, wrapMark)
+		var b strings.Builder
+		b.WriteString(parts[0])
+		for _, p := range parts[1:] {
+			head := wordRe.FindString(b.String()[strings.LastIndexAny(b.String(), " \t")+1:])
+			tail := wordRe.FindString(p)
+			if whole := strings.ToLower(strings.TrimSuffix(head, "-") + tail); head != "" && tail != "" && words[whole] {
+				b.WriteString("\x01") // the hyphen goes
+			} else {
+				b.WriteString(" ")
+			}
+			b.WriteString(p)
+		}
+		s[i].Contents = strings.ReplaceAll(b.String(), "-\x01", "")
+	}
+	return s
+}
+
+// wordRe is a word: letters, with hyphens inside or at its end.
+var wordRe = regexp.MustCompile(`\p{L}+(?:-\p{L}*)*`)
 
 func pageOf(l *line) int {
 	if l == nil {
@@ -145,24 +239,52 @@ func baseName(s string) string {
 // elementOf is the type and the text of a line, by its indent.
 //
 //nolint:gocyclo // long-standing; its scene pattern became a parameter
-func elementOf(l line, next *line, margin, width float64, prev lex.ElementType,
+func elementOf(l line, next, after *line, margin, width float64, prev lex.ElementType,
 	scene *regexp.Regexp) (lex.ElementType, string) {
 	text := l.text()
 	d := l.x() - margin
 	right := width - 1.0 // the right margin of the text
 	inSpeech := prev == lex.TypeSpeaker || prev == lex.TypeParen || prev == lex.TypeDialog
+	// the line under a name: its speech (or a parenthetical), at the
+	// speech's indent
+	speechUnder := func(n *line) bool {
+		return n != nil && (n.x()-margin >= dialogueFrom && n.x()-margin < nameFrom ||
+			// a short speech centred under its name
+			n.x()-margin >= dialogueFrom && centred(*n, margin, right) && (!n.upper() || parenLine(n.text())) ||
+			// a parenthetical under the name, wherever it stands
+			n.x()-margin < nameTo && parenLine(n.text()))
+	}
 	switch {
+	case d < dialogueFrom && sceneWord.MatchString(text):
+		// "Scene 12 - int. kitchen, day -": the number kept as the scene's
+		m := sceneWord.FindStringSubmatch(text)
+		return lex.TypeScene, strings.ToUpper(strings.Trim(m[3], " -–—:")) + " #" + m[2] + "#"
+	case prev == lex.TypeSpeaker && d < nameTo && parenLine(text):
+		return lex.TypeParen, text // under its name, centred or not
 	case l.numbered && (d < 0.3 || strings.HasPrefix(text, "#")),
 		d < 0.3 && l.upper() && (scene.MatchString(text) || (l.bold() && len(text) < 60)),
+		// its scene word and the next word in capitals, the rest not
+		// ("EXT – STREET in OLD WARSAW – DAY")
+		d < 0.3 && scene.MatchString(text) && upperStart(text, 2),
 		// a scene number before a heading's words, wherever they stand
 		// (some scripts indent them both)
 		l.numberAt > 0 && scene.MatchString(text):
 		return lex.TypeScene, ocrComma.ReplaceAllString(text, "$1.")
 	case l.upper() && d > 2.5 && (transition.MatchString(text) || l.end() > right-0.4):
 		return lex.TypeTrans, text
-	case d >= nameFrom && d < nameTo && l.upper() && !inSpeechEnd(text) && next != nil &&
-		next.x()-margin >= dialogueFrom && next.x()-margin < nameFrom:
+	case d >= nameFrom && d < nameTo && l.upper() && !inSpeechEnd(text) && speechUnder(next):
 		// a name, with its speech on the next line
+		return lex.TypeSpeaker, contd.ReplaceAllString(text, "")
+	case d >= nameFrom && d < nameTo && l.upper() && !inSpeechEnd(text) && len([]rune(text)) <= 40 &&
+		speechUnder(after) && (!after.upper() || strings.HasPrefix(after.text(), "(")):
+		// a name with a blank line before its speech, as some scripts set them
+		return lex.TypeSpeaker, contd.ReplaceAllString(text, "")
+	case !inSpeech && d >= dialogueFrom && d < nameTo && nameLike(text) && next != nil &&
+		math.Abs(next.x()-l.x()) < 0.35 && !next.upper() && !strings.HasPrefix(next.text(), "(") &&
+		!startsDash(next.text()):
+		// (not a shot's words going on: "A RED FLAG" / "—waving")
+		// a name at its speech's indent (a typescript's), glued to its
+		// parenthetical or not
 		return lex.TypeSpeaker, contd.ReplaceAllString(text, "")
 	case strings.HasPrefix(text, "(") && d >= dialogueFrom && d < nameFrom && (inSpeech || prev == ""):
 		return lex.TypeParen, text
@@ -170,10 +292,58 @@ func elementOf(l line, next *line, margin, width float64, prev lex.ElementType,
 		return lex.TypeParen, text // a parenthetical's second line
 	case d >= dialogueFrom && d < nameFrom && inSpeech:
 		return lex.TypeDialog, text
+	case inSpeech && d >= dialogueFrom && centred(l, margin, right) && !l.upper():
+		return lex.TypeDialog, text // a short speech centred under its name
 	case d > 0.5 && centred(l, margin, right):
 		return lex.TypeCenter, text
 	}
 	return lex.TypeAction, text
+}
+
+var (
+	// sceneWord is a heading numbered with a word: "Scene 12 - int. day -"
+	sceneWord = regexp.MustCompile(`^(?i)(scene|sc\.)\s*(\d+[A-Za-z]?)\s*[-–—:.]\s*(\S.*)$`)
+	// gluedCue is a name with its parenthetical: "THE WOMAN(very calmly)"
+	gluedCue = regexp.MustCompile(`^([^()]*\S)\s*\(([^()]+)\)$`)
+	// extension is a parenthetical that goes with the name: (V.O.)
+	extension = regexp.MustCompile(`^(?i)(v\.?\s?o\.?|o\.?\s?s\.?|o\.?\s?c\.?|cont['’]?d\.?|cont\.?|off|filtered)$`)
+)
+
+// startsDash: the text starts with a dash (a shot's words going on).
+func startsDash(text string) bool {
+	r, _ := utf8.DecodeRuneInString(text)
+	return r == '-' || r == '—' || r == '–'
+}
+
+// parenLine: a whole line in parentheses.
+func parenLine(text string) bool {
+	return strings.HasPrefix(text, "(") && strings.HasSuffix(text, ")") && strings.Count(text, "(") == 1
+}
+
+// upperStart: the text's first n words are in capitals.
+func upperStart(text string, n int) bool {
+	ws := strings.Fields(text)
+	if len(ws) < n {
+		return false
+	}
+	for _, w := range ws[:n] {
+		if w != strings.ToUpper(w) {
+			return false
+		}
+	}
+	return true
+}
+
+// nameLike: a name in capitals, short, before a parenthetical or not.
+func nameLike(text string) bool {
+	name := text
+	if m := gluedCue.FindStringSubmatch(text); m != nil {
+		name = m[1]
+	}
+	name = strings.TrimSpace(name)
+	return name != "" && name == strings.ToUpper(name) && hasLetter(name) && len([]rune(name)) <= 30 &&
+		len(strings.Fields(name)) <= 4 && !inSpeechEnd(name) && !strings.ContainsAny(name[len(name)-1:], ",;:-") &&
+		!strings.HasSuffix(name, "—") && !strings.HasSuffix(name, "–")
 }
 
 // inSpeechEnd: a line that looks like a name but ends a sentence ("NO!").
@@ -196,10 +366,15 @@ func actionMargin(ls []line) float64 {
 		xs = append(xs, x)
 	}
 	sort.Float64s(xs)
+	bin := func(x float64) int { return counts[math.Round(x*10)/10] }
 	for _, x := range xs {
 		// enough lines that stray marks in the margin (an OCR layer's
-		// noise, line numbers) are not taken for it
+		// noise, line numbers) are not taken for it; a scan's margin
+		// wanders, over two tenths (0.7 and 0.8)
 		if counts[x] >= max(2, len(ls)/7) {
+			return x
+		}
+		if up := math.Round((x+0.1)*10) / 10; counts[x]+bin(up) >= max(2, len(ls)/7) && counts[x] >= max(2, len(ls)/30) {
 			return x
 		}
 	}
@@ -226,7 +401,9 @@ func lineStep(ls []line) float64 {
 	if best == 0 {
 		return 1.0 / 6
 	}
-	if half := (best + 1) / 2; near(half) >= 2 && half >= 9 {
+	// (common: more than a few, which a scan's stray marks between the
+	// lines make)
+	if half := (best + 1) / 2; near(half) >= max(2, n/10) && half >= 9 {
 		best = half
 	}
 	return float64(best) / 100
@@ -241,6 +418,10 @@ func cleanPage(ls []line, running map[string]bool, scene *regexp.Regexp) []line 
 	for i, l := range ls {
 		t := l.text()
 		if running[runningKey(l)] {
+			continue
+		}
+		// a stray mark alone on a line (a scan's dust: "•", "'")
+		if len([]rune(t)) <= 2 && !strings.ContainsFunc(t, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }) {
 			continue
 		}
 		top := i < 2 && l.Y < 0.9

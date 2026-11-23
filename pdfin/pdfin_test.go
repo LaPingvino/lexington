@@ -303,3 +303,130 @@ func TestScannedPages(t *testing.T) {
 		t.Errorf("the printed one: %d of %d scanned (%v)", scanned, pages, err)
 	}
 }
+
+// kinds is a screenplay as "type: contents" lines, without the blank ones.
+func kinds(s lex.Screenplay) string {
+	var out []string
+	for _, l := range s {
+		if l.Type != lex.TypeEmpty {
+			out = append(out, string(l.Type)+": "+l.Contents)
+		}
+	}
+	return strings.Join(out, "\n")
+}
+
+// A typescript's ways, read as a script: headings numbered with a word
+// ("Scene 12 - int. kitchen -"), names at their speech's indent glued to
+// their parentheticals, a stray mark of the scan between the lines.
+func TestTypescriptLayout(t *testing.T) {
+	const step = 1.0 / 6
+	page := []line{
+		ln(1, 1.0, at(1.5, "Scene 12 - int. kitchen, day -")),
+		ln(1, 1.0+2*step, at(1.5, "Pia waits by the window, the kettle singing behind her, the")),
+		ln(1, 1.0+3*step, at(1.5, "radio off.")),
+		ln(1, 1.0+5*step, at(2.5, "THE GUARD(quietly)")),
+		ln(1, 1.0+6*step, at(2.5, "Who goes there? Nobody comes here")),
+		ln(1, 1.0+6.5*step, at(6.8, "•")),
+		ln(1, 1.0+7*step, at(2.5, "at this hour.")),
+		ln(1, 1.0+9*step, at(2.5, "VOICE OVER")),
+		ln(1, 1.0+10*step, at(2.5, "\"Nobody ever did.\"")),
+		ln(1, 1.0+12*step, at(1.5, "Sc. 13: the yard")),
+		ln(1, 1.0+14*step, at(1.5, "Rain.")),
+	}
+	want := `scene: INT. KITCHEN, DAY #12#
+action: Pia waits by the window, the kettle singing behind her, the radio off.
+speaker: THE GUARD
+paren: (quietly)
+dialog: Who goes there? Nobody comes here at this hour.
+speaker: VOICE OVER
+dialog: "Nobody ever did."
+scene: THE YARD #13#
+action: Rain.`
+	if got := kinds(classify([][]line{page}, 8.5, scenePrefix)); got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// Names centred with a blank line before the speech, short speeches
+// centred too (a translation's layout): cues and speeches all the same.
+func TestCentredNamesWithBlankLine(t *testing.T) {
+	const step = 1.0 / 6
+	page := []line{
+		ln(1, 1.0, at(1.5, "THEY WALK ON, TALKING ABOUT THE WEATHER AND THE STATE OF THE ROADS.")),
+		ln(1, 1.0+2*step, at(3.9, "MIRA")),
+		ln(1, 1.0+4*step, at(2.5, "Where do we go from here, now that")),
+		ln(1, 1.0+5*step, at(2.5, "the road is closed?")),
+		ln(1, 1.0+7*step, at(3.8, "TOMAS")),
+		ln(1, 1.0+9*step, at(4.25, "Home.")), // centred between 1.5 and 7.5
+		ln(1, 1.0+11*step, at(1.5, "3.")),
+		ln(1, 1.0+12*step, at(1.5, "EXT – MARKET in OLD TOWN – DAY")),
+		ln(1, 1.0+14*step, at(1.5, "CROWDS.")),
+	}
+	want := `action: THEY WALK ON, TALKING ABOUT THE WEATHER AND THE STATE OF THE ROADS.
+speaker: MIRA
+dialog: Where do we go from here, now that the road is closed?
+speaker: TOMAS
+dialog: Home.
+scene: EXT – MARKET in OLD TOWN – DAY #3#
+action: CROWDS.`
+	if got := kinds(classify([][]line{page}, 8.5, scenePrefix)); got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// A book's layout: a name above its speech at the same indent, the line
+// break kept (not joined into the speech); words broken at line ends
+// joined where the script has the whole word, left as printed elsewhere.
+func TestHardBreaksAndHyphens(t *testing.T) {
+	const step = 1.0 / 6
+	page := []line{
+		ln(1, 1.0, at(1.5, "The returned sol-")),
+		ln(1, 1.0+step, at(1.5, "diers wait in line with their bas-")),
+		ln(1, 1.0+2*step, at(1.5, "kets, as soldiers do, in the cold of the morning.")),
+		ln(1, 1.0+4*step, at(1.5, "Doctor")),
+		ln(1, 1.0+5*step, at(1.5, "That little girl needs bread and something warm to drink.")),
+	}
+	want := `action: The returned soldiers wait in line with their bas- kets, as soldiers do, in the cold of the morning.
+action: Doctor
+action: That little girl needs bread and something warm to drink.`
+	if got := kinds(classify([][]line{page}, 8.5, scenePrefix)); got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// A centred name with its parenthetical under it, then a blank line and
+// the speech.
+func TestCentredNameParenthetical(t *testing.T) {
+	const step = 1.0 / 6
+	page := []line{
+		ln(1, 1.0-2*step, at(1.5, "INT. HALL - DAY")),
+		ln(1, 1.0, at(1.5, "THE DOOR OPENS SLOWLY AND THE WIND COMES IN FROM THE GARDEN.")),
+		ln(1, 1.0+2*step, at(3.9, "MIRA")),
+		ln(1, 1.0+3*step, at(1.5, "(SMILES)")), // at the margin, as one script sets them
+		ln(1, 1.0+5*step, at(2.5, "Close it, please, it is cold.")),
+	}
+	want := `scene: INT. HALL - DAY
+action: THE DOOR OPENS SLOWLY AND THE WIND COMES IN FROM THE GARDEN.
+speaker: MIRA
+paren: (SMILES)
+dialog: Close it, please, it is cold.`
+	if got := kinds(classify([][]line{page}, 8.5, scenePrefix)); got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// A shot in capitals, its words going on after a dash on the next line,
+// at the same indent: not a name and its speech.
+func TestShotIsNoCue(t *testing.T) {
+	const step = 1.0 / 6
+	page := []line{
+		ln(1, 1.0, at(1.5, "INT. HALL - DAY")),
+		ln(1, 1.0+2*step, at(2.5, "A RED FLAG")),
+		ln(1, 1.0+3*step, at(2.5, "—waving against a white sky.")),
+	}
+	for _, l := range classify([][]line{page}, 8.5, scenePrefix) {
+		if l.Type == lex.TypeSpeaker {
+			t.Errorf("a cue: %q", l.Contents)
+		}
+	}
+}
