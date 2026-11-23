@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.50.0] - 2026-11-23
+
+### Added
+- **`pdf.Shaper`: Devanagari shaped for a program's own layout.** `ShaperOf(fontFile)` (one a file, by its
+  contents) measures (`Width`) and prints (`Cell`, as `CellFormat`) text in a font added with `AddFont`, each
+  Devanagari run shaped as the screenplay PDF shapes it, its `ActualText` the text as written. With
+  `HasDevanagari`, `DevanagariRune`, `DevanagariRunEnd` and `JoinsBefore` (where a line may break), so
+  Accolade's prose PDF prints Devanagari as the screenplay does. `shapedCell` and `Shaper.Width` share one
+  measure.
+
 ## [1.49.0] - 2026-11-23
 
 ### Added

@@ -156,28 +156,25 @@ func abs(x float64) float64 {
 	return x
 }
 
-// shapedCell prints text from x, w wide, as CellFormat prints a cell in
-// a line (no border, the position after it), aligned: each Devanagari run
-// in it shaped by sh (the current font's shaper; none: as CellFormat).
-// fontName and style are the current font's, size its size in points.
-func shapedCell(pdf Drawer, sh *fontShaper, fontName, style string, size, w, h float64, text, align string) {
-	if sh == nil || !hasDevanagari(text) {
-		pdf.CellFormat(w, h, text, "", 0, align, false, 0, "")
-		return
-	}
-	x := pdf.GetX()
+// shapedPart is a piece of a line printed by shapedCell: a Devanagari
+// run shaped (its glyph runs), or the text between, and its width.
+type shapedPart struct {
+	text  string
+	deva  bool
+	runs  []glyphRun
+	width float64
+}
+
+// shapedParts are text's Devanagari runs, shaped by sh, and the text
+// between, in the current font (pdf's), and their width in all: what
+// shapedCell prints, as wide as it prints it.
+func shapedParts(pdf Drawer, sh *fontShaper, text string) ([]shapedPart, float64) {
 	_, em := pdf.GetFontSize()
 	rs := []rune(text)
-	type part struct {
-		text  string
-		deva  bool
-		runs  []glyphRun
-		width float64
-	}
-	var parts []part
+	var parts []shapedPart
 	total := 0.0
 	for i := 0; i < len(rs); {
-		p := part{}
+		p := shapedPart{}
 		j := i
 		if devaRune(rs[i]) {
 			j = devaRunEnd(rs, i)
@@ -198,6 +195,21 @@ func shapedCell(pdf Drawer, sh *fontShaper, fontName, style string, size, w, h f
 		total += p.width
 		i = j
 	}
+	return parts, total
+}
+
+// shapedCell prints text from x, w wide, as CellFormat prints a cell in
+// a line (no border, the position after it), aligned: each Devanagari run
+// in it shaped by sh (the current font's shaper; none: as CellFormat).
+// fontName and style are the current font's, size its size in points.
+func shapedCell(pdf Drawer, sh *fontShaper, fontName, style string, size, w, h float64, text, align string) {
+	if sh == nil || !hasDevanagari(text) {
+		pdf.CellFormat(w, h, text, "", 0, align, false, 0, "")
+		return
+	}
+	x := pdf.GetX()
+	_, em := pdf.GetFontSize()
+	parts, total := shapedParts(pdf, sh, text)
 	cm := pdf.GetCellMargin()
 	at := x + cm
 	switch {
