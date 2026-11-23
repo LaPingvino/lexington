@@ -11,7 +11,11 @@ import (
 )
 
 // The pieces quotes and apostrophes come in, straight and typographic.
-var quotePieces = []string{"John", "'s", "’s", "O'Brien", " ", `"`, "“", "”", "word", "it's", " not ", "'", "‘", "’", ",", ".", "s", "don’t"}
+var quotePieces = []string{"John", "'s", "’s", "O'Brien", " ", `"`, "“", "”", "word", "it's", " not ", "'", "‘", "’",
+	",", ".", "s", "don’t"}
+
+// underline is Final Draft's style name.
+const underline = "Underline"
 
 // Final Draft's runs, styled at random around apostrophes and quotes,
 // read as Fountain whose text is theirs: no marker turns into text or
@@ -19,7 +23,7 @@ var quotePieces = []string{"John", "'s", "’s", "O'Brien", " ", `"`, "“", "�
 // sits between plain ones (no two styles touching) and is no underline
 // inside a word, the styles come through too.
 func TestQuotesFromFDXGenerated(t *testing.T) {
-	styles := []string{"", "Bold", "Italic", "Underline", "Bold+Italic"}
+	styles := []string{"", "Bold", "Italic", underline, "Bold+Italic"}
 	rng := rand.New(rand.NewSource(1))
 	for n := 0; n < 3000; n++ {
 		var doc, plain strings.Builder
@@ -28,14 +32,14 @@ func TestQuotesFromFDXGenerated(t *testing.T) {
 		prev := ""
 		for k := 1 + rng.Intn(5); k > 0; k-- {
 			p, s := quotePieces[rng.Intn(len(quotePieces))], styles[rng.Intn(len(styles))]
-			if s != "" && (prev != "" || s == "Underline") {
+			if s != "" && (prev != "" || s == underline) {
 				simple = false
 			}
 			prev = s
 			fmt.Fprintf(&doc, `<Text Style="%s">%s</Text>`, s, html.EscapeString(p))
 			plain.WriteString(p)
 			runs = append(runs, run{Span: lex.Span{Text: p, Bold: strings.Contains(s, "Bold"),
-				Italic: strings.Contains(s, "Italic"), Underline: s == "Underline"}})
+				Italic: strings.Contains(s, "Italic"), Underline: s == underline}})
 		}
 		if strings.TrimSpace(plain.String()) == "" {
 			continue
@@ -100,7 +104,8 @@ func TestQuotesFromFountainGenerated(t *testing.T) {
 		}
 		_, again := writeFDX(t, "INT. HALL - DAY\n\n"+l[0]+"\n")
 		if a, b := looks(doc), looks(again); a != b {
-			t.Errorf("%q (back %q): FDX %q, again %q", src, l[0], summary(doc.Content.Paragraphs), summary(again.Content.Paragraphs))
+			t.Errorf("%q (back %q): FDX %q, again %q", src, l[0],
+				summary(doc.Content.Paragraphs), summary(again.Content.Paragraphs))
 		}
 	}
 }
@@ -113,10 +118,10 @@ func looks(doc FdxFile) string {
 		for _, t := range p.Texts {
 			for _, r := range t.Content {
 				st := t.Style
-				if r == ' ' && !strings.Contains(st, "Underline") {
+				if r == ' ' && !strings.Contains(st, underline) {
 					st = ""
 				} else if r == ' ' {
-					st = "Underline"
+					st = underline
 				}
 				fmt.Fprintf(&b, "%c%s|", r, st)
 			}

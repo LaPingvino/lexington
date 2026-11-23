@@ -85,7 +85,10 @@ func TestShaperCell(t *testing.T) {
 	for _, c := range []struct {
 		a, b rune
 		join bool
-	}{{'क', '्', true}, {'्', 'ष', true}, {'र', 0x200D, true}, {0x200D, 'य', true}, {'क', 'ि', true}, {'क', 'ख', false}, {' ', 'क', false}} {
+	}{
+		{'क', '्', true}, {'्', 'ष', true}, {'र', 0x200D, true}, {0x200D, 'य', true}, {'क', 'ि', true},
+		{'क', 'ख', false}, {' ', 'क', false},
+	} {
 		if JoinsBefore(c.a, c.b) != c.join {
 			t.Errorf("JoinsBefore(%q, %q) is %v", c.a, c.b, !c.join)
 		}

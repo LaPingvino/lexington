@@ -103,21 +103,24 @@ func Check(p string) Report {
 			}
 		}
 		if !root && len(tops) > 1 && b.Prefix == "" {
-			r.Problems = append(r.Problems, fmt.Sprintf("%d top-level folders and no files at the root: which is the bundle is unclear", len(tops)))
+			r.Problems = append(r.Problems, fmt.Sprintf(
+				"%d top-level folders and no files at the root: which is the bundle is unclear", len(tops)))
 		}
 		if root && b.Prefix == "" && len(b.Files) > 0 {
-			r.Notes = append(r.Notes, "its files are at the zip's root; TextBundle's own reader expects them in one Name.textbundle/ folder (Highland 2 is said to keep them so)")
+			r.Notes = append(r.Notes, "its files are at the zip's root; TextBundle's own reader expects them in one"+
+				" Name.textbundle/ folder (Highland 2 is said to keep them so)")
 		}
 		if junk {
 			r.Notes = append(r.Notes, "it holds macOS's __MACOSX/ or .DS_Store entries (ignored, copied through)")
 		}
 	}
 	if t, ok := TypeOf(p); ok && t.Form != b.Form() && t.Ext != ".highland" && t.Ext != ".accolade" {
-		r.Notes = append(r.Notes, fmt.Sprintf("a %s is a %s elsewhere; this one is a %s (Lexington and Accolade read both)", t.Ext, t.Form, b.Form()))
+		r.Notes = append(r.Notes, fmt.Sprintf("a %s is a %s elsewhere; this one is a %s (Lexington and Accolade read both)",
+			t.Ext, t.Form, b.Form()))
 	} else if t.Ext == ".highland" && st.IsDir() {
-		r.Notes = append(r.Notes, "Highland 2 saves a .highland as a zip (its maker says so; the one Name.textbundle/ folder inside"+
-			" is from others' descriptions, not checked on a file of Highland's); whether Highland opens this folder form is"+
-			" not known (Lexington and Accolade read both)")
+		r.Notes = append(r.Notes, "Highland 2 saves a .highland as a zip (its maker says so;"+
+			" the one Name.textbundle/ folder inside is from others' descriptions, not checked on a file of Highland's);"+
+			" whether Highland opens this folder form is not known (Lexington and Accolade read both)")
 	}
 	if b.Text == "" {
 		r.Problems = append(r.Problems, "no text file (text.fountain, text.md…) at the bundle's root")

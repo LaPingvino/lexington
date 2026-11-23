@@ -88,7 +88,7 @@ type LaTeXConfig struct {
 const defaultLaTeXTemplate = `\documentclass[{{printf "%.0f" .Config.FontSize}}pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage{lmodern}
+\IfFileExists{lmodern.sty}{\usepackage{lmodern}}{} % not in every TeX (Debian has it apart)
 \usepackage[letterpaper,
             left={{printf "%.1f" .Config.LeftMargin}}in,
             right={{printf "%.1f" .Config.RightMargin}}in,

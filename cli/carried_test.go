@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -12,12 +13,45 @@ import (
 // of one's own, Based on the radio preset, and a language's words.
 func carriedZip(t *testing.T, format string) []byte {
 	return zipOf(t,
-		"Barn.textbundle/info.json", `{"version":2,"type":"com.quoteunquoteapps.fountain","eu.kiefte.Accolade":{"version":1,"format":"`+format+`"}}`,
+		"Barn.textbundle/info.json", accoladeInfo(`"format":"`+format+`"`),
 		"Barn.textbundle/text.fountain", script,
 		"Barn.textbundle/assets/lexington/lexington.toml", "[Languages.xx]\nScenes = [\"SZENA\"]\n",
-		"Barn.textbundle/assets/lexington/formats/wide.toml", "Name = \"Wide\"\nBase = \"radio\"\n[Elements.action]\nLeft = 4.25\n",
+		"Barn.textbundle/assets/lexington/formats/wide.toml",
+		"Name = \"Wide\"\nBase = \"radio\"\n[Elements.action]\nLeft = 4.25\n",
 		"Barn.textbundle/assets/lexington/formats/../evil.toml", "Name = \"Evil\"\n",
 	)
+}
+
+// accoladeInfo is an .accolade's info.json with Accolade's key holding
+// fields (JSON, without braces).
+func accoladeInfo(fields string) string {
+	if fields != "" {
+		fields = "," + fields
+	}
+	return `{"version":2,"type":"com.quoteunquoteapps.fountain","eu.kiefte.Accolade":{"version":1` + fields + `}}`
+}
+
+func writeFile(t *testing.T, name string, data []byte) {
+	t.Helper()
+	if err := os.WriteFile(name, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func readFile(t *testing.T, name string) string {
+	t.Helper()
+	data, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+func readInput(t *testing.T, o *Options) {
+	t.Helper()
+	if _, err := readBundleInput(o); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // An .accolade's carried settings are laid over the machine's: its
@@ -26,12 +60,10 @@ func carriedZip(t *testing.T, format string) []byte {
 func TestCarriedSettings(t *testing.T) {
 	dir := t.TempDir()
 	acc := filepath.Join(dir, "barn.accolade")
-	os.WriteFile(acc, carriedZip(t, "wide"), 0o644)
+	writeFile(t, acc, carriedZip(t, "wide"))
 
 	o := Options{Input: acc, ConfigFile: filepath.Join(dir, "none.toml")}
-	if _, err := readBundleInput(&o); err != nil {
-		t.Fatal(err)
-	}
+	readInput(t, &o)
 	if o.Elements != "wide" {
 		t.Fatalf("-e is %q, want the script's format", o.Elements)
 	}
@@ -51,7 +83,7 @@ func TestCarriedSettings(t *testing.T) {
 	}
 
 	flag := Options{Input: acc, ConfigFile: o.ConfigFile, Elements: "stageplay"}
-	readBundleInput(&flag)
+	readInput(t, &flag)
 	if flag.Elements != "stageplay" {
 		t.Errorf("-e stageplay became %q", flag.Elements)
 	}
@@ -60,9 +92,9 @@ func TestCarriedSettings(t *testing.T) {
 	}
 
 	hl := filepath.Join(dir, "barn.highland")
-	os.WriteFile(hl, carriedZip(t, "wide"), 0o644)
+	writeFile(t, hl, carriedZip(t, "wide"))
 	other := Options{Input: hl, ConfigFile: o.ConfigFile}
-	readBundleInput(&other)
+	readInput(t, &other)
 	if other.carried != nil || other.Elements != "" {
 		t.Errorf("a .highland carried %+v (-e %q)", other.carried, other.Elements)
 	}
@@ -71,8 +103,7 @@ func TestCarriedSettings(t *testing.T) {
 	html := func(in string) string {
 		out := filepath.Join(dir, filepath.Base(in)+".html")
 		run(t, Options{Input: in, Output: out})
-		data, _ := os.ReadFile(out)
-		return string(data)
+		return readFile(t, out)
 	}
 	if html(acc) == html(hl) {
 		t.Error("the .accolade printed as the screenplay")
@@ -80,8 +111,9 @@ func TestCarriedSettings(t *testing.T) {
 
 	// a format of Accolade's that the bundle does not carry: the screenplay
 	series := filepath.Join(dir, "series.accolade")
-	os.WriteFile(series, carriedZip(t, "series"), 0o644)
-	if err := Convert(context.Background(), Options{Input: series, Output: filepath.Join(dir, "series.html"), ConfigFile: o.ConfigFile}); err != nil {
+	writeFile(t, series, carriedZip(t, "series"))
+	so := Options{Input: series, Output: filepath.Join(dir, "series.html"), ConfigFile: o.ConfigFile}
+	if err := Convert(context.Background(), so); err != nil {
 		t.Errorf("Accolade's own format: %v", err)
 	}
 }
@@ -146,12 +178,72 @@ Check the date.
 `
 	dir := t.TempDir()
 	acc := filepath.Join(dir, "barn.accolade")
-	os.WriteFile(acc, zipOf(t,
-		"Barn.textbundle/info.json", `{"version":2,"type":"com.quoteunquoteapps.fountain","eu.kiefte.Accolade":{"version":1}}`,
-		"Barn.textbundle/text.fountain", text), 0o644)
+	writeFile(t, acc, zipOf(t,
+		"Barn.textbundle/info.json", accoladeInfo(""),
+		"Barn.textbundle/text.fountain", text))
 	out := filepath.Join(dir, "barn.fountain")
 	run(t, Options{Input: acc, Output: out})
-	if got, _ := os.ReadFile(out); string(got) != text {
+	if got := readFile(t, out); got != text {
 		t.Errorf("got\n%s", got)
+	}
+}
+
+// An .accolade's title page template: the one info.json names is
+// -titlepage's default, one of the script's own comes in its
+// lexington.toml, a flag wins, and one it names but does not carry
+// prints as Fountain's.
+func TestCarriedTitlePage(t *testing.T) {
+	dir := t.TempDir()
+	const titled = "Title: The Barn\nCredit: written by\nAuthor: Joop\nLogline: A storm.\n\nINT. BARN - DAY\n\nRain.\n"
+	bundleWith := func(name, tpl, conf string) string {
+		p := filepath.Join(dir, name)
+		pairs := []string{
+			"Barn.textbundle/info.json", accoladeInfo(`"titlePage":"` + tpl + `"`),
+			"Barn.textbundle/text.fountain", titled,
+		}
+		if conf != "" {
+			pairs = append(pairs, "Barn.textbundle/assets/lexington/lexington.toml", conf)
+		}
+		writeFile(t, p, zipOf(t, pairs...))
+		return p
+	}
+	own := bundleWith("own.accolade", "loud",
+		"[TitlePages.loud]\nName = \"Loud\"\n[[TitlePages.loud.Keys]]\nKey = \"Logline\"\nPlace = \"top\"\n"+
+			"[[TitlePages.loud.Keys]]\nKey = \"Title\"\nPlace = \"centre\"\n")
+	o := Options{Input: own, ConfigFile: filepath.Join(dir, "none.toml")}
+	readInput(t, &o)
+	if o.TitlePage != "loud" {
+		t.Fatalf("-titlepage is %q, want the script's", o.TitlePage)
+	}
+	flag := Options{Input: own, ConfigFile: o.ConfigFile, TitlePage: "bold"}
+	readInput(t, &flag)
+	if flag.TitlePage != "bold" {
+		t.Errorf("-titlepage bold became %q", flag.TitlePage)
+	}
+
+	html := func(in string, extra Options) string {
+		out := filepath.Join(dir, filepath.Base(in)+extra.TitlePage+".html")
+		extra.Input, extra.Output = in, out
+		run(t, extra)
+		return readFile(t, out)
+	}
+	loud, plain := html(own, Options{}), html(own, Options{TitlePage: "standard"})
+	if loud == plain {
+		t.Errorf("the carried template made no difference:\n%s", loud)
+	}
+	if i, j := strings.Index(loud, "A storm."), strings.Index(loud, "The Barn"); i < 0 || j < 0 || i > j {
+		t.Errorf("the carried template's order (Logline on top):\n%s", loud)
+	}
+
+	// named, not carried: Fountain's, with a word on the log
+	lost := bundleWith("lost.accolade", "gone", "")
+	var got string
+	logged := captureLog(t, func() { got = html(lost, Options{}) })
+	if got != html(lost, Options{TitlePage: "standard"}) || !strings.Contains(logged, `"gone"`) {
+		t.Errorf("a template not carried: log %q\n%s", logged, got)
+	}
+	// a preset by its name alone
+	if html(bundleWith("bold.accolade", "bold", ""), Options{}) == plain {
+		t.Error("the preset named in info.json was not used")
 	}
 }
