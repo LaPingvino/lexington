@@ -129,31 +129,41 @@ var hindiTimes = []string{"DAY", "NIGHT", "MORNING", "EVENING", "DUSK", "DAWN", 
 func hindiLatin() Language {
 	l := english()
 	l.Times = slices.Clone(hindiTimes)
+	l.TitleKeys = maps.Clone(hindiLatinKeys)
 	return l
 }
 
+// hindiLatinKeys are the title keys in Latin letters: the Devanagari
+// ones written so (Lexington's own spelling).
+var hindiLatinKeys = map[string]string{"Sheershak": "Title", "Shrey": "Credit", "Lekhak": "Author",
+	"Pataktha": "Author", "Srot": "Source", "Masauda": "Draft", "Masaude ki tithi": "Draft date",
+	"Tithi": "Date", "Sampark": "Contact", "Tippaniyan": "Notes"}
+
 // devanagari are Devanagari Hindi's own words: scene words (with their
 // dot, so a line starting "अंदर से…" stays action), the heading patterns,
-// inside/outside and time words, transitions, title keys.
+// inside/outside and time words, extensions, transitions, title keys.
 var devanagari = struct {
-	scenes, matchup, headings, settings, times, transitions []string
-	ends                                                    []string
-	titleKeys                                               map[string]string
+	scenes, matchup, headings, settings, times, extensions, transitions []string
+	ends                                                                []string
+	titleKeys                                                           map[string]string
 }{
 	scenes:   []string{"अंदर.", "बाहर.", "अंदर/बाहर.", "बाहर/अंदर."},
 	matchup:  []string{"अंदर.", "बाहर.", "अंदर/बाहर.", "बाहर/अंदर.", ""},
 	headings: []string{"{place}/{time}/{io}", "{place}/{time}/{io} {any}", "{n}. {place}/{time}/{io}", "{n}. {place}/{time}/{io} {any}"},
 	settings: []string{"अंदर", "बाहर", "अंदर/बाहर", "बाहर/अंदर", "INT", "EXT", "INT.", "EXT."},
 	times:    []string{"दिन", "रात", "सुबह", "शाम", "दोपहर"},
+	// वॉयस ओवर first: New's template shows the first
+	extensions: []string{"वॉयस ओवर", "वायस ओवर", "ऑफ़ स्क्रीन", "ऑफ स्क्रीन", "जारी"},
 	// ending on a fade out: New's template closes with the last
 	transitions: []string{"कट टू", "डिजॉल्व टू", "डिज़ॉल्व टू", "फ़ेड इन", "फेड इन", "फेड आउट", "फ़ेड आउट"},
 	ends:        []string{" TO:", " टू", " टू:"},
-	titleKeys: map[string]string{"शीर्षक": "Title", "लेखक": "Author", "पटकथा": "Author", "स्रोत": "Source",
-		"तिथि": "Date", "संपर्क": "Contact"},
+	titleKeys: map[string]string{"शीर्षक": "Title", "श्रेय": "Credit", "लेखक": "Author", "पटकथा": "Author",
+		"स्रोत": "Source", "मसौदा": "Draft", "मसौदे की तिथि": "Draft date", "तिथि": "Date", "दिनांक": "Date",
+		"संपर्क": "Contact", "टिप्पणियाँ": "Notes", "कॉपीराइट": "Copyright"},
 }
 
 // hindiDevanagari is Hindi in Devanagari: its own words, English
-// Fountain's scene words, extensions and " TO:" accepted beside them;
+// Fountain's scene words, extensions and " TO:" accepted after them;
 // cues without capitals (a Latin name in capitals still is one).
 func hindiDevanagari() Language {
 	d := devanagari
@@ -165,7 +175,7 @@ func hindiDevanagari() Language {
 		Times:           slices.Clone(d.times),
 		Direction:       "ltr",
 		Cues:            slices.Clone(noCaps),
-		Extensions:      english().Extensions,
+		Extensions:      slices.Concat(d.extensions, english().Extensions),
 		Shape:           Shape{Words: 3, Ends: ".!?,;:।॥"},
 		Repeat:          2,
 		TransitionEnds:  slices.Clone(d.ends),
@@ -176,13 +186,14 @@ func hindiDevanagari() Language {
 }
 
 // hindi is Hindi in either script or both mixed: Devanagari's rules with
-// the Latin time words too, and English's scene words first (INT.: what
-// most Hindi scripts write).
+// the Latin time words and title keys too, and English's scene words
+// first (INT.: what most Hindi scripts write).
 func hindi() Language {
 	l := hindiDevanagari()
 	l.Scenes = slices.Concat(english().Scenes, devanagari.scenes)
 	l.Matchup = slices.Clone(english().Matchup)
 	l.Times = slices.Concat(hindiTimes, devanagari.times)
+	maps.Copy(l.TitleKeys, hindiLatinKeys)
 	return l
 }
 

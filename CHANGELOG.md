@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.40.0] - 2026-11-23
+
+### Added
+- **Hindi's missing words**: `hi-Deva` reads the extensions `वॉयस ओवर`
+  (`वायस ओवर`), `ऑफ़ स्क्रीन` (`ऑफ स्क्रीन`) and `जारी` before English's
+  `V.O.`, `O.S.`, `CONT'D`, and has title keys for every standard field
+  (`श्रेय` Credit, `मसौदा` Draft, `मसौदे की तिथि` Draft date, `दिनांक`,
+  `टिप्पणियाँ` Notes, `कॉपीराइट` Copyright beside the ones it had);
+  `hi-Latn` has title keys in Latin letters (`Sheershak`, `Lekhak`,
+  `Pataktha`, `Masaude ki tithi`…); `hi` reads both. docs/LANGUAGES.md says
+  which are sourced (वॉयस ओवर and the transitions, from a MANUU course
+  book) and which are Lexington's own.
+
 ## [1.39.0] - 2026-11-23
 
 ### Added

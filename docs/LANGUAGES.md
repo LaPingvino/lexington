@@ -233,7 +233,8 @@ Three keys, one per way of writing (Joop, 2026-11-23):
   spelling; no source wrote the time in Hindi in Latin letters). No Hindi
   scene words in Latin letters: none were found, and `ANDAR`/`BAHAR`
   before a space would make every action line starting "Andar se…" a
-  heading.
+  heading. Its title page keys are the Devanagari ones in Latin letters
+  (below).
 - **`hi-Deva`**, Hindi in Devanagari: headings place first, time, then
   inside/outside, slash-separated, as NCERT's textbook writes them
   (`शिक्षा अधिकारी का दफ़्तर (बाहरी कक्ष)/दिन/अंदर`; also numbered,
@@ -245,19 +246,42 @@ Three keys, one per way of writing (Joop, 2026-11-23):
   capitals (`list`, `parenthetical`, `extension`, `repeat`), as Hebrew's;
   a Latin name in capitals is a cue as before; `।` and `॥` end a sentence.
 - **`hi`**, both at once: `hi-Deva`'s rules with English's scene words
-  first and `hi-Latn`'s time words too; a writer writes in either script or
+  first and `hi-Latn`'s time words and title keys too; a writer writes in either script or
   mixes them. Everything `hi-Latn` and `hi-Deva` read, `hi` reads
   (`TestHindiBoth`).
 
 No standard for Devanagari screenplay terms was found: Hindi guides and
 the textbook write `INT.`/`EXT.` and the transitions in English or in
-English transliterated (`कट टू`), and no Devanagari words for V.O., O.S. or
-CONT'D. Lexington's own, from no source: the dotted scene words
+English transliterated (`कट टू`). A Hindi course book's glossary of film
+terms (below, MANUU) has `कट`/`कट टू`, `फेड इन`, `फेड आउट`, `डिजॉल्व`, and
+`वॉयस ओवर` (also `वायस ओवर`) as a narrator's or a character's voice over the
+picture; it gives them as terms, not as written in a cue.
+
+Sourced in `hi-Deva`: the heading's order and words (NCERT), `कट टू` and
+`डिजॉल्व टू` (NCERT, MANUU), `फेड इन`/`फेड आउट` (MANUU), the extension
+`वॉयस ओवर`/`वायस ओवर` (the term from MANUU; writing it in the cue's brackets,
+`कथावाचक (वॉयस ओवर)`, is Lexington's own, as English writes `(V.O.)`).
+Lexington's own, from no source: the dotted scene words
 `अंदर.`, `बाहर.`, `अंदर/बाहर.`, `बाहर/अंदर.` (a heading starting with
 them, `अंदर. रसोई - सुबह`, for New's template and for translating headings;
-the dot keeps "अंदर से…" action), `दोपहर`, the fades `फ़ेड इन`/`फ़ेड आउट`
-(transliterated as Hebrew's are), the title keys `शीर्षक` (Title), `लेखक`
-and `पटकथा` (Author), `स्रोत` (Source), `तिथि` (Date), `संपर्क` (Contact).
+the dot keeps "अंदर से…" action), `दोपहर`, the fades spelled with a nukta
+`फ़ेड इन`/`फ़ेड आउट`, the extensions `ऑफ़ स्क्रीन` (`ऑफ स्क्रीन`; O.S.,
+transliterated as the fades are) and `जारी` (CONT'D, "continuing"), and every
+title key: `शीर्षक` (Title), `श्रेय` (Credit), `लेखक` and `पटकथा` (Author),
+`स्रोत` (Source), `मसौदा` (Draft), `मसौदे की तिथि` (Draft date), `तिथि` and
+`दिनांक` (Date), `संपर्क` (Contact), `टिप्पणियाँ` (Notes), `कॉपीराइट`
+(Copyright). English's extensions (`V.O.`, `O.S.`, `CONT'D`) are still read,
+after the Hindi ones.
+
+`hi-Latn` keeps English Fountain's extensions and transitions (sourced:
+proofscript.in; Hindi in Latin letters writes them in English). Its title
+keys, Lexington's own, are the Devanagari ones in Latin letters, in the
+spelling of the examples above (no diacritics): `Sheershak` (Title),
+`Shrey` (Credit), `Lekhak` and `Pataktha` (Author), `Srot` (Source),
+`Masauda` (Draft), `Masaude ki tithi` (Draft date), `Tithi` (Date),
+`Sampark` (Contact), `Tippaniyan` (Notes); the keys are read in any case.
+A native reader's correction of any of these is welcome.
+
 Not read: the textbook's `रजनी : …`, a cue on its speech's line (as
 Chinese's `张三：…`), and its scene labels in words (`दृश्य-चार`).
 
@@ -269,7 +293,13 @@ outside); proofscript.in/learn/indian-screenplay-format-template/ (English
 sluglines, dialogue in English, in Hindi in Latin letters or in
 Devanagari); hollywoodreporterindia.com, "Why Is There a Dearth of Hindi
 in Hindi Film Scripts?" (Hindi film dialogue mostly written in Roman
-letters).
+letters). Maulana Azad National Urdu University, *जनसंचार माध्यम एवं हिंदी*
+(Jansanchar Madhyam evam Hindi, MA Hindi, 4th semester, self-learning
+material), dde.manuu.edu.in/sites/default/files/DDE/DDE-SelfLearnmaterial/MA-Hindi-4th-Sem/Jansanchar_Madhyam_evam_Hindi.pdf:
+its glossary "सिनेमा की तकनीकी भाषा" (`कट/कट टू`, `फेड आउट`, `फेड इन`,
+`डिजॉल्व`, `वाइप`) and its pages on `वॉयस ओवर`/`वायस ओवर` (fetched
+2026-11-23). baou.edu.in's पटकथा लेखन course (HNDSEC-201) refused the
+connection and was not read.
 
 ## Title page keys
 
