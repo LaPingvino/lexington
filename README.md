@@ -367,9 +367,16 @@ lexington check film.accolade                   # is it whole and readable?
 - **Markdown and plain-text bundles** (Highland's Manuscript, Novel and other prose templates, and its Plain
   Text template's `text.txt`) can be repacked, but not printed.
 - **Highland:** checked against real `.highland` files (`bundle/testdata/highland`). A zip holds one
-  `Name.textbundle/` folder, named after the file on every save. Highland's directives that print nothing
-  (`{{HEADER}}`, `{{FOOTER}}`, `{{INCLUDE}}`, markers `{{%m}}`, `{{REVISION}}` tags…) are left out of the
-  print and kept in the Fountain. Lexington does not do what they ask.
+  `Name.textbundle/` folder, named after the file on every save.
+- **Highland's directives** (in any Fountain file, as Highland 2 does them): `{{INCLUDE: file}}` prints
+  another file where its line is (relative to the including file; nested; a cycle or a missing file is a
+  line in print and a warning in `lexington check`); `{{HEADER: …}}` and `{{FOOTER: …}}` ("Left | Centre |
+  Right"; `%p` the page, `%pp` the last page, `%#` the section, `%none` off) replace the page number;
+  `{{PAGENUMBER: 10}}` numbers from there; `{{SERIES}}` counts 1, 2, 3 (`{{SERIES: 5}}` sets it);
+  `{{TIMESTAMP}}` is the day ("Sep 28, 2026"); `{{TOC}}` lists the sections with their pages. Markers
+  `{{%m: …}}` and `{{REVISION}}` tags print nothing. The Fountain written keeps them all as written.
+  `-header` and `-footer` give a header and footer to a script without its own. HTML and FDX have one
+  header and footer for all pages (the script's first).
 - **For programs:** the `bundle` package does all of this (`bundle.Read`, `bundle.Write`, `bundle.Check`).
 
 The layout is described roughly, as a draft that will change, in

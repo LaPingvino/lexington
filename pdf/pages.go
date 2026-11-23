@@ -105,6 +105,7 @@ func (t *Tree) textTop() float64 {
 // scene starts lower, for its CONTINUED:.
 func (t *Tree) pageBegins() {
 	t.pageStarted()
+	t.highlandPage()
 	s := t.state()
 	_, top, _, _ := t.PDF.GetMargins()
 	y := top
@@ -326,6 +327,12 @@ func (t *Tree) labels() (map[int]string, map[int]int) {
 	n := t.PDF.PageCount()
 	out, spans := map[int]string{}, map[int]int{}
 	if t.lock == nil || len(t.lock.Pages) == 0 {
+		if t.hl().on { // (PAGENUMBER)
+			for p, l := range t.numbered(s.bodyFirst, n) {
+				out[p], spans[p] = l, -1
+			}
+			return out, spans
+		}
 		for p := s.bodyFirst; p <= n; p++ {
 			out[p], spans[p] = strconv.Itoa(p-s.bodyFirst+1), -1
 		}
@@ -392,8 +399,15 @@ func (t *Tree) drawPages() {
 	pageWidth, _ := pdf.GetPageSize()
 	if s.bodyFirst > 0 || t.offset > 0 {
 		labels, _ := t.labels()
-		for p := max(s.bodyFirst+1, 1); p <= pdf.PageCount(); p++ {
+		pageHeight := 11 * t.vsc()
+		if _, h := pdf.GetPageSize(); h > 0 {
+			pageHeight = h
+		}
+		for p := max(s.bodyFirst, 1); p <= pdf.PageCount(); p++ {
 			pdf.SetPage(p)
+			if t.drawPageTexts(p, labels[p], labels[pdf.PageCount()], pageWidth, pageHeight) || p == s.bodyFirst {
+				continue // (its header in place of its number; none on the first)
+			}
 			pageFont(pdf, "CourierPrime", 12)
 			pdf.SetXY(pageWidth-1, 0.5)
 			pdf.Cell(0, 0, labels[p]+".")
@@ -503,5 +517,6 @@ func (t *Tree) bodyPrinted(row lex.Line, info rowInfo, spans []span) {
 	case lex.TypeSection:
 		s.inScene = false
 	}
+	t.highlandText(spans)
 	t.textPrinted(row, info, spans)
 }

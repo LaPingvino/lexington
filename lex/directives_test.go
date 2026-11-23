@@ -23,7 +23,7 @@ func TestStripDirectives(t *testing.T) {
 
 // Lines of nothing but Highland's directives are not printed, nor a blank
 // line around them; inline ones go from the text; the screenplay keeps
-// them.
+// them; {{SERIES}} prints its number.
 func TestPrintableDirectives(t *testing.T) {
 	s := Screenplay{
 		{Type: TypeScene, Contents: "INT. KITCHEN - DAY"}, {Type: TypeEmpty},
@@ -36,7 +36,7 @@ func TestPrintableDirectives(t *testing.T) {
 	for _, l := range Printable(s, nil) {
 		got = append(got, l.Type+"="+l.Contents)
 	}
-	want := []string{"scene=INT. KITCHEN - DAY", "empty=", "speaker=BOB", "dialog=Dialogue here.", "empty=", "action={{SERIES}}"}
+	want := []string{"scene=INT. KITCHEN - DAY", "empty=", "speaker=BOB", "dialog=Dialogue here.", "empty=", "action=1"}
 	if len(got) != len(want) {
 		t.Fatalf("%q", got)
 	}

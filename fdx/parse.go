@@ -22,6 +22,9 @@ type FdxFile struct {
 	Version      string        `xml:"Version,attr,omitempty"`
 	Content      FdxContent    `xml:"Content"`
 	TitlePage    *FdxTitlePage `xml:"TitlePage,omitempty"`
+	// HeaderAndFooter is the page's header and footer: written from
+	// Highland's {{HEADER}} and {{FOOTER}} (highland.go); not read.
+	HeaderAndFooter *FdxHeaderAndFooter `xml:"HeaderAndFooter,omitempty"`
 	// ElementSettings are the look of each paragraph type: Final Draft
 	// writes them for every type it has (in capitals, hidden, ...).
 	ElementSettings []FdxElementSettings `xml:"ElementSettings,omitempty"`

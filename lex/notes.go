@@ -109,7 +109,10 @@ func NoteColor(s string) string {
 // Printable is a screenplay as a format prints it, without its notes:
 // every line's text without them (StripNotes), and without Highland's
 // directives that print nothing (StripDirectives; a line of nothing else
-// is left out, as one of notes is when notes are not printed). Lines that are only notes
+// is left out, as one of notes is when notes are not printed; the page
+// directives among them go with the next line printed, Line.Directives;
+// a {{TOC}} is its entries, Line.TOC; {{SERIES}} and {{TIMESTAMP}} are
+// their values, ExpandValues). Lines that are only notes
 // are left out, unless the format prints them (hides(TypeNote) is false):
 // then they are kept, as TypeNote lines with the notes' text. Other lines
 // the format does not print (hides: sections, synopses, the boneyard in
@@ -128,7 +131,24 @@ func Printable(s Screenplay, hides func(ElementType) bool) Screenplay {
 	if hides == nil {
 		hides = Unprinted
 	}
+	s = ExpandValues(s) // {{SERIES}}, {{TIMESTAMP}}
 	out := make(Screenplay, 0, len(s))
+	// Highland's page directives, from the lines taken out, go with the
+	// next line printed (Line.Directives)
+	pending := ""
+	emit := func(l Line) {
+		if pending != "" {
+			l.Directives = strings.TrimPrefix(pending+"\n"+l.Directives, "\n")
+			l.Directives = strings.TrimSuffix(l.Directives, "\n")
+			pending = ""
+		}
+		out = append(out, l)
+	}
+	addPending := func(d string) {
+		if d != "" {
+			pending = strings.TrimPrefix(pending+"\n"+d, "\n")
+		}
+	}
 	var sections []Line // the sections a line is in, with their colors
 	blocks := 0         // the color blocks so far (more, if s is printable already)
 	for _, l := range s {
@@ -158,10 +178,20 @@ func Printable(s Screenplay, hides func(ElementType) bool) Screenplay {
 		if i == skip {
 			continue
 		}
+		if d, ok := tocLine(l); ok && !inTitle { // Highland's table of contents
+			addPending(pageDirectives(l.Contents))
+			for _, e := range tableOfContents(s, d) {
+				emit(e)
+				shown = TypeAction
+			}
+			continue
+		}
 		if IsDirectiveLine(l) { // Highland's: never printed
+			addPending(pageDirectives(l.Contents))
 			hidden(i)
 			continue
 		}
+		addPending(pageDirectives(l.Contents))
 		l.Contents = StripDirectives(l.Contents)
 		if IsNoteLine(l) {
 			if hides(TypeNote) {
@@ -171,7 +201,7 @@ func Printable(s Screenplay, hides func(ElementType) bool) Screenplay {
 			if HasNotes(l.Contents) { // (or printable already)
 				l.Contents = strings.Join(Notes(l.Contents), " ")
 			}
-			out = append(out, Line{Type: TypeNote, Contents: l.Contents})
+			emit(Line{Type: TypeNote, Contents: l.Contents})
 			shown = TypeNote
 			continue
 		}
@@ -197,7 +227,7 @@ func Printable(s Screenplay, hides func(ElementType) bool) Screenplay {
 			}
 		}
 		l.Contents = StripNotes(l.Contents)
-		out = append(out, l)
+		emit(l)
 		if !inTitle && !inDual && !structural(l.Type) && hides(l.Type) {
 			hidden(i)
 			continue

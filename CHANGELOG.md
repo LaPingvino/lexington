@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.47.0] - 2026-11-23
+
+### Added
+- **Highland's directives done** (Joop: "add the inclusion feature and match other features to Highland's
+  codification"), as Highland 2 does them: [highwater-too](https://github.com/eugenefischer/highwater-too)'s
+  `directives.ts` and `includes.ts` (MIT), checked against Highland's PDFs, with their tests' cases ported.
+  - `{{INCLUDE: file}}`, on a line of its own: the file's text prints where the line is, its title page left
+    out, read as the including script is (a `.highland` or other bundle its text, an `.fdx` as Final Draft).
+    Paths are relative to the including file. Includes nest; a cycle (`Include cycle: a → b → a`), nesting
+    over 16 deep, and a missing file (`Included file not found: "x"`) each print a line saying so, are
+    logged, and are warnings in `lexington check`, which now takes plain scripts as well as bundles. The
+    included lines lead back to the include line (`Line.Source`). Every output that prints does it (PDF,
+    HTML, FDX, DOCX…, the pages, locks and reports); Fountain, lex and a bundle written keep the line.
+    `lex.ResolveIncludes`, `lex.IncludeLoader`, `cli.ResolveIncludes`, `cli.IncludeLoader`,
+    `Options.IncludeFrom`.
+  - `{{HEADER: …}}` and `{{FOOTER: …}}` in the PDF: one segment on the default side (a header's right, a
+    footer's centre), `A | B` left and right, `A | B | C` left, centre and right; `%p` the page's number,
+    `%pp` the last page's, `%#` the section the page is in, `%none` off. A page has the header in effect at
+    its first text and the footer in effect at its end. A header takes the place of the page number, on the
+    first page too. A footer takes the page's last line. In HTML, the script's first header and footer are
+    the printed page's margin boxes (`%#` left out); in FDX, its `<HeaderAndFooter>` (`%p` Final Draft's
+    `Page #` label, `%pp` the number Lexington's PDF ends on, `%#` left out).
+  - `{{PAGENUMBER: n}}`: the page it is on is page n, and those after count on (PDF, not under a lock).
+  - `{{SERIES}}` (one counter for the whole script, its includes with it; `{{SERIES: 5}}` sets it, any other
+    value counts on) and `{{TIMESTAMP}}` ("Sep 28, 2026") print their values in every format.
+  - `{{TOC}}` and `{{TOC: # ##}}`: the sections (of those levels) as lines, each with the page it prints on
+    at the right in the PDF (drawn twice to know them).
+  - `-header` and `-footer` (`Options.Header`, `Options.Footer`): a header and footer for a script without
+    its own; the script's own wins.
+  - `lex.ParseDirective`, `lex.FindDirectives`, `lex.Series`, `lex.FormatTimestamp`, `lex.ExpandValues`,
+    `lex.PageTexts`, `lex.TOCLines`, `lex.FillPage`; `Line.Directives` (the page directives `Printable`
+    takes out, carried to the next line printed) and `Line.TOC`. `bundle.Report.Warnings`.
+  - `bundle/testdata/highland/IncludedScene.fountain` (highwater-too's), beside ScreenplayEdgeCases.
+  `TestHeaderFooterSegments`, `TestOtherDirectives`, `TestSeries`, `TestExpandValues`,
+  `TestPrintablePageDirectives`, `TestResolveIncludesNested`, `TestResolveIncludesProblems`,
+  `TestHeaderFooterPrinted`, `TestTOCPrinted`, `TestHighlandDirectivesFDX`, `TestHighlandPageBoxes`,
+  `TestIncludesPrinted`, `TestPageTextsFromOptions`, `TestHighlandSampleInclude`.
+
+### Changed
+- A PDF with Highland's header, footer, page numbers or TOC is drawn whole, not again from a page's start
+  (`Resume`): its pages' numbers depend on all of them.
+- `%#` prints the section in a screenplay too, as highwater-too reads it; Highland 2's own PDF of
+  ScreenplayEdgeCases left it empty.
+
 ## [1.46.0] - 2026-11-23
 
 ### Added

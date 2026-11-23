@@ -13,9 +13,10 @@ import (
 // ({{PAGENUMBER: n}}), a table of contents ({{TOC}}), another file put in
 // ({{INCLUDE: file}}), markers ({{%m: label}}) and the tags around a
 // revision ({{REVISION: #ee2d36}}…{{/REVISION}}, the text between them
-// kept). What they ask for is not done (no header, no included file);
+// kept). What they ask for is done elsewhere (highland.go, includes.go);
 // the Fountain written keeps them as they are. Directives that print a
-// value ({{SERIES}}, {{TIMESTAMP}}) and unknown ones are left in.
+// value ({{SERIES}}, {{TIMESTAMP}}: ExpandValues) and unknown ones are
+// left in.
 var directive = regexp.MustCompile(`(?i)\{\{\s*(?:%m|header|footer|pagenumber|toc|include|/\s*revision|revision)\s*(?::[^{}]*)?\}\}`)
 
 // HasDirectives reports whether s has one of Highland's unprinted

@@ -52,6 +52,14 @@ type Line struct {
 	// Source is the line of the Fountain text the row was read from,
 	// counted from 1 (fountain.ParseLines; 0 not known).
 	Source int
+	// Directives are Highland's page directives ({{HEADER: …}},
+	// {{FOOTER: …}}, {{PAGENUMBER: n}}) that were before the line or in
+	// it, as written, one a line: set by Printable, which takes their
+	// lines out, for the writers that make pages (highland.go).
+	Directives string
+	// TOC, on a line of a {{TOC}}'s table of contents (Printable), is the
+	// section it names: its number among the script's sections, from 1.
+	TOC int
 }
 
 // IsDialogueElement returns true if the line is part of dialogue

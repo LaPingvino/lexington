@@ -184,7 +184,7 @@ body {
 }
 @page :first { @top-right { content: none; } }
 @page title { counter-increment: page 0; @top-right { content: none; } }
-@media print {
+{{.Config.PageBoxes}}@media print {
     body { background: none; line-height: 12pt; }
     .page { margin: 0; max-width: none; min-height: 0; }
     .page:has(.title-page) { page: title; }
@@ -293,6 +293,9 @@ type TemplateConfig struct {
 	PageMargins string
 	PrintPage   string // the CSS @page size: letter, A4, A5
 	PrintHeight string // the paper's height within its margins
+	// PageBoxes are the @page rules of Highland's {{HEADER}} and
+	// {{FOOTER}} (pageBoxes), "" for none
+	PageBoxes template.CSS
 
 	// Element margins (in inches)
 	ActionLeft   float64
@@ -455,11 +458,13 @@ func (h *HTMLWriter) getTemplateConfig() TemplateConfig {
 func (h *HTMLWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	// Get template configuration from rules
 	config := h.getTemplateConfig()
+	printable := lex.Printable(screenplay, printsNot)
+	config.PageBoxes = pageBoxes(printable)
 
 	// Create combined template data
 	templateData := HTMLTemplateData{
 		Config:     config,
-		Screenplay: withBlocks(lex.Printable(screenplay, printsNot), config.ColorScheme, h.elements()), // notes are not printed
+		Screenplay: withBlocks(printable, config.ColorScheme, h.elements()), // notes are not printed
 	}
 
 	// Parse and execute the HTML template with better error context
@@ -717,4 +722,73 @@ type heading struct{ Text, Number string }
 func sceneHeading(contents string) heading {
 	text, number := lex.SceneNumber(contents)
 	return heading{strings.TrimSpace(text), number}
+}
+
+// pageBoxes are the @page rules for Highland's header and footer (the
+// script's first of each: HTML has one for all its pages): their
+// segments in the page's margin boxes, %p the page's counter, %pp the
+// pages', %# nothing (no browser has the section). A header takes the
+// place of the page's number, on the first page too; a title page has
+// neither. {{PAGENUMBER}} is not followed.
+func pageBoxes(s lex.Screenplay) template.CSS {
+	header, footer := lex.PageTexts(s)
+	if header == nil && footer == nil {
+		return ""
+	}
+	var b strings.Builder
+	boxes := func(d *lex.Directive, where string) string {
+		var out strings.Builder
+		for i, seg := range [][]lex.PagePart{d.Left, d.Center, d.Right} {
+			side := [...]string{"left", "center", "right"}[i]
+			content := "none"
+			if !d.Off && seg != nil {
+				content = cssContent(seg)
+			}
+			style := ""
+			switch side {
+			case "left":
+				style = " margin-left: 1in; text-align: left;"
+			case "right":
+				style = " margin-right: 1in; text-align: right;"
+			}
+			if where == "top" {
+				style += " vertical-align: bottom; padding-bottom: 0.35in;"
+			} else {
+				style += " vertical-align: top; padding-top: 0.35in;"
+			}
+			fmt.Fprintf(&out, " @%s-%s { content: %s;%s }", where, side, content, style)
+		}
+		return out.String()
+	}
+	var rules string
+	if header != nil {
+		rules += boxes(header, "top")
+	}
+	if footer != nil {
+		rules += boxes(footer, "bottom")
+	}
+	fmt.Fprintf(&b, "@page {%s }\n@page :first {%s }\n", rules, rules)
+	b.WriteString("@page title { @top-left { content: none; } @top-center { content: none; } @top-right { content: none; }" +
+		" @bottom-left { content: none; } @bottom-center { content: none; } @bottom-right { content: none; } }\n")
+	return template.CSS(b.String())
+}
+
+// cssContent is a header's segment as CSS content.
+func cssContent(seg []lex.PagePart) string {
+	var parts []string
+	for _, p := range seg {
+		switch p.Kind {
+		case lex.PartText:
+			q := strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\n", " ", "<", `\3C `).Replace(p.Text)
+			parts = append(parts, `"`+q+`"`)
+		case lex.PartPage:
+			parts = append(parts, "counter(page)")
+		case lex.PartPages:
+			parts = append(parts, "counter(pages)")
+		}
+	}
+	if parts == nil {
+		return `""`
+	}
+	return strings.Join(parts, " ")
 }

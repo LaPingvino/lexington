@@ -61,6 +61,8 @@ type PDFWriter struct {
 	// PictureLines is how many lines high a frame prints (0: 12, two
 	// inches); a frame wider than the action is made smaller to fit.
 	PictureLines int
+
+	tocPass bool // drawing to know a {{TOC}}'s pages (highland.go)
 }
 
 // fixedDate, when set (by the tests), is every PDF's creation date, so
@@ -121,6 +123,7 @@ type Tree struct {
 	colorOf   map[int]string // each colour block's colour, by its number
 	offset    int            // the document's pages before the PDF's first (a Resume's)
 	pictures  *pictures      // the storyboard frames printed (nil: none)
+	highland  *highland      // Highland's page directives (highland.go)
 }
 
 // span is where printed text is on a page: from its top to its foot.
@@ -276,6 +279,7 @@ func (t *Tree) Render() {
 		auto, margin := t.PDF.GetAutoPageBreak()
 		t.PDF.SetAutoPageBreak(auto, margin+lineHeight)
 	}
+	t.startHighland()
 	t.PDF.SetHeaderFuncMode(t.pageBegins, false)
 	t.PDF.SetAcceptPageBreakFunc(func() bool {
 		auto, _ := t.PDF.GetAutoPageBreak()
@@ -322,6 +326,7 @@ func (t *Tree) Render() {
 			}
 		}
 		row := rows[i]
+		t.applyDirectives(row, info[i])
 		if row.Type == lex.TypeEmpty && *block == "" && !t.DualDialogue && (t.atTop() || t.room() < 1) {
 			continue // no blank line at a page's top (nor one that would make a page)
 		}
@@ -433,6 +438,7 @@ func (t *Tree) Render() {
 		if row.Type == lex.TypeScene && *block == "" {
 			t.measure.heading(spans)
 		}
+		t.tocPage(row, spans)
 		if blockText {
 			t.PDF.SetTextColor(0, 0, 0)
 		}
@@ -452,6 +458,7 @@ func (t *Tree) Render() {
 		t.extendBar(spans)
 	}
 	t.closeBar()
+	t.endHighland()
 	t.drawPages()
 	t.drawRevisions()
 }
@@ -1035,6 +1042,14 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 	}
 	if _, ok := pdf.(*Recorder); ok {
 		t.starts, t.pageLines = map[int]PageStart{}, map[int][2]int{}
+	}
+	t.hl().on = lex.HasPageDirectives(t.F)
+	if hasTOC(t.F) && !p.tocPass { // a {{TOC}}'s pages: drawn once to know them
+		q := *p
+		q.Record, q.Resume, q.tocPass = nil, nil, true
+		first := q.tree(screenplay)
+		first.Render()
+		t.hl().toc = first.sectionLabels()
 	}
 	if p.Pictures != nil {
 		t.pictures = &pictures{files: p.Pictures, lines: cmp.Or(p.PictureLines, 12), added: map[string]bool{}}

@@ -16,6 +16,10 @@ import (
 type Report struct {
 	Bundle   *Bundle // nil when it could not be read
 	Problems []string
+	// Warnings are what will not print as asked (an {{INCLUDE}} whose
+	// file is not there; the command line adds them), no harm to the
+	// bundle.
+	Warnings []string
 	Notes    []string
 }
 
@@ -42,6 +46,9 @@ func (r Report) String() string {
 	}
 	for _, p := range r.Problems {
 		s.WriteString("problem: " + p + "\n")
+	}
+	for _, w := range r.Warnings {
+		s.WriteString("warning: " + w + "\n")
 	}
 	for _, n := range r.Notes {
 		s.WriteString("note: " + n + "\n")

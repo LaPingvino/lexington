@@ -246,6 +246,14 @@ type Options struct {
 	// .textbundle, .textpack) takes: "zip", "folder", or "" for the
 	// bundle's own when it is rewritten, else its type's (bundle.FormOf).
 	BundleForm string
+	// IncludeFrom is the file Highland's {{INCLUDE: file}}s are relative
+	// to ("": Input; neither, the working folder). Every output that
+	// prints the script puts the files in (ResolveIncludes).
+	IncludeFrom string
+	// Header and Footer are a {{HEADER: …}} and {{FOOTER: …}}'s value
+	// for a script that has none of its own (lex/highland.go): its own
+	// wins.
+	Header, Footer string
 
 	in   []byte        // the input's text, read from a bundle (nil: Input's)
 	sink *bytes.Buffer // where the output goes, to be put in a bundle
@@ -283,8 +291,10 @@ type tagList []string
 func (t *tagList) String() string     { return strings.Join(*t, ", ") }
 func (t *tagList) Set(v string) error { *t = append(*t, v); return nil }
 
-// filter applies o's filters to a screenplay: the tags, then the sides.
+// filter applies o's filters to a screenplay, made ready to print
+// (forPrint): the tags, then the sides.
 func filter(o Options, s lex.Screenplay) (lex.Screenplay, error) {
+	s = forPrint(o, s) // its includes, its header and footer
 	if (o.Character == "") != (o.Sides == "") {
 		return nil, errors.New("give a character's sides as -character NAME with -sides full, cue or isolated")
 	}
@@ -345,6 +355,9 @@ func parseFlags(args []string) (o Options, ok bool, err error) {
 		"Element settings to use: a preset (see -presets) or a set from the settings file.")
 	fs.StringVar(&o.Page, "page", "",
 		"Paper size for pdf, docx and odt: letter, a4 or a5 (default: the preset's suggestion, else letter).")
+	fs.StringVar(&o.Header, "header", "",
+		"The page's header for a script with no {{HEADER: …}} of its own, as Highland writes one: \"Title | %p.\" (%p the page, %pp the last page, %# the section; left | centre | right).")
+	fs.StringVar(&o.Footer, "footer", "", "The page's footer for a script with no {{FOOTER: …}} of its own, as -header.")
 	fs.BoolVar(&presets, "presets", false, "List the presets for -e (stage play, radio, ...).")
 	fs.StringVar(&o.Input, "i", "-", "Input from provided filename. - means standard input. "+
 		"A bundle (.accolade, .highland, .textbundle, .textpack, zipped or a folder) is read for its text.")
@@ -582,6 +595,15 @@ func write(ctx context.Context, o Options, conf rules.TOMLConf, screenplay lex.S
 		}
 		for _, l := range lw.Measure(screenplay) {
 			fw.Scenes = append(fw.Scenes, fdx.SceneProperty{Page: l.Page, Length: l.Eighths})
+		}
+	}
+	if fw, ok := w.(*fdx.FDXWriter); ok && usesLastPage(screenplay) { // a header's %pp
+		lw, err := lockWriter(o, conf)
+		if err != nil {
+			return err
+		}
+		if pages := lw.Pages(screenplay); len(pages) > 0 {
+			fw.LastPage = pages[len(pages)-1].Label
 		}
 	}
 	if o.Resume != nil && o.To == internal.FormatPDF {

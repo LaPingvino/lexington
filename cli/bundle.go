@@ -197,7 +197,7 @@ func writeToBundle(ctx context.Context, screenplay lex.Screenplay, o Options) er
 // what is wrong with it; the exit code 1 if anything is.
 func checkBundles(args []string) int {
 	if len(args) == 0 || args[0] == "-help" || args[0] == "-h" {
-		fmt.Fprintln(os.Stderr, "usage: lexington check bundle... (.accolade, .highland, .textbundle, .textpack; zipped or a folder)")
+		fmt.Fprintln(os.Stderr, "usage: lexington check file... (a bundle: .accolade, .highland, .textbundle, .textpack, zipped or a folder; or a script, for its {{INCLUDE}}s)")
 		if len(args) == 0 {
 			return 2
 		}
@@ -205,7 +205,23 @@ func checkBundles(args []string) int {
 	}
 	code := 0
 	for _, p := range args {
+		if !isBundleInput(p) { // a script: its includes
+			text, err := os.ReadFile(p)
+			if err != nil {
+				fmt.Printf("%s:\nproblem: %v\n", p, err)
+				code = 1
+				continue
+			}
+			r := bundle.Report{Warnings: checkIncludes(p, text, Options{})}
+			fmt.Print(filepath.Base(p) + ": a script\n" + r.String())
+			continue
+		}
 		r := bundle.Check(p)
+		if b := r.Bundle; b != nil && b.Kind() == bundle.Fountain {
+			if text, err := b.ReadText(); err == nil {
+				r.Warnings = checkIncludes(p, text, Options{})
+			}
+		}
 		out := r.String()
 		if r.Bundle == nil {
 			out = p + ":\n" + out

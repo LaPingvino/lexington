@@ -187,7 +187,7 @@ func (t *Tree) pageStarted() {
 
 // resumable reports whether the tree draws pages one can start from.
 func (t *Tree) resumable() bool {
-	return t.revs == nil && t.lock == nil && t.measure == nil && t.pictures == nil
+	return t.revs == nil && t.lock == nil && t.measure == nil && t.pictures == nil && !t.hl().on
 }
 
 // startHere is the start of page (the PDF's), begun now.

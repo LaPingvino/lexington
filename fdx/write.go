@@ -32,6 +32,9 @@ type FDXWriter struct {
 	// pdf.PDFWriter.Measure gives them): written in their
 	// SceneProperties. nil: none written.
 	Scenes []SceneProperty
+	// LastPage is the last page's number, for a Highland header's %pp
+	// ("": left out); Final Draft has no label for it.
+	LastPage string
 }
 
 // processInlineMarkup turns Fountain's emphasis (lex.Emphasis) into
@@ -129,6 +132,7 @@ func buildRevised(screenplay lex.Screenplay, revs *lex.Revisions, lock *lex.Page
 		doc.TitlePage, i = buildTitlePage(lex.Printable(screenplay, nil))
 	}
 
+	screenplay = lex.ExpandValues(screenplay) // {{SERIES}}, {{TIMESTAMP}}
 	b := docBuilder{doc: &doc, ids: ids, seqOf: map[int]int{}, tags: newTagWriter(tags), lineTags: lineTags}
 	heading := 0 // the scene headings so far
 	for k := i; k < len(screenplay); k++ {
@@ -136,6 +140,12 @@ func buildRevised(screenplay lex.Screenplay, revs *lex.Revisions, lock *lex.Page
 		b.row = k
 		// Highland's directives that print nothing: Final Draft would print them
 		directives := lex.IsDirectiveLine(line)
+		if toc := lex.TOCLines(screenplay, line); toc != nil { // Highland's table of contents: its sections
+			for _, e := range toc {
+				b.add(e, nil)
+			}
+			continue
+		}
 		line.Contents = lex.StripDirectives(line.Contents)
 		if directives || lex.IsNoteLine(line) {
 			b.notes = append(b.notes, lex.Notes(line.Contents)...)
@@ -392,6 +402,8 @@ func buildTitlePage(screenplay lex.Screenplay) (*FdxTitlePage, int) {
 // It implements the writer.Writer interface.
 func (f *FDXWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	doc := buildRevised(screenplay, f.Revisions, f.Lock, f.Tags, f.LineTags, f.Scenes)
+	header, footer := lex.PageTexts(lex.Printable(screenplay, nil))
+	doc.HeaderAndFooter = headerAndFooter(header, footer, f.LastPage)
 
 	if f.TemplatePath != "" {
 		return f.writeTemplate(w, doc)
