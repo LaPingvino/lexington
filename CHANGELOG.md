@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.48.1] - 2026-11-23
+
+### Fixed
+- **Title page: one section at the foot.** Keys for the foot of the page (Draft date, Contact, …) mixed with
+  the centred ones (Title, Credit, Author) opened a second foot section, printed over the first.
+- **Source is centred** under the author, where Fountain puts it, no longer at the foot.
+
 ## [1.48.0] - 2026-11-23
 
 ### Added

@@ -135,6 +135,7 @@ type ParseState struct {
 	inBoneyard            bool // within /* ... */
 	inDualDialogue        bool
 	titletag              string
+	metaOpen              bool // the title page's foot section begun
 	consecutiveEmptyLines int
 	hasTitlePageContent   bool
 	out                   lex.Screenplay
@@ -530,9 +531,14 @@ func (state *ParseState) parseTitlePageKeyValue(row string, currentLine *lex.Lin
 		state.titletag = "Credit"
 	case "author", "authors":
 		state.titletag = "Author"
+	case "source": // centred under the author, as Fountain has it
+		state.titletag = "Source"
 	default:
-		if state.titletag == "Title" || state.titletag == "Credit" || state.titletag == "Author" {
+		// the rest go to the foot of the page, all in one section: a
+		// second would start at the same place and print over the first
+		if !state.metaOpen {
 			state.out = append(state.out, lex.Line{Type: "metasection"})
+			state.metaOpen = true
 		}
 		state.titletag = currentMetaTag
 	}

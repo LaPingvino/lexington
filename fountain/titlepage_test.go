@@ -105,3 +105,19 @@ func TestTitlePageEndsAtMarkupWithColon(t *testing.T) {
 		t.Errorf("%s", got)
 	}
 }
+
+// Source is centred with the title (Fountain's place for it), and the keys
+// for the foot of the page make one section however they are mixed with
+// the centred ones: a second would print over the first.
+func TestTitlePageOneFootSection(t *testing.T) {
+	got := types("Title: X\nDraft date: 1 May\nSource: A story\nAuthor: A\nContact: me\n\nINT. BARN - DAY\n")
+	want := "titlepage=\nTitle=X\nmetasection=\nDraft date=1 May\nSource=A story\nAuthor=A\nContact=me\nnewpage=\nscene=INT. BARN - DAY"
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+	got = types("Title: X\nAuthor: A\nSource: A story\nDraft date: 1 May\n\nINT. BARN - DAY\n")
+	want = "titlepage=\nTitle=X\nAuthor=A\nSource=A story\nmetasection=\nDraft date=1 May\nnewpage=\nscene=INT. BARN - DAY"
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
