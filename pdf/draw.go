@@ -293,7 +293,11 @@ func fontKey(family, style string) string {
 // A Recorder copies for gofpdf itself and keeps b as the font's identity in
 // its drawing (pages drawn with the same font compare equal and keep their
 // paintings), so it gets b as it is.
+//
+// The font added is the file with a character for each of its glyphs
+// (glyphCoded), so that shaped text can be printed.
 func AddFont(d Drawer, family, style string, b []byte) {
+	b = glyphCoded(b).data
 	if r, ok := d.(*Recorder); ok {
 		r.AddUTF8FontFromBytes(family, style, b)
 		return
@@ -485,8 +489,8 @@ func (r *Recorder) CellFormat(w, h float64, text, border string, ln int, align s
 			r.line(x, y+h, x+w, y+h)
 		}
 	}
-	if text == "" || r.invisible {
-		return
+	if text == "" || r.invisible && !r.underline {
+		return // (invisible text underlined: gofpdf draws the line)
 	}
 	cm := r.GetCellMargin()
 	_, size := r.GetFontSize()
@@ -513,14 +517,16 @@ func (r *Recorder) CellFormat(w, h float64, text, border string, ln int, align s
 		}
 		dy = (h-size)/2 - descent
 	}
-	if link > 0 || linkURL != "" { // gofpdf's link over the text, as it puts it
+	if (link > 0 || linkURL != "") && !r.invisible { // gofpdf's link over the text, as it puts it
 		r.link(x+dx, y+dy+.5*h-.5*size, sw, size, link, linkURL)
 	}
 	base := y + dy + .5*h + .3*size
 	k := r.GetConversionRatio()
 	pt, _ := r.GetFontSize()
 	t := Text{Font: r.key(), Size: pt, Color: rgba(r.GetTextColor()), Paint: r.paint()}
-	if r.isUTF8() && align == "J" {
+	if r.invisible {
+		// not drawn
+	} else if r.isUTF8() && align == "J" {
 		// justified: the words spread to fill the cell (gofpdf's TJ)
 		wmax := int(math.Ceil((w - 2*cm) * 1000 / size))
 		words := strings.Split(text, " ")
@@ -705,7 +711,9 @@ func (r *Recorder) MultiCell(w, h float64, text, border, align string, fill bool
 	if border != "" && strings.Contains(border, "B") {
 		b += "B"
 	}
-	if r.isUTF8() && align == "J" {
+	if r.invisible {
+		// not drawn
+	} else if r.isUTF8() && align == "J" {
 		align = ""
 	}
 	r.CellFormat(w, h, part(j, i), b, 2, align, fill, 0, "")

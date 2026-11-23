@@ -24,7 +24,7 @@ type fonts struct {
 	translate func(string) string
 	files     map[string]string          // a file's path to its name in the PDF
 	has       map[string]func(rune) bool // a font's name to its glyph test
-	data      map[string][]byte          // a file font's name to its regular face
+	data      map[string][]byte          // a file font's name to its regular face, name/style to a style's
 }
 
 func newFonts(pdf Drawer) *fonts {
@@ -59,13 +59,20 @@ func (f *fonts) compose(name, text string) string {
 
 // shaper is the shaper of the (embedded or file) font name in a style,
 // nil if it has none.
-func (f *fonts) shaper(name, style string) *arabicShaper {
+func (f *fonts) shaper(name, style string) *fontShaper {
 	if f == nil {
 		return nil
 	}
+	style = strings.ReplaceAll(strings.ToUpper(style), "U", "") // the underline is no face
+	if style == "IB" {
+		style = "BI"
+	}
 	data := font.GetFont(name, style)
-	if d, ok := f.data[name]; ok && strings.HasPrefix(name, "file:") {
-		data = d
+	if strings.HasPrefix(name, "file:") {
+		data = f.data[name+"/"+strings.ToUpper(style)]
+		if data == nil {
+			data = f.data[name]
+		}
 	}
 	if data == nil {
 		return nil
@@ -142,6 +149,7 @@ func (f *fonts) file(path string) string {
 			}
 		}
 		AddFont(f.pdf, name, style, b)
+		f.data[name+"/"+style] = b
 	}
 	AddFont(f.pdf, name, "", regular)
 	f.files[path] = name

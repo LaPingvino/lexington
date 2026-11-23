@@ -243,6 +243,15 @@ other scripts whose letters join (Syriac, N'Ko, Mongolian…) are not
 shaped: for them Lexington warns and suggests printing the HTML from a
 browser.
 
+Devanagari (Hindi, Marathi, Nepali, Sanskrit) is shaped too, through
+Courier Badi's features (from Noto Sans Devanagari): conjuncts, half
+forms, the i-matra before its consonant, reph and rakar. Courier Badi
+keeps it monospaced by cell — a letter or a spacing vowel sign takes a
+cell, a virama, a mark or a joiner none, as Accolade's editor counts —
+and the PDF wraps a line by those cells. The glyphs are printed as
+shaped, each run with its text as written (`ActualText`), so a copy, a
+search, `pdftotext` and `-from pdf` read the words back.
+
 ```toml
 [Languages.fa]
 Direction = "rtl"   # a language of one's own

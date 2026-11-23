@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.48.0] - 2026-11-23
+
+### Added
+- **Devanagari in the PDF, shaped** (Courier Badi 1.103, which adds Devanagari from Noto Sans Devanagari,
+  monospaced by cell). A Devanagari run is shaped with go-text (HarfBuzz's Indic shaper, through the font's
+  own features) where it is printed: conjuncts (क्ष, ज्ञ, श्र), half forms, the i-matra before its consonant
+  (कि), reph and rakar (धर्म, ट्रेन), the eyelash ra (र्‍य), marks placed by the font's anchors. Its glyphs are
+  printed where the shaper puts them, in a span whose `ActualText` is the run as written: `pdftotext`, a
+  copy and Lexington's own PDF import (`-from pdf`, `pdfin.Pages`) read the text back. Headers and footers
+  (`{{HEADER}}`, `{{FOOTER}}`) shape theirs too; underlined, a run is underlined across its cells. A page
+  view (`Recorder`, `Rasterizer`) draws the same glyphs.
+- The PDF's fonts give every glyph a character: a glyph no character maps to (a conjunct, a half form, a
+  word's end form) gets a private-use one (U+E000 on) in the cmap of the copy the PDF embeds (`AddFont`), so
+  gofpdf, which prints characters, can print it. The copy is made once a font; a `Recorder`'s drawing holds
+  it.
+
+### Changed
+- **Line width by cells.** A line printed piece by piece (right to left, or with Devanagari) is wrapped by
+  its cells as Accolade's editor counts them: a joiner, a zero-width space, a direction mark or control, a
+  combining mark takes none (Courier Badi gives a joiner a blank cell's advance, so Hindi dialogue with र्‍
+  wrapped early). A word longer than the line breaks between its clusters, never inside one.
+- Courier Badi 1.103 (Devanagari; its `OFL.txt` credits the Noto Project).
+- Arabic is shaped in the font's default language system, not as `ar`: the text may as well be Persian or
+  Urdu, and Lexington does not know which.
+- `pdfin` reads a span's non-empty `ActualText` in place of the glyphs shown in it, spread over their width.
+
+### Fixed
+- The shaper of a font file's bold or italic face shapes with that face, not the regular one.
+- A `Recorder` records the underline of invisible text, which gofpdf draws (a placed mark's copy).
+
 ## [1.47.0] - 2026-11-23
 
 ### Added

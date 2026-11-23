@@ -31,14 +31,17 @@ func TestPDFLeavesTheFontsAlone(t *testing.T) {
 	}
 }
 
-// Through a Recorder a font keeps its identity: the drawing holds the
-// bytes it was given (the same slice), and gofpdf still gets a copy.
+// Through a Recorder a font keeps its identity: the drawing holds one
+// slice for a font however often it is added (its copy with every glyph
+// given a character, made once), and gofpdf still gets a copy.
 func TestAddFontKeepsIdentityInARecorder(t *testing.T) {
-	r := pdf.NewRecorder(gofpdf.New("P", "pt", "Letter", ""))
-	b := font.CourierBadiRegular
-	pdf.AddFont(r, "CourierBadi", "", b)
-	got := r.Drawing().Fonts["courierbadi"]
-	if len(got) == 0 || &got[0] != &b[0] {
-		t.Error("the drawing's font is not the bytes it was given")
+	var held [][]byte
+	for range 2 {
+		r := pdf.NewRecorder(gofpdf.New("P", "pt", "Letter", ""))
+		pdf.AddFont(r, "CourierBadi", "", font.CourierBadiRegular)
+		held = append(held, r.Drawing().Fonts["courierbadi"])
+	}
+	if len(held[0]) == 0 || &held[0][0] != &held[1][0] {
+		t.Error("the drawing's font is not the same bytes each time")
 	}
 }

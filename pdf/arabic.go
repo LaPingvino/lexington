@@ -31,18 +31,19 @@ import (
 // mark to mark: a fatha on a hamza, over a shadda) places the marks:
 // markOffsets, printed apart by bidiPrint, for Hebrew's points too.
 
-// arabicShaper shapes Arabic runs in one font.
-type arabicShaper struct {
+// fontShaper shapes a font's Arabic runs (here) and Devanagari ones (devanagari.go).
+type fontShaper struct {
 	mu    sync.Mutex
 	face  *gofont.Face
 	chars map[gofont.GID]rune // the character each glyph prints from
 	sh    shaping.HarfbuzzShaper
+	codes *coded // every glyph's character, in the PDF's copy of the font
 }
 
-var shapers sync.Map // a font file's bytes (as a string key of its address) to its *arabicShaper
+var shapers sync.Map // a font file's bytes (as a string key of its address) to its *fontShaper
 
-// newArabicShaper is the shaper of a font file, nil if it cannot be read.
-func newArabicShaper(data []byte) *arabicShaper {
+// newFontShaper is the shaper of a font file, nil if it cannot be read.
+func newFontShaper(data []byte) *fontShaper {
 	face, err := gofont.ParseTTF(bytes.NewReader(data))
 	if err != nil {
 		return nil
@@ -52,7 +53,7 @@ func newArabicShaper(data []byte) *arabicShaper {
 		return nil
 	}
 	var buf sfnt.Buffer
-	s := &arabicShaper{face: face, chars: map[gofont.GID]rune{}}
+	s := &fontShaper{face: face, chars: map[gofont.GID]rune{}, codes: glyphCoded(data)}
 	for _, r := range shapeTargets {
 		for c := r[0]; c <= r[1]; c++ {
 			if g, err := f.GlyphIndex(&buf, c); err == nil && g != 0 {
@@ -64,6 +65,11 @@ func newArabicShaper(data []byte) *arabicShaper {
 	}
 	return s
 }
+
+// arabicLanguage is the language Arabic runs are shaped in: none, so the
+// font's default language system applies, as the text may be Arabic,
+// Persian, Urdu or another language written in Arabic letters.
+var arabicLanguage language.Language
 
 // shapeTargets are the characters a shaped glyph can print as: Arabic and
 // its presentation forms, the spaces and signs a run holds.
@@ -91,7 +97,7 @@ func arabicRunEnd(rs []rune, i int) int {
 
 // shape is text with its Arabic runs shaped; unshaped is how many of its
 // letters could not be (no character for their form).
-func (s *arabicShaper) shape(text string) (out string, unshaped int) {
+func (s *fontShaper) shape(text string) (out string, unshaped int) {
 	rs := []rune(text)
 	var b []rune
 	for i := 0; i < len(rs); {
@@ -109,10 +115,10 @@ func (s *arabicShaper) shape(text string) (out string, unshaped int) {
 }
 
 // shapeRun is one Arabic run shaped, in logical order.
-func (s *arabicShaper) shapeRun(run []rune) ([]rune, int) {
+func (s *fontShaper) shapeRun(run []rune) ([]rune, int) {
 	s.mu.Lock()
 	out := s.sh.Shape(shaping.Input{Text: run, RunStart: 0, RunEnd: len(run), Direction: di.DirectionRTL,
-		Face: s.face, Size: fixed.I(12), Script: language.Arabic, Language: language.NewLanguage("ar")})
+		Face: s.face, Size: fixed.I(12), Script: language.Arabic, Language: arabicLanguage})
 	s.mu.Unlock()
 	// the glyphs come right to left (visual order): by cluster, in
 	// logical order, each cluster's glyphs as they come within it
@@ -168,11 +174,11 @@ func (s *arabicShaper) shapeRun(run []rune) ([]rune, int) {
 // unplaced (at the base's origin, as a mark has no advance), in ems, y
 // up. ok is false when the shaper does not give a glyph a character (a
 // ligature of marks), and the marks then keep their default places.
-func (s *arabicShaper) markOffsets(cluster []rune) (dx, dy []float64, ok bool) {
+func (s *fontShaper) markOffsets(cluster []rune) (dx, dy []float64, ok bool) {
 	if len(cluster) < 2 {
 		return nil, nil, false
 	}
-	script, lang := language.Arabic, language.NewLanguage("ar")
+	script, lang := language.Arabic, arabicLanguage
 	if b := cluster[0]; b >= 0x0590 && b <= 0x05FF || b >= 0xFB1D && b <= 0xFB4F {
 		script, lang = language.Hebrew, language.NewLanguage("he")
 	}
@@ -204,11 +210,11 @@ func (s *arabicShaper) markOffsets(cluster []rune) (dx, dy []float64, ok bool) {
 }
 
 // shaperFor is the shaper of a font's file data, made once.
-func shaperFor(name string, data []byte) *arabicShaper {
+func shaperFor(name string, data []byte) *fontShaper {
 	if s, ok := shapers.Load(name); ok {
-		return s.(*arabicShaper)
+		return s.(*fontShaper)
 	}
-	s := newArabicShaper(data)
+	s := newFontShaper(data)
 	shapers.Store(name, s)
 	return s
 }

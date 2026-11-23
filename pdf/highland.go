@@ -222,7 +222,8 @@ func (t *Tree) drawPageTexts(p int, label, last string, pageWidth, pageHeight fl
 			}
 			fontName, text := t.Fonts.font(act.Font, text)
 			pageFont(pdf, fontName, size)
-			w := pdf.GetStringWidth(text)
+			core := fontName == "Helvetica" || fontName == "Times"
+			w := cellWidth(pdf, text, core)
 			x := 1.0
 			switch i {
 			case 1:
@@ -231,7 +232,11 @@ func (t *Tree) drawPageTexts(p int, label, last string, pageWidth, pageHeight fl
 				x = pageWidth - 1 - w
 			}
 			pdf.SetXY(x, y)
-			pdf.Cell(w, 0, text)
+			var sh *fontShaper
+			if !core {
+				sh = t.Fonts.shaper(fontName, "")
+			}
+			shapedCell(pdf, sh, fontName, "", size, w, 0, text, "L")
 		}
 	}
 	draw(h.footerOf[p], pageHeight-0.5)

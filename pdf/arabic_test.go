@@ -43,7 +43,7 @@ func TestArabicShapedAsHarfBuzz(t *testing.T) {
 	lines = append(lines, "لا إله إلا الله", "سَمِيرٌ يَمْشِي", "يا سمير!", "(بهدوء) مش عايز؟", "مي\u200cخواهم")
 	for _, style := range []string{"", "B", "I", "BI"} {
 		data := font.GetFont(font.CourierPrimeName, style)
-		s := newArabicShaper(data)
+		s := newFontShaper(data)
 		face, _ := gofont.ParseTTF(bytes.NewReader(data))
 		sf, _ := sfnt.Parse(data)
 		var buf sfnt.Buffer
@@ -74,7 +74,7 @@ func TestArabicShapedAsHarfBuzz(t *testing.T) {
 				}
 				j := arabicRunEnd(rs, i)
 				out := sh.Shape(shaping.Input{Text: rs[i:j], RunEnd: j - i, Direction: di.DirectionRTL, Face: face,
-					Size: fixed.I(12), Script: language.Arabic, Language: language.NewLanguage("ar")})
+					Size: fixed.I(12), Script: language.Arabic, Language: arabicLanguage})
 				for k := len(out.Glyphs) - 1; k >= 0; k-- {
 					if g := out.Glyphs[k]; !(rs[i+g.ClusterIndex] == 0x200C || rs[i+g.ClusterIndex] == 0x200D) {
 						want = append(want, g.GlyphID)

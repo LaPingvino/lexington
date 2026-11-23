@@ -9,7 +9,7 @@ import (
 )
 
 // Hebrew presentation forms. A point left over is placed by the font's
-// GPOS (bidiPrint, arabicShaper.markOffsets), but the points inside a
+// GPOS (bidiPrint, fontShaper.markOffsets), but the points inside a
 // letter (a dagesh centred in the cell hides in vav's stem, a shuruk,
 // zayin's, yod's and final nun's) are best printed as one glyph: the
 // presentation forms U+FB1D–FB4F (letter + dagesh or mapiq, shin + shin or

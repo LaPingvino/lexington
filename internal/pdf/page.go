@@ -12,6 +12,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode/utf16"
 )
 
 // A Page represent a single page in a PDF file.
@@ -506,6 +507,32 @@ type Text struct {
 	S        string  // the actual UTF-8 text
 }
 
+// actualSpan is a marked-content span with an ActualText being read.
+type actualSpan struct {
+	depth  int // the marked content open around it
+	text   string
+	seen   bool // a glyph shown in it
+	first  Text // the first, for the font, size and baseline
+	x0, x1 float64
+}
+
+// textString is a PDF text string as UTF-8: UTF-16BE after its byte
+// order mark, else PDFDocEncoding (as Latin-1, near enough).
+func textString(s string) string {
+	if len(s) >= 2 && s[0] == 0xFE && s[1] == 0xFF {
+		var u []uint16
+		for i := 2; i+1 < len(s); i += 2 {
+			u = append(u, uint16(s[i])<<8|uint16(s[i+1]))
+		}
+		return string(utf16.Decode(u))
+	}
+	rs := make([]rune, len(s))
+	for i := 0; i < len(s); i++ {
+		rs[i] = rune(s[i])
+	}
+	return string(rs)
+}
+
 // A Rect represents a rectangle.
 type Rect struct {
 	Min, Max Point
@@ -834,9 +861,33 @@ func (p Page) Content() Content {
 	// marked content (BMC, BDC … EMC): whether each open one is shown, not
 	// text (an empty ActualText, as Lexington prints a placed mark)
 	var marked []bool
+	// an ActualText's span open (Lexington's shaped Devanagari): its text,
+	// read in place of the glyphs shown in it, which give it its place
+	var actual *actualSpan
 	showText := func(s string) {
 		if slices.Contains(marked, true) {
 			return
+		}
+		if actual != nil {
+			start := len(text)
+			defer func() {
+				for _, t := range text[start:] {
+					w := t.W
+					if w <= 0 && t.S == " " {
+						// a space without a width (a CID font's, which
+						// this reader does not measure): Courier's, the
+						// width of the spaces Lexington puts at the span's
+						// edges to give it its place
+						w = 0.6 * t.FontSize
+					}
+					if !actual.seen {
+						actual.seen, actual.first = true, t
+						actual.x0, actual.x1 = t.X, t.X+w
+					}
+					actual.x0, actual.x1 = min(actual.x0, t.X), max(actual.x1, t.X+w)
+				}
+				text = text[:start]
+			}()
 		}
 		n := 0
 		decoded := enc.Decode(s)
@@ -953,14 +1004,30 @@ func (p Page) Content() Content {
 		case "BDC":
 			hide := false
 			if len(args) == 2 && args[1].Kind() == Dict {
-				if a := args[1].Key("ActualText"); a.Kind() == String && a.RawString() == "" {
-					hide = true
+				if a := args[1].Key("ActualText"); a.Kind() == String {
+					if a.RawString() == "" {
+						hide = true
+					} else if actual == nil {
+						actual = &actualSpan{depth: len(marked), text: textString(a.RawString())}
+					}
 				}
 			}
 			marked = append(marked, hide)
 		case "EMC":
 			if len(marked) > 0 {
 				marked = marked[:len(marked)-1]
+			}
+			if actual != nil && len(marked) == actual.depth {
+				// its characters over the glyphs' width, one after another
+				if rs := []rune(actual.text); actual.seen && len(rs) > 0 {
+					w := (actual.x1 - actual.x0) / float64(len(rs))
+					for k, r := range rs {
+						t := actual.first
+						t.X, t.W, t.S = actual.x0+float64(k)*w, w, string(r)
+						text = append(text, t)
+					}
+				}
+				actual = nil
 			}
 
 		case "ET": // end text

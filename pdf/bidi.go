@@ -25,17 +25,18 @@ import (
 //
 // Combining marks (Arabic vowels, Hebrew points) in right-to-left text
 // are printed apart, each where the font's GPOS anchors put it on its
-// letter (mark to base, mark to mark: arabicShaper.markOffsets); Courier
+// letter (mark to base, mark to mark: fontShaper.markOffsets); Courier
 // Badi's marks have no advance, so the letters print as without them.
 
 // lineRTL tells whether a line reads right to left.
 func (t Tree) lineRTL(text string) bool { return lex.LineRTL(lex.Unstyled(text), t.rtl) }
 
-// needsBidi tells whether a line has to be reordered to print: it reads
-// right to left, or has right-to-left letters or direction controls in
-// it.
+// needsBidi tells whether a line has to be printed piece by piece
+// (bidiPrint): reordered, as it reads right to left, or has right-to-left
+// letters or direction controls in it; or shaped, as it has Devanagari
+// (devanagari.go).
 func needsBidi(text string, rtl bool) bool {
-	if rtl {
+	if rtl || hasDevanagari(text) {
 		return true
 	}
 	for _, r := range text {
@@ -216,9 +217,9 @@ func (t Tree) visualLines(f rules.Format, text string, rtl bool, width float64) 
 		chars, runes, style = chars[:len(chars)-1], runes[:len(runes)-1], style[:len(style)-1]
 	}
 	t.PDF.SetFont(fontName, f.Style, f.Size)
-	starts := t.breaks(chars, width)
+	starts := t.breaks(chars, width, core)
 	lv := levels(runes, rtl)
-	shaper := func(s lex.Span) *arabicShaper { // the marks' font: the letter's style
+	shaper := func(s lex.Span) *fontShaper { // the marks' font: the letter's style
 		if core {
 			return nil
 		}
@@ -297,18 +298,21 @@ func (t Tree) visualLines(f rules.Format, text string, rtl bool, width float64) 
 // they stood unplaced (before their letter, in visual order) but
 // invisible, so that the text copied out of the PDF reads as written;
 // printMarks draws them where they show.
-func printPiece(pdf Drawer, p piece, x, w float64) {
+//
+// Its Devanagari is shaped by sh, the font's (fontName in style, size
+// points) shaper: shapedCell.
+func printPiece(pdf Drawer, sh *fontShaper, fontName, style string, size float64, p piece, x, w float64) {
 	if len(p.marks) == 0 {
 		pdf.SetX(x)
-		pdf.CellFormat(w, lineHeight, p.text, "", 0, "L", false, 0, "")
+		shapedCell(pdf, sh, fontName, style, size, w, lineHeight, p.text, "L")
 		return
 	}
 	rs := []rune(p.text)
 	from := 0
 	seg := func(text string) {
-		sw := pdf.GetStringWidth(text)
+		sw := cellWidth(pdf, text, sh == nil)
 		pdf.SetX(x)
-		pdf.CellFormat(max(sw, markWidth), lineHeight, text, "", 0, "L", false, 0, "")
+		shapedCell(pdf, sh, fontName, style, size, max(sw, markWidth), lineHeight, text, "L")
 		x += sw
 	}
 	for k := 0; k < len(p.marks); {
@@ -354,7 +358,7 @@ func (t Tree) printMarks(fontName string, f rules.Format, line []piece, starts [
 		_, em := pdf.GetFontSize()
 		rs := []rune(p.text)
 		for _, m := range p.marks {
-			at := starts[i] + pdf.GetStringWidth(string(rs[:min(m.at, len(rs))]))
+			at := starts[i] + cellWidth(pdf, string(rs[:min(m.at, len(rs))]), false)
 			pdf.SetXY(at+m.dx*em, y-m.dy*em)
 			// shown, not text: the copy above is what is read out
 			pdf.RawWriteStr("/Span <</ActualText ()>> BDC")
@@ -382,6 +386,13 @@ func sameStyle(a, b lex.Span) bool {
 func (t Tree) bidiPrint(f rules.Format, text string, rtl bool, left, width float64) {
 	pdf := t.PDF
 	fontName, lines := t.visualLines(f, text, rtl, width)
+	core := fontName == "Helvetica" || fontName == "Times"
+	shaper := func(p piece) *fontShaper {
+		if core {
+			return nil
+		}
+		return t.Fonts.shaper(fontName, fontStyle(f.Style, p.style))
+	}
 	cell := pdf.GetCellMargin()
 	pdf.SetCellMargin(0)
 	defer pdf.SetCellMargin(cell)
@@ -389,7 +400,7 @@ func (t Tree) bidiPrint(f rules.Format, text string, rtl bool, left, width float
 		widths, total := make([]float64, len(line)), 0.0
 		for i, p := range line {
 			pdf.SetFont(fontName, fontStyle(f.Style, p.style), f.Size)
-			widths[i] = pdf.GetStringWidth(p.text)
+			widths[i] = cellWidth(pdf, p.text, core)
 			total += widths[i]
 		}
 		x := left + cell
@@ -407,7 +418,7 @@ func (t Tree) bidiPrint(f rules.Format, text string, rtl bool, left, width float
 		for i, p := range line {
 			pdf.SetFont(fontName, fontStyle(f.Style, p.style), f.Size)
 			starts[i] = x
-			printPiece(pdf, p, x, widths[i])
+			printPiece(pdf, shaper(p), fontName, fontStyle(f.Style, p.style), f.Size, p, x, widths[i])
 			x += widths[i]
 		}
 		t.printMarks(fontName, f, line, starts)

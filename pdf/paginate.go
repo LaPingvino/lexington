@@ -148,7 +148,10 @@ func (t *Tree) wrap(f rules.Format, text string, width float64) (string, []int) 
 	for k, c := range chars {
 		offsets[k+1] = offsets[k] + len(c)
 	}
-	starts := t.breaks(chars, width)
+	// a line printed piece by piece is measured by its cells, one that
+	// MultiCell prints as gofpdf measures it
+	core := fontName == "Helvetica" || fontName == "Times" || !needsBidi(text, t.lineRTL(text))
+	starts := t.breaks(chars, width, core)
 	for k, i := range starts {
 		starts[k] = offsets[i]
 	}
@@ -157,8 +160,10 @@ func (t *Tree) wrap(f rules.Format, text string, width float64) (string, []int) 
 
 // breaks are the chars each line starts at, of chars wrapped in width
 // in the PDF's font, as MultiCell wraps them: at the last space that
-// fits, or within a word that does not, and at each new line.
-func (t *Tree) breaks(chars []string, width float64) []int {
+// fits, or within a word that does not, and at each new line. Unless
+// core (a standard font, or a line MultiCell prints), what takes no cell
+// (zeroCell) has no width, and a word breaks between its clusters.
+func (t *Tree) breaks(chars []string, width float64, core bool) []int {
 	pdf := t.PDF
 	_, size := pdf.GetFontSize()
 	wmax := int(math.Ceil((width - 2*pdf.GetCellMargin()) * 1000 / size))
@@ -179,11 +184,24 @@ func (t *Tree) breaks(chars []string, width float64) []int {
 		w, ok := widths[c]
 		if !ok {
 			w = pdf.GetStringSymbolWidth(c)
+			if r, _ := utf8.DecodeRuneInString(c); !core && len(c) > 1 && zeroCell(r) {
+				w = 0 // no cell (a joiner, a direction mark), as Accolade counts
+			}
 			widths[c] = w
 		}
 		l += w
 		if l > wmax {
 			if sep == -1 {
+				// within a word: not inside a cluster (a conjunct, a letter
+				// and its marks), unless it is the line's only one
+				for k := i; !core && k > j+1; k-- {
+					a, _ := utf8.DecodeRuneInString(chars[k-1])
+					b, _ := utf8.DecodeRuneInString(chars[k])
+					if !joinsBefore(a, b) {
+						i = k
+						break
+					}
+				}
 				if i == j {
 					i++
 				}
