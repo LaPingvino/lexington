@@ -187,7 +187,7 @@ which Fountain has no element for; Taiwan's two-line labelled block reads
 its first line (`場：1 …`) as the heading. Words marked here as
 Lexington's own are not from a source: German `ABEND`, `MORGEN`; French
 `NUIT`, `SOIR`, `MATIN`; Hebrew and Japanese time words beyond the
-examples; Chinese `OS`/`VO`; Esperanto's and toki pona's.
+examples, and its fades `פייד אין`, `פייד אאוט`; Chinese `OS`/`VO`; Esperanto's and toki pona's.
 
 ## Hekaya
 

@@ -168,7 +168,7 @@ func defaultLanguages() map[string]Language {
 			Shape:           Shape{Words: 3, Ends: ".!?,;:"},
 			Repeat:          2,
 			TransitionEnds:  []string{" TO:", " ל:"},
-			Transitions:     []string{"קאט ל", "קאט"},
+			Transitions:     []string{"קאט ל", "קאט", "פייד אין", "פייד אאוט"},
 			TransitionMarks: ":",
 			TitleKeys:       map[string]string{},
 		},

@@ -74,6 +74,8 @@ func TestTransitionRules(t *testing.T) {
 		{"ar", "مزج إلى", lex.TypeTrans},
 		{"ar", "قطع الخبز", lex.TypeAction},
 		{"he", "דיזולב ל:", lex.TypeTrans},
+		{"he", "פייד אין:", lex.TypeTrans},
+		{"he", "פייד אאוט", lex.TypeTrans},
 		{"de", "SCHNITT AUF:", lex.TypeTrans},
 		{"it", "STACCO SU:", lex.TypeTrans},
 		{"zh", "淡出", lex.TypeTrans},
