@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.60.1] - 2026-11-24
+
 ### Fixed
 - **CJK on macOS: the computer's fonts are all asked.** A character is "missing" only once every font has
   been asked: those fontconfig ranks (where it is, macOS with Homebrew's too) and then every face of the font
