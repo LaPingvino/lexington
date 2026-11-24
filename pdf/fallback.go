@@ -109,21 +109,23 @@ func hasGlyph(data []byte) func(rune) bool {
 // withFallback is a TrueType font file with glyphs added for those of
 // runes it lacks: each from a font on the computer that has it (bold
 // ones for a bold style), an empty one if none has; base itself if it
-// lacks none or cannot be added to. Made once for a font and runes.
-func withFallback(base []byte, style string, runes []rune) []byte {
+// lacks none or cannot be added to; in the script's language (a BCP 47
+// tag, "" for the system's default), which picks a Han face of its
+// region. Made once for a font, runes and language.
+func withFallback(base []byte, style string, runes []rune, lang string) []byte {
 	want := lacked(hasGlyph(base), runes)
 	if len(want) == 0 {
 		return base
 	}
 	sum := sha256.Sum256(base)
-	key := fmt.Sprintf("%x/%s/%s", sum[:8], style, string(want))
+	key := fmt.Sprintf("%x/%s/%s/%s", sum[:8], style, lang, string(want))
 	fallbackMu.Lock()
 	defer fallbackMu.Unlock()
 	if out, ok := fallbackCache[key]; ok {
 		return out
 	}
 	bold := style == "B" || style == "BI"
-	found := systemGlyphs(want, bold)
+	found := systemGlyphs(want, bold, lang)
 	out := mergeGlyphs(base, want, found)
 	if out == nil {
 		out = base

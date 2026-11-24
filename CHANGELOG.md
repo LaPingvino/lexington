@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **The system's own font fallback first, in the script's language.** For the characters the PDF's font
+  lacks, the operating system's fallback is asked first and its order is kept: each character comes from
+  the first face it ranks that has it, no longer from whichever face has the most of the characters. On
+  Linux and the BSDs that is fontconfig (`fc-match` with `:lang=`), on macOS CoreText
+  (`CTFontCreateForStringWithLanguage`, in builds with cgo, as Accolade's; the release CLI, built without
+  cgo, keeps fontconfig if installed and the folder walk), on Windows DirectWrite's system font fallback
+  (`IDWriteFontFallback::MapCharacters` with the locale, through COM without cgo). The folder walk by coverage
+  stays, last, for what the system places nowhere. `PDFWriter.Language` (a BCP 47 tag; the CLI passes the
+  script's `-scenein` language, from the file name too) picks the Han forms: a Japanese script's characters
+  from a Japanese face (Hiragino, Noto Sans CJK JP, Yu Gothic), a Chinese one's from a Chinese face (PingFang
+  SC or TC, Noto Sans CJK SC, Microsoft YaHei), Korean likewise; with none, the system's default. Where the
+  system's choice is a face of a CJK collection of another region (fontconfig on Arch takes Noto Sans CJK KR
+  for every language, as its faces all claim them), the face of the language's region in the same file is
+  taken; the folder walk prefers it too. `LEXINGTON_FONT_TRACE=1` names the source and the language.
+
 ## [1.60.1] - 2026-11-24
 
 ### Fixed

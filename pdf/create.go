@@ -47,6 +47,12 @@ type PDFWriter struct {
 	// line with no direction of its own (no strong letter, no direction
 	// mark) reads right to left in it (bidi.go).
 	RTL bool
+	// Language is the script's language, a BCP 47 tag ("ja", "zh-Hant";
+	// "" for the computer's default): the computer's fonts are asked for
+	// the characters the PDF's font lacks in it (sysfont.go), so that Han
+	// characters print in its region's forms (a Japanese face for
+	// Japanese, a Chinese one for Chinese).
+	Language string
 	// Record, when set, is filled with the pages as Write draws them
 	// (Recorder): what a program shows of the PDF without reading it.
 	Record *Drawing
@@ -1025,7 +1031,7 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 	printed := lex.Printable(screenplay, elements.Hides) // notes are not printed
 	runes := fallbackRunes(printed, p.TitlePage, elements, continueds)
 	for _, style := range []string{"", "B", "I", "BI"} {
-		AddFont(pdf, "CourierPrime", style, withFallback(font.GetFont("CourierPrime", style), style, runes))
+		AddFont(pdf, "CourierPrime", style, withFallback(font.GetFont("CourierPrime", style), style, runes, p.Language))
 	}
 
 	// Set default font for the document
@@ -1045,7 +1051,7 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 		DualDialogue: false,
 		DualColumn:   0,
 		DualBuffer:   []lex.Line{},
-		Fonts:        newFonts(pdf, runes),
+		Fonts:        newFonts(pdf, runes, p.Language),
 		Scale:        width / 8.5,
 		VScale:       height / 11,
 		title:        p.TitlePage,

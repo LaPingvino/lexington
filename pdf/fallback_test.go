@@ -16,7 +16,7 @@ import (
 // needSystemCJK skips a test when no font on the computer has Japanese.
 func needSystemCJK(t *testing.T) {
 	t.Helper()
-	if len(systemGlyphs([]rune("パ症"), false)) < 2 {
+	if len(systemGlyphs([]rune("パ症"), false, "")) < 2 {
 		t.Skip("no font on this computer has Japanese")
 	}
 }
@@ -118,7 +118,7 @@ func TestFallbackFromSystem(t *testing.T) {
 // lacks nothing of the script is the font itself, byte for byte.
 func TestMergeGlyphs(t *testing.T) {
 	base := font.GetFont(font.CourierPrimeName, "")
-	if out := withFallback(base, "", []rune("Ĉu Русский")); !bytes.Equal(out, base) {
+	if out := withFallback(base, "", []rune("Ĉu Русский"), ""); !bytes.Equal(out, base) {
 		t.Error("a script Courier Badi has all of changed its font")
 	}
 	out := mergeGlyphs(base, []rune("パ"), nil)

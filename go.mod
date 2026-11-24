@@ -8,7 +8,7 @@ require (
 	golang.org/x/text v0.42.0
 )
 
-require golang.org/x/sys v0.48.0 // indirect
+require golang.org/x/sys v0.48.0
 
 go 1.26.0
 

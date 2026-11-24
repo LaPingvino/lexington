@@ -683,7 +683,7 @@ func makeReport(o Options, conf rules.TOMLConf, screenplay lex.Screenplay, ro re
 			}
 			elements = elements.WithPagination(p)
 		}
-		ro.PDF = &pdf.PDFWriter{Elements: elements, Page: pageFor(o), MergeOmitted: o.MergeOmitted, RTL: rtlFor(conf, o)}
+		ro.PDF = &pdf.PDFWriter{Elements: elements, Page: pageFor(o), MergeOmitted: o.MergeOmitted, RTL: rtlFor(conf, o), Language: fontLanguage(o)}
 	}
 	if ro.Scenes == nil {
 		ro.Scenes = conf.Scenes(o.SceneIn)
@@ -721,7 +721,7 @@ func lockWriter(o Options, conf rules.TOMLConf) (*pdf.PDFWriter, error) {
 		elements = elements.WithPagination(p)
 	}
 	return &pdf.PDFWriter{Elements: elements, Page: pageFor(o), Lock: o.Lock, Continueds: o.Continueds,
-		Revisions: o.Revisions, MergeOmitted: o.MergeOmitted, RTL: rtlFor(conf, o)}, nil
+		Revisions: o.Revisions, MergeOmitted: o.MergeOmitted, RTL: rtlFor(conf, o), Language: fontLanguage(o)}, nil
 }
 
 // LockPages are the pages of a screenplay as the PDF prints it with o's
@@ -856,6 +856,17 @@ func rtlFor(conf rules.TOMLConf, o Options) bool {
 		return false
 	}
 	return conf.RTL(o.SceneIn)
+}
+
+// fontLanguage is the language the PDF asks the computer's fonts in
+// (pdf.PDFWriter.Language): the script's, "" for the standard one
+// (English, Fountain's own), which leaves the choice of a Han face to the
+// computer's default.
+func fontLanguage(o Options) string {
+	if o.SceneIn == "en" {
+		return ""
+	}
+	return o.SceneIn
 }
 
 func setDefaults(o *Options) {
@@ -1115,7 +1126,7 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 			return nil, errors.New("cannot write PDF to standard output: give an output file (-o output.pdf)")
 		}
 		return &pdf.PDFWriter{OutputFile: o.Output, Elements: elements, Page: pageFor(o), Revisions: o.Revisions,
-			Lock: o.Lock, Continueds: o.Continueds, MergeOmitted: o.MergeOmitted, RTL: rtlFor(conf, o),
+			Lock: o.Lock, Continueds: o.Continueds, MergeOmitted: o.MergeOmitted, RTL: rtlFor(conf, o), Language: fontLanguage(o),
 			Record: o.Record, Resume: o.Resume, Pictures: o.Pictures, TitlePage: o.tpl, TitlePictures: o.TitlePictures}, nil
 	case internal.FormatLex:
 		return &lex.LexWriter{}, nil

@@ -5,7 +5,6 @@ package pdf
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -17,30 +16,38 @@ import (
 )
 
 // The fonts on the computer, for the characters the PDF's font lacks
-// (fallback.go). Each character is looked for until a font has it or
-// every font has been asked: first among those fontconfig ranks for the
-// characters (where there is fontconfig: Linux, and macOS with it
-// installed), then among all those of the system's and the user's font
-// folders. Within each, the font that has the most of the characters
-// still wanted is taken first, then the one with the most of the rest,
-// and so on (cover). A font is read when it is first asked about, and
-// kept; its file is open while it is read from, a few dozen at a time
-// (lazyFile). Each character's answer is kept, the "none" too, as it
+// (fallback.go). First the operating system's own fallback is asked,
+// with the script's language (fallbackLang): fontconfig on Linux and the
+// BSDs (sysfont_fc.go), CoreText on macOS (sysfont_darwin.go, where cgo
+// is; without it, fontconfig if installed), DirectWrite on Windows
+// (sysfont_windows.go). Its answer is a ranking of faces for each
+// character, the best fit first, and each character is taken from the
+// first of its faces that has it: the system's order is the answer. A
+// Han face is taken in its language's design (regionalSibling). What
+// the system places nowhere is looked for, last, among all the faces of
+// the system's and the user's font folders: the face that has the most of
+// the characters still wanted first, then the one with the most of the
+// rest, and so on (cover), a face of the language's region before
+// another. A font is read when it is first asked about, and kept; its
+// file is open while it is read from, a few dozen at a time (lazyFile).
+// Each character's answer is kept, by language, the "none" too, as it
 // comes from asking every font.
 
 var sys = struct {
-	mu    sync.Mutex
-	files map[string]*sysFile // a font file's path: it read, nil if unreadable
-	found map[sysKey]sysGlyph // a character's glyph, the zero one if no font has it
-	walk  []string            // the faces of the font folders, once listed
-}{files: map[string]*sysFile{}, found: map[sysKey]sysGlyph{}}
+	mu       sync.Mutex
+	files    map[string]*sysFile  // a font file's path: it read, nil if unreadable
+	found    map[sysKey]sysGlyph  // a character's glyph, the zero one if no font has it
+	walk     []string             // the faces of the font folders, once listed
+	regional map[[2]string]string // a face and language: the face of its collection taken for it (regional)
+}{files: map[string]*sysFile{}, found: map[sysKey]sysGlyph{}, regional: map[[2]string]string{}}
 
 // sysFile is a font file read: its collection (one font if not one) and
 // the faces of it opened, by index.
 type sysFile struct {
-	src   *lazyFile
-	c     *sfnt.Collection
-	faces map[int]*sfnt.Font
+	src      *lazyFile
+	c        *sfnt.Collection
+	faces    map[int]*sfnt.Font
+	families []string // its faces' family names, by index, once read
 }
 
 // lazyFile is a file read from where it is, open while it is read: at
@@ -92,26 +99,30 @@ func (l *lazyFile) close() {
 type sysKey struct {
 	r    rune
 	bold bool
+	lang string // fallbackLang.tag
 }
 
-// fontconfig is fontconfig's ranking of font faces ("path#index") for
-// runes, the likeliest first; nil where there is no fontconfig. (A
-// variable: the tests replace it.)
-var fontconfig = fcMatch
+// systemFallback is the operating system's ranking of font faces
+// ("path#index") for each of runes, in a language, the best fit first;
+// nil where it has none, or none for them. (A variable: the tests
+// replace it.)
+var systemFallback = osFallback
 
 // traceFonts, set by LEXINGTON_FONT_TRACE, writes each font looked in and
 // what it gave to standard error.
 var traceFonts = os.Getenv("LEXINGTON_FONT_TRACE") != ""
 
-// systemGlyphs are the glyphs on the computer for runes (bold if asked,
-// where a bold font has them); a character no font has is not in it.
-func systemGlyphs(runes []rune, bold bool) map[rune]sysGlyph {
+// systemGlyphs are the glyphs on the computer for runes in a language
+// (a BCP 47 tag, "" for the system's default; bold if asked, where a bold
+// font has them); a character no font has is not in it.
+func systemGlyphs(runes []rune, bold bool, lang string) map[rune]sysGlyph {
+	l := langFor(lang)
 	sys.mu.Lock()
 	defer sys.mu.Unlock()
 	out := map[rune]sysGlyph{}
 	var ask []rune
 	for _, r := range runes {
-		if g, ok := sys.found[sysKey{r, bold}]; ok {
+		if g, ok := sys.found[sysKey{r, bold, l.tag}]; ok {
 			if g.f != nil {
 				out[r] = g
 			}
@@ -122,22 +133,11 @@ func systemGlyphs(runes []rune, bold bool) map[rune]sysGlyph {
 	if len(ask) == 0 {
 		return out
 	}
-	tried := map[string]bool{}
-	look := func(faces []string) {
-		var fonts []string
-		for _, face := range faces {
-			if !tried[face] {
-				tried[face] = true
-				fonts = append(fonts, face)
-			}
-		}
-		ask = lookIn(fonts, ask, bold, out)
-	}
-	// fontconfig's ranking, asked again for what is still wanted while it
+	// the system's ranking, asked again for what is still wanted while it
 	// gives some
 	for round := 0; round < 4 && len(ask) > 0; round++ {
 		before := len(ask)
-		look(fontconfig(ask, bold))
+		ask = lookRanked(systemFallback(ask, bold, l), ask, bold, l, out)
 		if len(ask) == before {
 			break
 		}
@@ -146,24 +146,131 @@ func systemGlyphs(runes []rune, bold bool) map[rune]sysGlyph {
 		if sys.walk == nil {
 			sys.walk = folderFonts(fontDirs(runtime.GOOS, "", homeDir(), os.Getenv))
 		}
+		walk := slices.Clone(sys.walk)
+		if len(l.regions) > 0 { // of faces that have as many, the language's region's
+			mine := map[string]bool{}
+			for _, face := range walk {
+				mine[face] = hasRegion(familyOf(face), l)
+			}
+			slices.SortStableFunc(walk, func(a, b string) int { return cmpBool(!mine[a], !mine[b]) })
+		}
 		if bold { // the bold ones first, then any
-			look(slices.DeleteFunc(slices.Clone(sys.walk), func(f string) bool { return !boldName(f) }))
-			look(sys.walk)
+			ask = lookIn(slices.DeleteFunc(slices.Clone(walk), func(f string) bool { return !boldName(f) }), ask, bold, l, out)
+			ask = lookIn(walk, ask, bold, l, out)
 		} else { // of fonts that have as many, a regular one's
-			walk := slices.Clone(sys.walk)
 			slices.SortStableFunc(walk, func(a, b string) int { return cmpBool(weighted(a), weighted(b)) })
-			look(walk)
+			ask = lookIn(walk, ask, bold, l, out)
 		}
 	}
 	for _, r := range ask {
-		sys.found[sysKey{r, bold}] = sysGlyph{}
+		sys.found[sysKey{r, bold, l.tag}] = sysGlyph{}
 	}
 	return out
 }
 
+// lookRanked takes glyphs for runes from the system's ranking of faces
+// for each (rank), the first of a rune's faces that has it, into out (and
+// sys.found); those none of their faces has are left. A Han face is
+// taken in the language's design (regional).
+func lookRanked(rank map[rune][]string, runes []rune, bold bool, l fallbackLang, out map[rune]sysGlyph) []rune {
+	if len(rank) == 0 {
+		return runes
+	}
+	var buf sfnt.Buffer
+	var left []rune
+	given := map[string]int{}
+	var order []string
+	for _, r := range runes {
+		took := false
+		for _, face := range rank[r] {
+			face = regional(face, l)
+			f := openFont(face)
+			if f == nil {
+				continue
+			}
+			g, err := f.GlyphIndex(&buf, r)
+			if err != nil || g == 0 || !outlined(f, g) {
+				continue
+			}
+			out[r] = sysGlyph{f, g}
+			sys.found[sysKey{r, bold, l.tag}] = out[r]
+			if given[face] == 0 {
+				order = append(order, face)
+			}
+			given[face]++
+			took = true
+			break
+		}
+		if !took {
+			left = append(left, r)
+		}
+	}
+	if traceFonts {
+		for _, face := range order {
+			fmt.Fprintf(os.Stderr, "lexington font: %s (%s, language %q) gives %d\n", face, osFallbackName, l.tag, given[face])
+		}
+		fmt.Fprintf(os.Stderr, "lexington font: %s placed %d of %d characters\n", osFallbackName, len(runes)-len(left), len(runes))
+	}
+	return left
+}
+
+// regional is a face, or the face beside it in its collection that is
+// its design for the language's region (regionalSibling).
+func regional(face string, l fallbackLang) string {
+	if len(l.regions) == 0 {
+		return face
+	}
+	k := [2]string{face, l.tag}
+	if r, ok := sys.regional[k]; ok {
+		return r
+	}
+	r := face
+	path, index := splitFace(face)
+	if fams := families(path); fams != nil {
+		if i := regionalSibling(fams, index, l); i != index {
+			r = fmt.Sprintf("%s#%d", path, i)
+		}
+	}
+	sys.regional[k] = r
+	return r
+}
+
+// families are the family names of a font file's faces, by index (the
+// typographic family where there is one: "Noto Sans CJK JP" for its
+// Medium too); nil if it cannot be read (sys.mu held).
+func families(path string) []string {
+	if openFont(path+"#0") == nil {
+		return nil
+	}
+	sf := sys.files[path]
+	if sf.families == nil {
+		var buf sfnt.Buffer
+		sf.families = make([]string, sf.c.NumFonts())
+		for i := range sf.families {
+			if f := openFont(fmt.Sprintf("%s#%d", path, i)); f != nil {
+				name, err := f.Name(&buf, sfnt.NameIDTypographicFamily)
+				if err != nil || name == "" {
+					name, _ = f.Name(&buf, sfnt.NameIDFamily)
+				}
+				sf.families[i] = name
+			}
+		}
+	}
+	return sf.families
+}
+
+// familyOf is a face's family name; "" if unreadable (sys.mu held).
+func familyOf(face string) string {
+	path, index := splitFace(face)
+	if fams := families(path); index >= 0 && index < len(fams) {
+		return fams[index]
+	}
+	return ""
+}
+
 // lookIn takes glyphs for runes from faces, by cover, into out (and
 // sys.found); those none of them has are left.
-func lookIn(faces []string, runes []rune, bold bool, out map[rune]sysGlyph) []rune {
+func lookIn(faces []string, runes []rune, bold bool, l fallbackLang, out map[rune]sysGlyph) []rune {
 	if len(runes) == 0 || len(faces) == 0 {
 		return runes
 	}
@@ -209,7 +316,7 @@ func lookIn(faces []string, runes []rune, bold bool, out map[rune]sysGlyph) []ru
 				continue
 			}
 			out[r] = sysGlyph{fonts[i].f, g}
-			sys.found[sysKey{r, bold}] = out[r]
+			sys.found[sysKey{r, bold, l.tag}] = out[r]
 		}
 		runes = left
 	}
@@ -224,7 +331,7 @@ func lookIn(faces []string, runes []rune, bold bool, out map[rune]sysGlyph) []ru
 		}
 		for i, fc := range fonts {
 			if n[i] > 0 {
-				fmt.Fprintf(os.Stderr, "lexington font: %s gives %d\n", fc.name, n[i])
+				fmt.Fprintf(os.Stderr, "lexington font: %s (font folders, language %q) gives %d\n", fc.name, l.tag, n[i])
 			}
 		}
 		fmt.Fprintf(os.Stderr, "lexington font: %d faces looked in, %d characters left\n", len(fonts), len(runes))
@@ -283,7 +390,7 @@ func outlined(f *sfnt.Font, g sfnt.GlyphIndex) bool {
 
 // systemHas tells whether a font on the computer has a glyph for r.
 func systemHas(runes []rune) map[rune]bool {
-	found := systemGlyphs(runes, false)
+	found := systemGlyphs(runes, false, "")
 	out := map[rune]bool{}
 	for r := range found {
 		out[r] = true
@@ -327,40 +434,6 @@ func openFont(face string) *sfnt.Font {
 
 // maxRanked is how many of fontconfig's ranking are looked in at a time.
 const maxRanked = 40
-
-// fcMatch is fontconfig's ranking (fc-match) of the faces for runes, at
-// most maxRanked of them; nil without fontconfig.
-func fcMatch(runes []rune, bold bool) []string {
-	fc, err := exec.LookPath("fc-match")
-	if err != nil {
-		return nil
-	}
-	var charset strings.Builder
-	for i, r := range runes {
-		if i > 0 {
-			charset.WriteByte(' ')
-		}
-		fmt.Fprintf(&charset, "%x", r)
-	}
-	pattern := "monospace:charset=" + charset.String()
-	if bold {
-		pattern += ":weight=bold"
-	}
-	out, err := exec.Command(fc, "-s", "--format=%{file}#%{index}\n", pattern).Output()
-	if err != nil {
-		return nil
-	}
-	var files []string
-	for _, l := range strings.Split(string(out), "\n") {
-		if l = strings.TrimSpace(l); l != "" && !slices.Contains(files, l) && fontFile(strings.SplitN(l, "#", 2)[0]) {
-			files = append(files, l)
-			if len(files) == maxRanked {
-				break
-			}
-		}
-	}
-	return files
-}
 
 // fontFile tells whether a file is of a font kind a glyph can be taken
 // from (TrueType, OpenType, a collection of them).

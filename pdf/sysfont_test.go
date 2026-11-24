@@ -25,15 +25,15 @@ func resetSys(t *testing.T) {
 				sf.src.close()
 			}
 		}
-		sys.files, sys.found, sys.walk = map[string]*sysFile{}, map[sysKey]sysGlyph{}, nil
+		sys.files, sys.found, sys.walk, sys.regional = map[string]*sysFile{}, map[sysKey]sysGlyph{}, nil, map[[2]string]string{}
 		sys.mu.Unlock()
 		fallbackMu.Lock()
 		fallbackCache, fallbackOrder, outlines = map[string][]byte{}, nil, map[outlineKey]convertedGlyph{}
 		fallbackMu.Unlock()
 	}
 	reset()
-	saved := fontconfig
-	t.Cleanup(func() { fontconfig = saved; reset() })
+	saved := systemFallback
+	t.Cleanup(func() { systemFallback = saved; reset() })
 }
 
 // The cover takes the font with the most of the characters first, then
@@ -123,9 +123,9 @@ func TestFontDirsMacOS(t *testing.T) {
 		t.Errorf("faces:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// a glyph is read out of a collection the walk found
-	fontconfig = func([]rune, bool) []string { return nil }
+	systemFallback = func([]rune, bool, fallbackLang) map[rune][]string { return nil }
 	sys.walk = faces
-	if g := systemGlyphs([]rune("Ĉ"), false); g['Ĉ'].f == nil {
+	if g := systemGlyphs([]rune("Ĉ"), false, ""); g['Ĉ'].f == nil {
 		t.Error("no Ĉ from the collections of the folders")
 	}
 }
@@ -148,8 +148,8 @@ const zhJa = "一上下不丛个举么也了人什们你好名夫子年日月老
 // Japanese.
 func needCJKFolders(t *testing.T) {
 	t.Helper()
-	fontconfig = func([]rune, bool) []string { return nil }
-	if len(systemGlyphs([]rune(zhJa), false)) < len([]rune(zhJa)) {
+	systemFallback = func([]rune, bool, fallbackLang) map[rune][]string { return nil }
+	if len(systemGlyphs([]rune(zhJa), false, "")) < len([]rune(zhJa)) {
 		t.Skip("no font in this computer's font folders has Chinese and Japanese")
 	}
 	resetSys(t)
@@ -161,14 +161,14 @@ func needCJKFolders(t *testing.T) {
 func TestSystemGlyphsWithoutFontconfig(t *testing.T) {
 	resetSys(t)
 	needCJKFolders(t)
-	fontconfig = func([]rune, bool) []string { return nil }
-	got := systemGlyphs([]rune(zhJa), false)
+	systemFallback = func([]rune, bool, fallbackLang) map[rune][]string { return nil }
+	got := systemGlyphs([]rune(zhJa), false, "")
 	for _, r := range zhJa {
 		if got[r].f == nil {
 			t.Errorf("no font for %c", r)
 		}
 	}
-	if b := systemGlyphs([]rune("一東"), true); len(b) != 2 {
+	if b := systemGlyphs([]rune("一東"), true, ""); len(b) != 2 {
 		t.Errorf("bold: %d of 2", len(b))
 	}
 }
@@ -185,9 +185,9 @@ func TestRankedFontsLackingThem(t *testing.T) {
 	if err := os.WriteFile(courier, font.GetFont(font.CourierBadiName, ""), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	fontconfig = func([]rune, bool) []string { return []string{courier + "#0"} }
-	zh := systemGlyphs([]rune("一上下不丛个举么"), false)
-	ja := systemGlyphs([]rune("上夫子年日月老（）パリ"), false)
+	systemFallback = func(r []rune, _ bool, _ fallbackLang) map[rune][]string { return ranked(r, []string{courier + "#0"}) }
+	zh := systemGlyphs([]rune("一上下不丛个举么"), false, "")
+	ja := systemGlyphs([]rune("上夫子年日月老（）パリ"), false, "")
 	for _, r := range "一上下不丛个举么" {
 		if zh[r].f == nil {
 			t.Errorf("zh: no font for %c", r)
