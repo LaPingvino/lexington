@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **CJK on macOS: the computer's fonts are all asked.** A character is "missing" only once every font has
+  been asked: those fontconfig ranks (where it is, macOS with Homebrew's too) and then every face of the font
+  folders, where before fontconfig's first forty ended the search, and the "none" it left was kept for later
+  scripts (the Chinese sample's characters went missing from the Japanese one's PDF too). Fonts are taken by
+  coverage: the one with the most of the characters first, then the one with the most of the rest. The macOS
+  folders include the downloaded font assets (`/System/Library/AssetsV2/com_apple_MobileAsset_Font*`,
+  PingFang's place on recent versions) and `/Network/Library/Fonts`; the folder walk is no longer cut at
+  320 faces. Font files are read once and kept, at most 64 open at a time. `LEXINGTON_FONT_TRACE=1`
+  writes which fonts were looked in and what each gave to standard error.
+
 ## [1.60.0] - 2026-11-24
 
 ### Added
