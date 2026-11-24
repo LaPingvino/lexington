@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **A vowel on a lam-alef on its own stroke, through `Shaper` too.** `Shaper.ComposeMarks` is `Compose` with
+  where each composed mark goes, from the shaping of the text as written (one `MarkPlace` per character of
+  the composed text, cut with it), and `Shaper.CellRTLMarks` prints a right-to-left run with them: the fatha
+  of لَا on the lam's half of the ligature, of لاَ on the alef's, as the screenplay PDF has placed them since
+  1.59.0. `CellRTL`, given the composed text only, places them by reshaping its printed form, as before.
+  For Accolade's prose PDF.
+
 ## [1.61.0] - 2026-11-24
 
 ### Changed

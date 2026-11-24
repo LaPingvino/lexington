@@ -30,8 +30,9 @@ import (
 // isolated form (Unsupported warns of it). The font's GPOS (mark to base,
 // mark to mark: a fatha on a hamza, over a shadda; mark to ligature: a
 // vowel on the lam of لَا) places the marks, printed apart by bidiPrint:
-// as the text as written shapes (shapeMarks), else by its printed form
-// (markOffsets), for Hebrew's points too.
+// as the text as written shapes (shapeMarks; for a program printing
+// through Shaper, ComposeMarks), else by its printed form (markOffsets),
+// for Hebrew's points too.
 
 // fontShaper shapes a font's Arabic runs (here) and Devanagari ones (devanagari.go).
 type fontShaper struct {

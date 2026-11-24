@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -199,6 +200,68 @@ func TestLamAlefMarkOnItsStroke(t *testing.T) {
 		if onLam.dx < 0.05 || onAlef.dx > -0.05 {
 			t.Errorf("%s: the fatha on the lam at %.3f em, on the alef at %.3f em: want the lam's half (> 0.05) and the alef's (< -0.05)",
 				style, onLam.dx, onAlef.dx)
+		}
+	}
+}
+
+// TestShaperLamAlefMarkOnItsStroke: a program printing through Shaper
+// (Accolade's prose PDF) places a vowel on a lam-alef as the text as
+// written does, by ComposeMarks and the run CellRTLMarks prints
+// (rtlPiece; Accolade's prose test draws it), in all four styles,
+// also when it cuts the composed text into runs; CellRTL, given the
+// composed text only, places both on the alef's half, as before.
+func TestShaperLamAlefMarkOnItsStroke(t *testing.T) {
+	fatha := func(p piece) []placed {
+		var out []placed
+		for _, m := range p.marks {
+			if m.mark == "َ" {
+				if r := []rune(p.text); m.at >= len(r) || r[m.at] != 0xFEFB && r[m.at] != 0xFEFC {
+					t.Errorf("the fatha on %+q, want the lam-alef", p.text)
+				}
+				out = append(out, m)
+			}
+		}
+		return out
+	}
+	for _, style := range []string{"", "B", "I", "BI"} {
+		sh := ShaperOf(font.GetFont("CourierPrime", style))
+		if sh == nil {
+			t.Fatalf("%s: no shaper", style)
+		}
+		for _, c := range []struct {
+			text  string
+			onLam bool
+		}{{"لَا", true}, {"لاَ", false}, {"سلَام", true}} {
+			text, marks := sh.ComposeMarks(c.text)
+			if len([]rune(text)) != len(marks) {
+				t.Fatalf("%s %s: %d places for %d characters", style, c.text, len(marks), len([]rune(text)))
+			}
+			// whole, and cut: the run from the lam-alef on
+			rs := []rune(text)
+			from := slices.Index(rs, 0xFEFB)
+			if from < 0 {
+				from = slices.Index(rs, 0xFEFC)
+			}
+			for _, cut := range []int{0, from} {
+				fs := fatha(rtlPiece(sh.s, string(rs[cut:]), marks[cut:]))
+				if len(fs) != 1 {
+					t.Fatalf("%s %s from %d: fathas placed: %+v", style, c.text, cut, fs)
+				}
+				if dx := fs[0].dx; c.onLam && dx < 0.05 || !c.onLam && dx > -0.05 {
+					t.Errorf("%s %s from %d: the fatha at %.3f em, want the %s half", style, c.text, cut, dx,
+						map[bool]string{true: "lam's (> 0.05)", false: "alef's (< -0.05)"}[c.onLam])
+				}
+			}
+			// without the places (CellRTL): the printed form reshaped, on the alef
+			if c.text == "لَا" {
+				if fs := fatha(rtlPiece(sh.s, text, nil)); len(fs) != 1 || fs[0].dx > -0.05 {
+					t.Errorf("%s: without places the fatha at %+v, want the alef's half as before", style, fs)
+				}
+			}
+			// places not one for each character: as CellRTL
+			if fs := fatha(rtlPiece(sh.s, text, marks[1:])); len(fs) != 1 {
+				t.Errorf("%s %s: with too few places: %+v", style, c.text, fs)
+			}
 		}
 	}
 }

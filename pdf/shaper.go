@@ -92,16 +92,38 @@ func (s *Shaper) Cell(d Drawer, family, style string, size, w, h float64, text, 
 // Its Arabic is shaped in context when it is composed whole: a word
 // split (by its emphasis) and composed in parts does not join across.
 func (s *Shaper) Compose(text string) string {
+	out, _ := s.ComposeMarks(text)
+	return out
+}
+
+// MarkPlace is where the font puts a printed mark on its letter, as the
+// text as written shapes, which its composed form no longer tells: the
+// fatha of لَا on the lam's half of the ligature, of لاَ on the alef's
+// (both are U+FEFB U+064E). Its zero value is a place not known: the
+// mark is placed by shaping its composed form again.
+type MarkPlace struct{ at markAt }
+
+// ComposeMarks is Compose, with where each composed mark goes: one
+// MarkPlace for each character of the composed text, nil when none is
+// known (no Arabic). A program that cuts the composed text (into lines,
+// runs) cuts the places with it, character for character, and prints a
+// right-to-left run by CellRTLMarks.
+func (s *Shaper) ComposeMarks(text string) (string, []MarkPlace) {
 	if s == nil {
-		return text
+		return text, nil
 	}
 	if s.has != nil {
 		text = composeHebrew(text, s.has)
 	}
-	if hasArabic(text) {
-		text, _ = s.s.shape(text)
+	if !hasArabic(text) {
+		return text, nil
 	}
-	return text
+	out, at, _ := s.s.shapeMarks(text)
+	marks := make([]MarkPlace, len(at))
+	for i, m := range at {
+		marks[i] = MarkPlace{m}
+	}
+	return out, marks
 }
 
 // CellRTL prints a run of text read right to left (a stretch of a line
@@ -111,13 +133,23 @@ func (s *Shaper) Compose(text string) string {
 // vowels, Hebrew points) each where the font's GPOS puts it on its
 // letter, a copy of them invisible where they stand unplaced so that the
 // text read out of the PDF has them. family, style and size (in points)
-// are d's current font, this shaper's; text is composed (Compose).
+// are d's current font, this shaper's; text is composed (Compose), and
+// its marks are placed by shaping it again: a vowel on a lam-alef goes
+// on the alef's half. CellRTLMarks places them as written.
 func (s *Shaper) CellRTL(d Drawer, family, style string, size, w, h float64, text, align string) {
+	s.CellRTLMarks(d, family, style, size, w, h, text, nil, align)
+}
+
+// CellRTLMarks is CellRTL with the marks' places from ComposeMarks, one
+// for each character of text (cut with it): each mark where the text as
+// written puts it, the fatha of لَا on the lam. Places not given (nil, or
+// not one for each character) are found as CellRTL finds them.
+func (s *Shaper) CellRTLMarks(d Drawer, family, style string, size, w, h float64, text string, marks []MarkPlace, align string) {
 	var fs *fontShaper
 	if s != nil {
 		fs = s.s
 	}
-	p := rtlPiece(fs, text)
+	p := rtlPiece(fs, text, marks)
 	x, y := d.GetX(), d.GetY()
 	pw := cellWidth(d, p.text, false)
 	cm := d.GetCellMargin()
@@ -178,10 +210,13 @@ func Mirror(r rune) rune { return mirror(r) }
 
 // rtlPiece is a right-to-left run, given in logical order, as printed:
 // turned around without its direction controls, its brackets mirrored,
-// each mark held for its letter and placed on it by sh (nil: where it
-// stands).
-func rtlPiece(sh *fontShaper, text string) piece {
+// each mark held for its letter and placed on it where marks (one for
+// each character of text) puts it, else by sh (nil: where it stands).
+func rtlPiece(sh *fontShaper, text string, marks []MarkPlace) piece {
 	rs := []rune(text)
+	if len(marks) != len(rs) {
+		marks = nil
+	}
 	var p piece
 	var b []rune
 	var pending []placed
@@ -191,7 +226,11 @@ func rtlPiece(sh *fontShaper, text string) piece {
 			continue
 		}
 		if markRune(r) && i > 0 && !control(rs[i-1]) {
-			pending = append(pending, placed{mark: string(r)}) // before its letter: held for it
+			m := placed{mark: string(r)} // before its letter: held for it
+			if marks != nil {
+				m.known = marks[i].at
+			}
+			pending = append(pending, m)
 			continue
 		}
 		c := mirror(r)
