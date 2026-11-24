@@ -91,6 +91,26 @@
 ## Marks without a letter are drawn on a dotted circle: one cell.
 ा	1	aa sign alone
 ं	1	anusvara alone
+## Arabic: a lam-alef is one cell, also with marks on the lam; a tatweel or a joiner between keeps them apart.
+لا	1	lam-alef
+لآ	1	lam-alef with madda
+لأ	1	lam-alef with hamza above
+لإ	1	lam-alef with hamza below
+لاَ	1	lam-alef, fatha on the alef
+لَا	1	lam with fatha, alef
+لّا	1	lam with shadda, alef
+لٰا	1	lam with dagger alef, alef
+لّٰا	1	lam with shadda and dagger alef, alef
+إ|لا	1 1	illaa
+فَ|لَّا	1 1	falla: the marks on the lam inside the lam-alef
+ا|ل|سَّ|لَا|مُ	1 1 1 1 1	as-salaamu
+بَ|ا	1 1	beh with fatha, alef: no ligature
+ل|ـ|ا	1 1 1	tatweel between
+لَ|ـ|ا	1 1 1	fatha and tatweel between
+ل<ZWJ>ا	2	ZWJ between: joined forms, no ligature
+ل<ZWNJ>|ا	1 1	ZWNJ between: apart
+ل|ٱ	1 1	alef wasla: no ligature
+ڵ|ا	1 1	lam with small v: no ligature
 ## Other scripts keep their own widths.
 A	1	Latin
 e<U+0301>	1	e + combining acute

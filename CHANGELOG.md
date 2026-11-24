@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a lam-alef is one cluster of one cell, `LamAlef(rs, i)` looking back from the alef over combining marks
   (Mn, Me) to the lam; a tatweel, ZWNJ or ZWJ between keeps the two apart (لـا three cells, ل‍ا two), as
   does alef wasla. `Joins` (two characters) takes an alef after a lam; `Boundary` also after the lam's
-  marks.
+  marks. The test vectors are Lekhan monospace 1.1's (Courier Badi's docs), with the rule's Arabic section.
 - **A tatweel joins in the PDF.** It is of no script of its own and ended the Arabic run, so the letters
   on each side of it were printed in their isolated forms (لـا as ل ـ ا); it is shaped with the run.
 - **A ZWJ in an Arabic word prints nothing.** The shaper hides it as a space glyph in the letter's
