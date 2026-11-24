@@ -148,11 +148,11 @@ func systemGlyphs(runes []rune, bold bool, lang string) map[rune]sysGlyph {
 		}
 		walk := slices.Clone(sys.walk)
 		if len(l.regions) > 0 { // of faces that have as many, the language's region's
-			mine := map[string]bool{}
+			rank := map[string]int{}
 			for _, face := range walk {
-				mine[face] = hasRegion(familyOf(face), l)
+				rank[face] = regionRank(familyOf(face), l)
 			}
-			slices.SortStableFunc(walk, func(a, b string) int { return cmpBool(!mine[a], !mine[b]) })
+			slices.SortStableFunc(walk, func(a, b string) int { return rank[a] - rank[b] })
 		}
 		if bold { // the bold ones first, then any
 			ask = lookIn(slices.DeleteFunc(slices.Clone(walk), func(f string) bool { return !boldName(f) }), ask, bold, l, out)
@@ -174,6 +174,9 @@ func systemGlyphs(runes []rune, bold bool, lang string) map[rune]sysGlyph {
 // taken in the language's design (regional).
 func lookRanked(rank map[rune][]string, runes []rune, bold bool, l fallbackLang, out map[rune]sysGlyph) []rune {
 	if len(rank) == 0 {
+		if traceFonts {
+			fmt.Fprintf(os.Stderr, "lexington font: %s (language %q) gave nothing for %d characters\n", osFallbackName, l.tag, len(runes))
+		}
 		return runes
 	}
 	var buf sfnt.Buffer

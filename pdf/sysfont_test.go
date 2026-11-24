@@ -83,8 +83,8 @@ func ttcOf(ttf []byte) []byte {
 // collections by face, names in Japanese (decomposed, as macOS keeps
 // them) too, and nothing of the assets that are not fonts.
 func TestFontDirsMacOS(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir() // before resetSys: its cleanup closes the files, then they go (Windows)
 	resetSys(t)
-	root, home := t.TempDir(), t.TempDir()
 	ttf := font.GetFont(font.CourierBadiName, "")
 	ttc := ttcOf(ttf)
 	files := map[string][]byte{

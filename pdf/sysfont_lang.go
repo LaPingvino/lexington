@@ -51,7 +51,9 @@ var allRegions = func() map[string]bool {
 }()
 
 // langFor is a language (a BCP 47 tag, Lexington's "hekaya", "" for
-// none) as the fallbacks name it. A name that is no tag is none.
+// none) as the fallbacks name it. A name that is no tag is none, and so
+// is one whose language is not of two or three letters (ISO 639: the
+// "draft" of script.draft.fountain is no language).
 func langFor(lang string) fallbackLang {
 	if strings.EqualFold(strings.TrimSpace(lang), rules.Hekaya) {
 		lang = "ar"
@@ -62,6 +64,9 @@ func langFor(lang string) fallbackLang {
 	}
 	parts := strings.Split(tag, "-")
 	base, script, region := parts[0], "", ""
+	if len(base) < 2 || len(base) > 3 {
+		return fallbackLang{}
+	}
 	for _, p := range parts[1:] {
 		switch {
 		case len(p) == 4 && script == "":
@@ -119,9 +124,9 @@ func regionOf(family string) (key, region string) {
 }
 
 // regionalSibling is which of a collection's faces (their family names,
-// by index) is face's design for the language's region: face itself if
-// it is that already, has no region, or no sibling is; else the one of
-// the likeliest region word. fontconfig takes a collection's faces for
+// by index) is face's design for the language's region: the one of the
+// likeliest region word of face's family (face itself if it is that);
+// face if it has no region or no face of the language's is beside it. fontconfig takes a collection's faces for
 // any of its languages alike, and its ranking (on a system with no
 // preference for the language) gives Noto Sans CJK KR for Japanese: the
 // file is the one fontconfig chose, its face the language's.
@@ -129,8 +134,8 @@ func regionalSibling(families []string, face int, l fallbackLang) int {
 	if len(l.regions) == 0 || face < 0 || face >= len(families) {
 		return face
 	}
-	key, region := regionOf(families[face])
-	if key == "" || slices.Contains(l.regions, region) {
+	key, _ := regionOf(families[face])
+	if key == "" {
 		return face
 	}
 	for _, want := range l.regions {
@@ -143,11 +148,15 @@ func regionalSibling(families []string, face int, l fallbackLang) int {
 	return face
 }
 
-// hasRegion tells whether a family name is of one of the language's
-// regions.
-func hasRegion(family string, l fallbackLang) bool {
+// regionRank is how likely a family name's region is for the language:
+// the index of its word in l.regions, len(l.regions) for a family of
+// none of them.
+func regionRank(family string, l fallbackLang) int {
 	_, r := regionOf(family)
-	return r != "" && slices.Contains(l.regions, r)
+	if i := slices.Index(l.regions, r); r != "" && i >= 0 {
+		return i
+	}
+	return len(l.regions)
 }
 
 // fcPattern is the fontconfig pattern fc-match ranks the faces for runes

@@ -4,6 +4,7 @@ package pdf
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"sync"
 	"syscall"
@@ -70,6 +71,7 @@ var (
 	userDefaultLocale  = windows.NewLazySystemDLL("kernel32.dll").NewProc("GetUserDefaultLocaleName")
 	dwOnce             sync.Once
 	dwFallback         *comObj // the system's IDWriteFontFallback, nil if there is none (before Windows 8.1)
+	dwErr              string  // why there is none
 	sourceVtbl         *[8]uintptr
 	localeNameMaxChars = 85
 )
@@ -82,43 +84,45 @@ type analysisSource struct {
 }
 
 // The IDWriteTextAnalysisSource methods, called by DirectWrite (this
-// first).
+// first). Their out-parameters are DirectWrite's memory: a pointer is
+// written there as a uintptr, not through a Go pointer type (no write
+// barrier reads a slot not Go's).
 
-func asQueryInterface(this *analysisSource, iid *windows.GUID, out **analysisSource) uintptr {
+func asQueryInterface(this *analysisSource, iid *windows.GUID, out *uintptr) uintptr {
 	if *iid == iidUnknown || *iid == iidAnalysisSource {
-		*out = this
+		*out = uintptr(unsafe.Pointer(this))
 		return 0
 	}
-	*out = nil
+	*out = 0
 	return 0x80004002 // E_NOINTERFACE
 }
 
 func asAddRef(*analysisSource) uintptr  { return 1 }
 func asRelease(*analysisSource) uintptr { return 1 }
 
-func asTextAt(this *analysisSource, pos uintptr, text **uint16, n *uint32) uintptr {
+func asTextAt(this *analysisSource, pos uintptr, text *uintptr, n *uint32) uintptr {
 	i, l := this.src.at(int(uint32(pos)))
-	*text, *n = nil, uint32(l)
+	*text, *n = 0, uint32(l)
 	if i >= 0 {
-		*text = &this.src.text[i]
+		*text = uintptr(unsafe.Pointer(&this.src.text[i]))
 	}
 	return 0
 }
 
-func asTextBefore(this *analysisSource, pos uintptr, text **uint16, n *uint32) uintptr {
+func asTextBefore(this *analysisSource, pos uintptr, text *uintptr, n *uint32) uintptr {
 	i, l := this.src.before(int(uint32(pos)))
-	*text, *n = nil, uint32(l)
+	*text, *n = 0, uint32(l)
 	if i >= 0 {
-		*text = &this.src.text[i]
+		*text = uintptr(unsafe.Pointer(&this.src.text[i]))
 	}
 	return 0
 }
 
 func asDirection(*analysisSource) uintptr { return 0 } // DWRITE_READING_DIRECTION_LEFT_TO_RIGHT
 
-func asLocale(this *analysisSource, pos uintptr, n *uint32, locale **uint16) uintptr {
+func asLocale(this *analysisSource, pos uintptr, n *uint32, locale *uintptr) uintptr {
 	*n = uint32(this.src.localeRun(int(uint32(pos))))
-	*locale = &this.src.locale[0]
+	*locale = uintptr(unsafe.Pointer(&this.src.locale[0]))
 	return 0
 }
 
@@ -141,16 +145,19 @@ func dwInit() {
 			syscall.NewCallback(asLocale),
 			syscall.NewCallback(asNumberSubstitution),
 		}
-		if dwriteCreate.Find() != nil {
+		if err := dwriteCreate.Find(); err != nil {
+			dwErr = err.Error()
 			return
 		}
 		var factory *comObj
 		hr, _, _ := dwriteCreate.Call(dwriteFactoryTypeShared, uintptr(unsafe.Pointer(&iidFactory2)), uintptr(unsafe.Pointer(&factory)))
 		if failed(hr) || factory == nil {
-			return // before Windows 8.1 there is no IDWriteFactory2
+			dwErr = fmt.Sprintf("DWriteCreateFactory(IDWriteFactory2): HRESULT %#x", uint32(hr)) // before Windows 8.1
+			return
 		}
 		var fb *comObj
 		if hr := factory.call(getSystemFontFallback, uintptr(unsafe.Pointer(&fb))); failed(hr) || fb == nil {
+			dwErr = fmt.Sprintf("GetSystemFontFallback: HRESULT %#x", uint32(hr))
 			factory.release()
 			return
 		}
@@ -183,6 +190,9 @@ func locale(l fallbackLang) []uint16 {
 func osFallback(runes []rune, bold bool, l fallbackLang) map[rune][]string {
 	dwInit()
 	if dwFallback == nil || len(runes) == 0 {
+		if traceFonts && dwFallback == nil {
+			fmt.Fprintf(os.Stderr, "lexington font: DirectWrite has no system font fallback: %s\n", dwErr)
+		}
 		return nil
 	}
 	weight := uintptr(dwriteWeightNormal)
@@ -202,6 +212,9 @@ func osFallback(runes []rune, bold bool, l fallbackLang) map[rune][]string {
 			uintptr(unsafe.Pointer(&mapped)), uintptr(unsafe.Pointer(&font)), uintptr(unsafe.Pointer(&scale)))
 		runtime.KeepAlive(as)
 		if failed(hr) {
+			if traceFonts {
+				fmt.Fprintf(os.Stderr, "lexington font: DirectWrite MapCharacters failed: HRESULT %#x\n", uint32(hr))
+			}
 			return 0, ""
 		}
 		if font == nil {

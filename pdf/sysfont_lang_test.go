@@ -36,6 +36,8 @@ func TestLangFor(t *testing.T) {
 		"hekaya":     {tag: "ar", fc: "ar", apple: "ar", win: "ar"},
 		"":           {},
 		"my lang":    {},
+		"draft":      {}, // script.draft.fountain
+		"x":          {},
 	} {
 		got := langFor(in)
 		if got.tag != want.tag || got.fc != want.fc || got.apple != want.apple || got.win != want.win || !slices.Equal(got.regions, want.regions) {
@@ -75,6 +77,7 @@ func TestRegionalSibling(t *testing.T) {
 	}{
 		{"ja", 1, 0}, {"zh", 1, 2}, {"zh-Hant", 1, 3}, {"zh-HK", 0, 4}, {"ko", 2, 1},
 		{"ja", 6, 5}, {"zh", 6, 7}, {"ja", 0, 0}, {"en", 1, 1}, {"", 1, 1},
+		{"zh-HK", 3, 4}, {"zh-Hant", 4, 3}, // HK's own before TC; Traditional's TC before HK
 	} {
 		if got := regionalSibling(noto, c.face, langFor(c.lang)); got != c.out {
 			t.Errorf("%s from %s: %s, want %s", c.lang, noto[c.face], noto[got], noto[c.out])
@@ -199,8 +202,8 @@ func notoCJK(t *testing.T) string {
 // first face that has it: not the face that has the most of them (the
 // folders' cover), which would take é from the CJK face too.
 func TestRankedInOrder(t *testing.T) {
+	courier, cjk := writeFont(t), notoCJK(t)+"#0" // before resetSys: its cleanup closes the files, then they go
 	resetSys(t)
-	courier, cjk := writeFont(t), notoCJK(t)+"#0"
 	systemFallback = func(r []rune, _ bool, _ fallbackLang) map[rune][]string { return ranked(r, []string{courier, cjk}) }
 	got := systemGlyphs([]rune("é直接"), false, "")
 	sys.mu.Lock()
@@ -274,4 +277,31 @@ func TestWalkPrefersRegion(t *testing.T) {
 			t.Errorf("%s: 直 from %q, want a %s face", lang, familyOfGlyph(t, got['直']), want)
 		}
 	}
+}
+
+// The system's own fallback, live, on whatever computer the tests run on
+// (fontconfig here; DirectWrite under Windows or Wine, CoreText on
+// macOS): it does not fail, and each face it names is a file there.
+func TestSystemFallbackLive(t *testing.T) {
+	resetSys(t)
+	sys.mu.Lock()
+	got := systemFallback([]rune("直é"), false, langFor("ja"))
+	sys.mu.Unlock()
+	t.Logf("%s: %v", osFallbackName, got)
+	for r, faces := range got {
+		for _, face := range faces {
+			if path, _ := splitFace(face); !fileExists(path) {
+				t.Errorf("%c: %s is no file", r, face)
+			}
+		}
+	}
+	for _, lang := range []string{"ja", "zh", "zh-Hant", "ko", ""} {
+		g := systemGlyphs([]rune("直é"), false, lang)
+		t.Logf("%q: 直 from %q", lang, familyOfGlyph(t, g['直']))
+	}
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
