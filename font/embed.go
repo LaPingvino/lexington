@@ -1,4 +1,10 @@
-// Package font provides embedded font files for PDF generation
+// Package font provides embedded font files for PDF generation.
+//
+// The fonts are Courier Badi's unhinted static TTFs (its build's
+// fonts/unhinted/ttf): the installable fonts' outlines, metrics and
+// OpenType tables without the TrueType hinting, which neither go-text
+// (Accolade's editor, Lexington's shaping) nor PDF viewers run; the hinting
+// was about 1.5 MB of each style's 4 MB.
 package font
 
 import (

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.57.0] - 2026-11-24
+
+### Changed
+- **Courier Badi 1.107, unhinted.** The embedded fonts are Courier Badi's unhinted TTFs (the installable
+  fonts' outlines, metrics and OpenType tables without the TrueType hinting, which go-text and PDF
+  viewers do not run): 10.4 MB for the four styles instead of 17.8 MB, and each PDF about a third smaller.
+  Rendered at 600 and 96 dpi (poppler), the PDFs of the Hindi, Arabic, Hebrew, Russian and English
+  samples are identical to the pixel, and pdftotext reads the same text.
+- **Devanagari shapes in two thirds of the time** (Courier Badi 1.107 writes its contextual lookups as one
+  format-2 subtable instead of one format-3 subtable per rule); the glyphs and positions are the same.
+
 ## [1.56.0] - 2026-11-24
 
 ### Fixed
