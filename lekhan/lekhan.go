@@ -4,6 +4,9 @@
 // Devanagari by its clusters, as the typewriters did: a simple cluster (a
 // consonant or a vowel with its signs: आ, कि, ला) one cell, a conjunct (two
 // or more consonants joined by the virama: क्ष, त्न, स्क्री, र्य) two.
+// Arabic's lam-alef is one cluster of one cell, as the fonts draw it (the
+// required ligature, one glyph): لا, and with vowel marks on the lam (لَا,
+// لّا, لّٰا); a tatweel or a joiner between keeps the two apart.
 //
 // Clusters are extended grapheme clusters (UAX #29) with the virama rule
 // of Unicode 15.1 (GB9c): a consonant after a virama that follows a
@@ -20,6 +23,7 @@ import "unicode"
 
 const (
 	virama = 0x094D
+	lam    = 0x0644
 	zwnj   = 0x200C
 	zwj    = 0x200D
 )
@@ -40,6 +44,27 @@ func Devanagari(r rune) bool {
 // mark tells whether r is a combining mark: drawn on the character before
 // it.
 func mark(r rune) bool { return unicode.In(r, unicode.Mn, unicode.Mc, unicode.Me) }
+
+// alef tells whether r is an alef that makes a ligature with a lam before
+// it: alef, with madda, with hamza above or below. Not alef wasla (ٱ) nor
+// the extended ones, which the fonts draw apart.
+func alef(r rune) bool { return r == 0x0627 || r == 0x0622 || r == 0x0623 || r == 0x0625 }
+
+// LamAlef tells whether rs[i] is the alef of a lam-alef: an alef whose
+// first character before it that is no combining mark (Mn, Me) is a lam.
+// A tatweel, a zero-width non-joiner or joiner between ends the look-back:
+// the fonts draw the two apart (لـا, ل‍ا).
+func LamAlef(rs []rune, i int) bool {
+	if i <= 0 || i >= len(rs) || !alef(rs[i]) {
+		return false
+	}
+	for k := i - 1; k >= 0; k-- {
+		if !unicode.In(rs[k], unicode.Mn, unicode.Me) {
+			return rs[k] == lam
+		}
+	}
+	return false
+}
 
 // RuneWidth is how many cells r takes by itself: 2 for East Asian wide
 // and fullwidth characters and emoji, 0 for what is drawn on the
@@ -88,14 +113,15 @@ func wide(r rune) bool {
 
 // Joins tells whether b belongs to the cluster of a, the character before
 // it, judged by the two alone: b a combining mark or a joiner, a after a
-// zero-width joiner, or a Devanagari consonant after a virama. Boundary
-// is exact (the virama joins only after a consonant); Joins is for a
-// caller that sees two characters, and differs only on malformed text.
+// zero-width joiner, a Devanagari consonant after a virama, or an alef
+// after a lam. Boundary is exact (the virama joins only after a consonant,
+// an alef also after the marks on a lam: لَا); Joins is for a caller that
+// sees two characters, and differs only there and on malformed text.
 func Joins(a, b rune) bool {
 	if a < 0x20 { // a line's start: a mark there has no letter
 		return false
 	}
-	return mark(b) || b == zwnj || b == zwj || a == zwj || a == virama && Consonant(b)
+	return mark(b) || b == zwnj || b == zwj || a == zwj || a == virama && Consonant(b) || a == lam && alef(b)
 }
 
 // Boundary tells whether a cluster starts at rs[i] (at 0 and at len(rs)
@@ -103,6 +129,9 @@ func Joins(a, b rune) bool {
 func Boundary(rs []rune, i int) bool {
 	if i <= 0 || i >= len(rs) {
 		return true
+	}
+	if LamAlef(rs, i) {
+		return false // its lam's cluster, over the marks on the lam
 	}
 	a, b := rs[i-1], rs[i]
 	if !Joins(a, b) {
@@ -139,7 +168,7 @@ func ClusterEnd(rs []rune, i int) int {
 
 // ClusterCells is how many cells a cluster takes: a Devanagari one 2 with
 // two or more consonants (a conjunct), else 1; another the sum of its
-// characters' RuneWidth.
+// characters' RuneWidth, a lam-alef's alef none.
 func ClusterCells(c []rune) int {
 	if len(c) == 0 {
 		return 0
@@ -150,6 +179,9 @@ func ClusterCells(c []rune) int {
 			if k > 0 && Devanagari(r) && mark(r) && !devaBase(c[:k]) {
 				n++ // a Devanagari mark without its letter: on a dotted circle
 				continue
+			}
+			if LamAlef(c, k) {
+				continue // the lam's cell
 			}
 			n += RuneWidth(r)
 		}
@@ -181,7 +213,7 @@ func devaBase(c []rune) bool {
 // Cells is the cells each rune of rs takes, so that a cluster's runes add
 // up to its ClusterCells: in a Devanagari cluster its first rune 1 and its
 // second consonant 1 (the conjunct's second cell), the others 0; elsewhere
-// each rune its RuneWidth.
+// each rune its RuneWidth, a lam-alef's alef 0 (the lam has the cell).
 func Cells(rs []rune) []int {
 	out := make([]int, len(rs))
 	for i := 0; i < len(rs); {
@@ -210,6 +242,9 @@ func share(c []rune, out []int) {
 			out[k] = RuneWidth(r)
 			if k > 0 && Devanagari(r) && mark(r) && !devaBase(c[:k]) {
 				out[k] = 1
+			}
+			if LamAlef(c, k) {
+				out[k] = 0
 			}
 		}
 		return

@@ -108,15 +108,57 @@ func equalGIDs(a, b []gofont.GID) bool {
 func TestArabicForms(t *testing.T) {
 	s := shaperFor(font.CourierPrimeName, font.GetFont(font.CourierPrimeName, ""))
 	for in, want := range map[string]string{
-		"قهوة":    "\uFED7\uFEEC\uFEEE\u0629", // initial, medial, final waw, teh marbuta alone (waw does not join on)
-		"لا":      "\uFEFB",                   // lam-alef
-		"سمير ١٢": "\uFEB3\uFEE4\uFEF4\uFEAE ١٢",
-		"Hello":   "Hello",
+		"قهوة":     "\uFED7\uFEEC\uFEEE\u0629", // initial, medial, final waw, teh marbuta alone (waw does not join on)
+		"لا":       "\uFEFB",                   // lam-alef
+		"لَا":      "\uFEFB\u064E",             // with a vowel on the lam (Courier Badi 1.109)
+		"لـا":      "\uFEDF\u0640\uFE8E",       // a tatweel between: joined to it, no ligature
+		"ل\u200dا": "\uFEDF\uFE8E",             // a ZWJ between: joined forms, the joiner printing nothing
+		"سمير ١٢":  "\uFEB3\uFEE4\uFEF4\uFEAE ١٢",
+		"Hello":    "Hello",
 		// vowelled: the marks stay after their letters, the letters joined
 		"سِمْسِمْ": "\uFEB3\u0650\uFEE4\u0652\uFEB4\u0650\uFEE2\u0652",
 	} {
 		if got, _ := s.shape(in); got != want {
 			t.Errorf("%q: %+q, want %+q", in, got, want)
+		}
+	}
+}
+
+// A lam-alef takes one cell as the PDF prints it, also with vowel marks on
+// the lam (Courier Badi 1.109's ligature over them); a tatweel or a joiner
+// between keeps the two apart: in each style, the shaped text's cellWidth
+// is its Lekhan width (lekhan.Width of the text as written, as Accolade
+// counts it) and the shaper's advance.
+func TestLamAlefCells(t *testing.T) {
+	words := []string{"لا", "لَا", "لّا", "لٰا", "لّٰا", "لاَ", "لأ", "لِإ", "لَآ", "فَلَّا", "السَّلَامُ", "إلا",
+		"لَـا", "لـا", "ل\u200dا", "ل\u200cا", "ل\u200dَا", "لٱ"}
+	for _, style := range []string{"", "B", "I", "BI"} {
+		data := font.GetFont(font.CourierPrimeName, style)
+		pdf := NewFpdf("P", "in", "Letter")
+		AddFont(pdf, "CourierPrime", style, data)
+		pdf.SetFont("CourierPrime", style, 12)
+		space := pdf.GetStringWidth(" ")
+		sh := newFontShaper(data)
+		for _, w := range words {
+			want := cells(w)
+			shaped, n := sh.shape(w)
+			if n > 0 {
+				t.Errorf("%s %q: %d letters unshaped", style, w, n)
+			}
+			if got := cellWidth(pdf, shaped, false); abs(got-float64(want)*space) > 1e-6 {
+				t.Errorf("%s %q: printed as %+q, %.2f cells, want %d", style, w, shaped, got/space, want)
+			}
+			rs := []rune(w)
+			out := sh.sh.Shape(shaping.Input{Text: rs, RunEnd: len(rs), Direction: di.DirectionRTL, Face: sh.face,
+				Size: fixed.I(int(sh.face.Upem())), Script: language.Arabic, Language: arabicLanguage})
+			if got := float64(out.Advance) / 64 / float64(sh.face.Upem()) * 12 / 72; abs(got-float64(want)*space) > 1e-3 {
+				t.Errorf("%s %q: the font draws %.2f cells, want %d", style, w, got/space, want)
+			}
+		}
+	}
+	for w, want := range map[string]int{"لا": 1, "لَا": 1, "لّٰا": 1, "فَلَّا": 2, "لَـا": 3, "ل\u200dا": 2} {
+		if cells(w) != want {
+			t.Errorf("Lekhan width of %q: %d, want %d", w, cells(w), want)
 		}
 	}
 }

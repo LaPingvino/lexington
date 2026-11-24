@@ -149,3 +149,32 @@ func TestJoins(t *testing.T) {
 		t.Error("ZWNJ")
 	}
 }
+
+// A lam-alef is one cluster of one cell, also with vowel marks on the
+// lam; a tatweel or a joiner between, alef wasla, keep the two apart.
+func TestLamAlef(t *testing.T) {
+	for text, want := range map[string]int{
+		"لا": 1, "لآ": 1, "لأ": 1, "لإ": 1, "لاَ": 1, "إلا": 2, "بلا": 2, "السلام": 5, "لأن": 2,
+		"لَا": 1, "لّا": 1, "لٰا": 1, "لّٰا": 1, "فَلَّا": 2, "السَّلَامُ": 5,
+		"لَـا": 3, "لـا": 3, "ل‍ا": 2, "ل‌ا": 2, "لٱ": 2, "ڵا": 2, "َا": 1,
+	} {
+		if got := Width(text); got != want {
+			t.Errorf("Width(%q) = %d, want %d", text, got, want)
+		}
+	}
+	rs := []rune("فَلَّا ب")
+	for i, want := range []bool{true, false, true, false, false, false, true, true} {
+		if got := Boundary(rs, i); got != want {
+			t.Errorf("%q: Boundary(%d) = %v, want %v", string(rs), i, got, want)
+		}
+	}
+	if ClusterEnd(rs, 2) != 6 || ClusterCells(rs[2:6]) != 1 {
+		t.Errorf("لَّا: ends at %d, %d cells", ClusterEnd(rs, 2), ClusterCells(rs[2:6]))
+	}
+	if !Joins('ل', 'ا') || Joins('َ', 'ا') || Joins('ـ', 'ا') || Joins('ل', 'ٱ') || Joins('ب', 'ب') {
+		t.Error("Joins")
+	}
+	if rs := []rune("بَا"); !Boundary(rs, 2) {
+		t.Error("an alef after a vowelled beh joins")
+	}
+}

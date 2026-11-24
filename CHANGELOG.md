@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Lam-alef with a vowel on the lam is one glyph, one cell.** Courier Badi 1.109 (unhinted, as 1.108)
+  ligates lam and alef over the marks between (لَا, لّا, لٰا, فَلَّا, السَّلَام): the PDF prints the
+  ligature and its marks, one cell, where 1.108 printed lam and alef apart, two. `lekhan` counts the same:
+  a lam-alef is one cluster of one cell, `LamAlef(rs, i)` looking back from the alef over combining marks
+  (Mn, Me) to the lam; a tatweel, ZWNJ or ZWJ between keeps the two apart (لـا three cells, ل‍ا two), as
+  does alef wasla. `Joins` (two characters) takes an alef after a lam; `Boundary` also after the lam's
+  marks.
+- **A tatweel joins in the PDF.** It is of no script of its own and ended the Arabic run, so the letters
+  on each side of it were printed in their isolated forms (لـا as ل ـ ا); it is shaped with the run.
+- **A ZWJ in an Arabic word prints nothing.** The shaper hides it as a space glyph in the letter's
+  cluster, and the PDF printed that space: a blank cell in ل‍ا, three cells instead of two.
 - **Devanagari's headline overlaps from piece to piece.** Courier Badi 1.108 (unhinted, as 1.107): each
   headline end, a cluster's and a pad's, runs 20 units (of 2048) past its edge, so neighbours overlap by
   40 instead of nearly meeting edge to edge; ी's headline reaches its cell's edge (in हिन्दी it stopped 16

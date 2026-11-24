@@ -33,11 +33,12 @@ import (
 
 // fontShaper shapes a font's Arabic runs (here) and Devanagari ones (devanagari.go).
 type fontShaper struct {
-	mu    sync.Mutex
-	face  *gofont.Face
-	chars map[gofont.GID]rune // the character each glyph prints from
-	sh    shaping.HarfbuzzShaper
-	codes *coded // every glyph's character, in the PDF's copy of the font
+	mu     sync.Mutex
+	face   *gofont.Face
+	chars  map[gofont.GID]rune // the character each glyph prints from
+	joiner map[gofont.GID]bool // a joiner's glyphs (ZWNJ's, ZWJ's, the space the shaper hides them as): no print
+	sh     shaping.HarfbuzzShaper
+	codes  *coded // every glyph's character, in the PDF's copy of the font
 }
 
 var shapers sync.Map // a font file's bytes (as a string key of its address) to its *fontShaper
@@ -53,7 +54,12 @@ func newFontShaper(data []byte) *fontShaper {
 		return nil
 	}
 	var buf sfnt.Buffer
-	s := &fontShaper{face: face, chars: map[gofont.GID]rune{}, codes: glyphCoded(data)}
+	s := &fontShaper{face: face, chars: map[gofont.GID]rune{}, joiner: map[gofont.GID]bool{}, codes: glyphCoded(data)}
+	for _, r := range []rune{0x200C, 0x200D, ' '} { // (a run has no space of its own)
+		if g, ok := face.NominalGlyph(r); ok && g != 0 {
+			s.joiner[g] = true
+		}
+	}
 	for _, r := range shapeTargets {
 		for c := r[0]; c <= r[1]; c++ {
 			if g, err := f.GlyphIndex(&buf, c); err == nil && g != 0 {
@@ -77,10 +83,11 @@ var shapeTargets = [][2]rune{{0x20, 0x7E}, {0xA0, 0xFF}, {0x0600, 0x06FF}, {0x07
 	{0x200C, 0x200F}, {0xFB50, 0xFDFF}, {0xFE70, 0xFEFF}}
 
 // arabicRune tells whether a character is shaped with the Arabic run
-// around it: an Arabic letter or mark, or a joiner.
+// around it: an Arabic letter or mark, the tatweel (of no script of its
+// own: the letters on each side join to it), or a joiner.
 func arabicRune(r rune) bool {
 	return unicode.Is(unicode.Arabic, r) && r != 0x060C && r != 0x061B && r != 0x061F &&
-		!(r >= 0x0660 && r <= 0x0669) && !(r >= 0x06F0 && r <= 0x06F9) || r == 0x200C || r == 0x200D
+		!(r >= 0x0660 && r <= 0x0669) && !(r >= 0x06F0 && r <= 0x06F9) || r == 0x0640 || r == 0x200C || r == 0x200D
 }
 
 // arabicRunEnd is where the Arabic run starting at rs[i] ends. The vowel
@@ -151,6 +158,9 @@ func (s *fontShaper) shapeRun(run []rune) ([]rune, int) {
 		var chars []rune
 		ok := true
 		for _, g := range c.gids {
+			if s.joiner[g] {
+				continue // a joiner in a letter's cluster (ل‍ا): it sets the forms, prints nothing
+			}
 			r, has := s.chars[g]
 			if !has {
 				ok = false
