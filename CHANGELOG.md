@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.62.0] - 2026-11-24
+
 ### Added
 - **A vowel on a lam-alef on its own stroke, through `Shaper` too.** `Shaper.ComposeMarks` is `Compose` with
   where each composed mark goes, from the shaping of the text as written (one `MarkPlace` per character of
