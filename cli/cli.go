@@ -784,17 +784,18 @@ func writeReport(o Options, conf rules.TOMLConf, screenplay lex.Screenplay) erro
 // PDFWarning says what a PDF of the screenplay cannot print as written,
 // and what to do instead; "" when it prints well.
 func PDFWarning(s lex.Screenplay) string {
-	missing, shaping := pdf.Unsupported(s)
+	missing, _ := pdf.Unsupported(s)
+	scripts := pdf.Unshaped(s)
 	var why []string
 	if len(missing) > 0 {
 		shown := missing
 		if len(shown) > 12 {
 			shown = shown[:12]
 		}
-		why = append(why, fmt.Sprintf("its font has no %s (%d characters), which show as boxes", string(shown), len(missing)))
+		why = append(why, fmt.Sprintf("no font on this computer has %s (%d characters), which print as blanks", string(shown), len(missing)))
 	}
-	if shaping {
-		why = append(why, "its letters that join (Syriac, N'Ko…, or Arabic letters whose joined forms the font has only as glyphs) would print unjoined, as the PDF shapes Arabic only")
+	if len(scripts) > 0 {
+		why = append(why, fmt.Sprintf("its %s letters that join would print unjoined: the PDF cannot shape them", strings.Join(scripts, ", ")))
 	}
 	if len(why) == 0 {
 		return ""

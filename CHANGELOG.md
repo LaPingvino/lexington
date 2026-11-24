@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Characters Courier Badi lacks print, from the computer's fonts.** CJK and any other character the PDF's
+  font has no glyph for is taken from a font on the computer (fontconfig on Linux; the system's and the
+  user's font folders on macOS and Windows; none in the browser) and added to the font the PDF embeds, which
+  gofpdf subsets as before. CFF outlines (Noto Sans CJK's) are made quadratic. Each glyph takes the cells
+  the Lekhan width gives its character (a CJK one two, as the editor shows it), centred, narrowed if wider:
+  the script is measured, wrapped and centred by them. A character no font has takes its cells blank. A
+  Drawing's font has the glyphs, so its pages paint as the PDF prints them; `Rasterizer.Fallback` draws a
+  character it has no outline for (the browser's fonts, in the web version). A script whose characters the
+  font has all is printed byte for byte as before.
+- **`pdf.Unshaped`** names the scripts whose joining letters the PDF cannot shape (Syriac, N'Ko…).
+
+### Changed
+- **`pdf.Unsupported` and `cli.PDFWarning`** count a character as missing only when no font on the
+  computer has it either; the warning names the scripts it cannot shape.
+
 ## [1.59.0] - 2026-11-24
 
 ### Fixed

@@ -1,6 +1,7 @@
 package pdf
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/LaPingvino/lexington/lex"
@@ -28,7 +29,15 @@ func TestUnsupported(t *testing.T) {
 	if _, shaping := Unsupported(line("١٢٣ ،؟")); shaping {
 		t.Errorf("Arabic digits and punctuation join nothing: shaping %v", shaping)
 	}
-	if m, _ := Unsupported(line("你好你")); string(m) != "你好" {
-		t.Errorf("Chinese: missing %q", string(m))
+	// Chinese: Courier Badi has none; a font on the computer may
+	want := "你好"
+	if len(systemHas([]rune("你好"))) == 2 {
+		want = ""
+	}
+	if m, _ := Unsupported(line("你好你")); string(m) != want {
+		t.Errorf("Chinese: missing %q, want %q", string(m), want)
+	}
+	if s := Unshaped(line("ܫܠܡܐ ߒߞߏ")); strings.Join(s, ",") != "Nko,Syriac" {
+		t.Errorf("Syriac and N'Ko: unshaped %q", s)
 	}
 }

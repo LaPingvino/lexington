@@ -1020,11 +1020,13 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 		elements = scaled
 	}
 
-	// Load fonts using modern embed approach
-	AddFont(pdf, "CourierPrime", "", font.GetFont("CourierPrime", ""))
-	AddFont(pdf, "CourierPrime", "B", font.GetFont("CourierPrime", "B"))
-	AddFont(pdf, "CourierPrime", "I", font.GetFont("CourierPrime", "I"))
-	AddFont(pdf, "CourierPrime", "BI", font.GetFont("CourierPrime", "BI"))
+	// Courier Badi, with the glyphs it lacks for the script's characters
+	// from the computer's fonts (fallback.go)
+	printed := lex.Printable(screenplay, elements.Hides) // notes are not printed
+	runes := fallbackRunes(printed, p.TitlePage, elements, continueds)
+	for _, style := range []string{"", "B", "I", "BI"} {
+		AddFont(pdf, "CourierPrime", style, withFallback(font.GetFont("CourierPrime", style), style, runes))
+	}
 
 	// Set default font for the document
 	pdf.SetFont("CourierPrime", "", 12)
@@ -1039,11 +1041,11 @@ func (p *PDFWriter) tree(screenplay lex.Screenplay) *Tree {
 		paper:        strings.ToLower(size),
 		PDF:          pdf,
 		Rules:        elements,
-		F:            lex.Printable(screenplay, elements.Hides), // notes are not printed
+		F:            printed,
 		DualDialogue: false,
 		DualColumn:   0,
 		DualBuffer:   []lex.Line{},
-		Fonts:        newFonts(pdf),
+		Fonts:        newFonts(pdf, runes),
 		Scale:        width / 8.5,
 		VScale:       height / 11,
 		title:        p.TitlePage,

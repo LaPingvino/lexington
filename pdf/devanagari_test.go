@@ -204,7 +204,7 @@ func TestDevanagariWrapsByCells(t *testing.T) {
 	}
 	pdf.SetMargins(1, 1, 1)
 	pdf.SetAutoPageBreak(false, 0)
-	tree := &Tree{PDF: pdf, Rules: rules.Default, Fonts: newFonts(pdf)}
+	tree := &Tree{PDF: pdf, Rules: rules.Default, Fonts: newFonts(pdf, nil)}
 	deva := strings.Join(devaWords, " ")
 	latin := ""
 	for _, w := range devaWords {

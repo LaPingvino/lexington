@@ -140,6 +140,21 @@ func makeCoded(data []byte) *coded {
 // 12) replaced by ones of mapping (its other subtables kept); nil if the
 // file cannot be rewritten.
 func withCmap(data []byte, mapping map[rune]gofont.GID) []byte {
+	old := readTables(data)["cmap"]
+	if old == nil {
+		return nil
+	}
+	cmap := newCmap(old, mapping)
+	if cmap == nil {
+		return nil
+	}
+	return withTables(data, map[string][]byte{"cmap": cmap}, nil)
+}
+
+// withTables is a font file with the tables of replace in place of its
+// own (by tag; one it does not have is not added) and those of drop left
+// out; nil if the file cannot be read.
+func withTables(data []byte, replace map[string][]byte, drop map[string]bool) []byte {
 	type table struct {
 		tag  string
 		data []byte
@@ -152,7 +167,6 @@ func withCmap(data []byte, mapping map[rune]gofont.GID) []byte {
 		return nil
 	}
 	var tables []table
-	cmapAt := -1
 	for i := 0; i < n; i++ {
 		rec := data[12+16*i:]
 		off, length := binary.BigEndian.Uint32(rec[8:]), binary.BigEndian.Uint32(rec[12:])
@@ -160,27 +174,35 @@ func withCmap(data []byte, mapping map[rune]gofont.GID) []byte {
 			return nil
 		}
 		tag := string(rec[:4])
-		if tag == "cmap" {
-			cmapAt = i
+		if drop[tag] {
+			continue
 		}
-		tables = append(tables, table{tag, data[off : off+length]})
+		b := data[off : off+length]
+		if r, ok := replace[tag]; ok {
+			b = r
+		}
+		tables = append(tables, table{tag, b})
 	}
-	if cmapAt < 0 {
-		return nil
+	// the file: the header and directory (the search fields as the
+	// tables' number gives them), then the tables, each on four bytes
+	out := slices.Clone(data[:12])
+	nt := len(tables)
+	binary.BigEndian.PutUint16(out[4:], uint16(nt))
+	entry := 0
+	for 1<<(entry+1) <= nt {
+		entry++
 	}
-	cmap := newCmap(tables[cmapAt].data, mapping)
-	if cmap == nil {
-		return nil
-	}
-	tables[cmapAt].data = cmap
-	// the file: the header and directory, then the tables, each on four bytes
-	out := slices.Clone(data[:12+16*n])
+	binary.BigEndian.PutUint16(out[6:], uint16(16<<entry))
+	binary.BigEndian.PutUint16(out[8:], uint16(entry))
+	binary.BigEndian.PutUint16(out[10:], uint16(16*nt-16<<entry))
+	out = append(out, make([]byte, 16*nt)...)
 	headAt := -1
 	for i, t := range tables {
 		for len(out)%4 != 0 {
 			out = append(out, 0)
 		}
 		rec := out[12+16*i:]
+		copy(rec, t.tag)
 		b := t.data
 		if t.tag == "head" && len(b) >= 12 {
 			b = slices.Clone(b)

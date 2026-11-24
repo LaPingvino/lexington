@@ -14,7 +14,7 @@ import (
 )
 
 func TestFontSettings(t *testing.T) {
-	f := newFonts(gofpdf.New("P", "in", "Letter", ""))
+	f := newFonts(gofpdf.New("P", "in", "Letter", ""), nil)
 	dir := t.TempDir()
 	file := filepath.Join(dir, "Mine-Regular.ttf")
 	os.WriteFile(file, font.GetFont("CourierPrime", ""), 0o644)

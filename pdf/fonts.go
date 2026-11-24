@@ -25,11 +25,12 @@ type fonts struct {
 	files     map[string]string          // a file's path to its name in the PDF
 	has       map[string]func(rune) bool // a font's name to its glyph test
 	data      map[string][]byte          // a file font's name to its regular face, name/style to a style's
+	runes     []rune                     // the script's characters, for a file font's fallback glyphs
 }
 
-func newFonts(pdf Drawer) *fonts {
+func newFonts(pdf Drawer, runes []rune) *fonts {
 	return &fonts{pdf: pdf, translate: pdf.UnicodeTranslatorFromDescriptor(""),
-		files: map[string]string{}, has: map[string]func(rune) bool{}, data: map[string][]byte{}}
+		files: map[string]string{}, has: map[string]func(rune) bool{}, data: map[string][]byte{}, runes: runes}
 }
 
 // compose is text as the (embedded or file) font name prints it: Hebrew
@@ -174,10 +175,10 @@ func (f *fonts) file(path string) string {
 				break
 			}
 		}
-		AddFont(f.pdf, name, style, b)
+		AddFont(f.pdf, name, style, withFallback(b, style, f.runes))
 		f.data[name+"/"+style] = b
 	}
-	AddFont(f.pdf, name, "", regular)
+	AddFont(f.pdf, name, "", withFallback(regular, "", f.runes))
 	f.files[path] = name
 	f.has[name] = glyphTest(regular)
 	f.data[name] = regular

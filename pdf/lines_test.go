@@ -21,7 +21,7 @@ func TestLinesAsPrinted(t *testing.T) {
 	}
 	pdf.SetMargins(1, 1, 1)
 	pdf.SetAutoPageBreak(false, 0)
-	tree := &Tree{PDF: pdf, Rules: rules.Default, Fonts: newFonts(pdf)}
+	tree := &Tree{PDF: pdf, Rules: rules.Default, Fonts: newFonts(pdf, nil)}
 	words := strings.Fields("I never thought it would come to this. We had plans, you know. Big ones. " +
 		"The house by the sea, the boat, the dog, and a supercalifragilisticexpialidociouslylongword too.")
 	var texts []string

@@ -6,6 +6,7 @@ import (
 	"math"
 	"strings"
 	"sync"
+	"unicode"
 
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/gofont/gobold"
@@ -17,6 +18,7 @@ import (
 	"golang.org/x/image/font/gofont/gomonoitalic"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/font/sfnt"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -28,11 +30,17 @@ import (
 // the PDF. A Rasterizer keeps the faces and glyphs it made; it is safe
 // for use by several goroutines.
 type Rasterizer struct {
-	d      *Drawing
-	mu     sync.Mutex
-	fonts  map[string]*opentype.Font
-	faces  map[faceKey]font.Face
-	glyphs map[glyphKey]*glyph
+	// Fallback, when set, draws a character the drawing's font has no
+	// outline for (in the browser, where the PDF writer has no fonts of
+	// the computer's: fallback.go), size pixels to the em in the advance
+	// w the font gives it (its cells): a mask whose bounds are from the
+	// pen on the baseline (y down), nil for none. Set it before painting.
+	Fallback func(s string, size, w float64) *image.Alpha
+	d        *Drawing
+	mu       sync.Mutex
+	fonts    map[string]*opentype.Font
+	faces    map[faceKey]font.Face
+	glyphs   map[glyphKey]*glyph
 }
 
 type faceKey struct {
@@ -182,6 +190,29 @@ func (r *Rasterizer) face(key string, px float64) (faceKey, font.Face) {
 	return fk, face
 }
 
+// lacks tells whether the font key has no outline for c that prints:
+// no glyph, or an empty one (fallback.go's for a character no font on
+// the computer has), for a character that takes a cell.
+func (r *Rasterizer) lacks(key string, c rune) bool {
+	if unicode.IsSpace(c) || unicode.IsControl(c) || zeroCell(c) {
+		return false
+	}
+	f := r.fonts[key]
+	if f == nil {
+		return false
+	}
+	var buf sfnt.Buffer
+	g, err := f.GlyphIndex(&buf, c)
+	if err != nil {
+		return false
+	}
+	if g == 0 {
+		return true
+	}
+	segs, err := f.LoadGlyph(&buf, g, 64*64, nil)
+	return err == nil && len(segs) == 0
+}
+
 func (r *Rasterizer) text(img *image.RGBA, t Text, scale float64) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -209,7 +240,7 @@ func (r *Rasterizer) text(img *image.RGBA, t Text, scale float64) {
 		if !ok {
 			g = &glyph{}
 			dot := fixed.Point26_6{X: fixed.Int26_6(fx) * 16, Y: fixed.Int26_6(fy) * 16}
-			if dr, mask, mp, adv, ok := face.Glyph(dot, c); ok {
+			if dr, mask, mp, adv, ok := face.Glyph(dot, c); ok && (r.Fallback == nil || !r.lacks(fk.font, c)) {
 				a := image.NewAlpha(image.Rect(0, 0, dr.Dx(), dr.Dy()))
 				for y := 0; y < dr.Dy(); y++ {
 					for x := 0; x < dr.Dx(); x++ {
@@ -220,6 +251,15 @@ func (r *Rasterizer) text(img *image.RGBA, t Text, scale float64) {
 				g.mask, g.at, g.adv = a, dr.Min, adv
 			} else {
 				g.adv, _ = face.GlyphAdvance(c)
+			}
+			if r.Fallback != nil && (g.mask == nil || g.mask.Rect.Empty()) && r.lacks(fk.font, c) {
+				if m := r.Fallback(string(c), t.Size*scale, float64(g.adv)/64); m != nil && !m.Rect.Empty() {
+					a := image.NewAlpha(image.Rect(0, 0, m.Rect.Dx(), m.Rect.Dy()))
+					for y := 0; y < m.Rect.Dy(); y++ {
+						copy(a.Pix[y*a.Stride:y*a.Stride+m.Rect.Dx()], m.Pix[m.PixOffset(m.Rect.Min.X, m.Rect.Min.Y+y):])
+					}
+					g.mask, g.at = a, m.Rect.Min
+				}
 			}
 			r.glyphs[gk] = g
 		}

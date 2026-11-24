@@ -175,7 +175,7 @@ func TestLamAlefMarkOnItsStroke(t *testing.T) {
 	for _, s := range []string{"", "B", "I", "BI"} {
 		AddFont(pdf, "CourierPrime", s, font.GetFont("CourierPrime", s))
 	}
-	tree := &Tree{PDF: pdf, Rules: rules.Default, Fonts: newFonts(pdf)}
+	tree := &Tree{PDF: pdf, Rules: rules.Default, Fonts: newFonts(pdf, nil)}
 	for _, style := range []string{"", "B", "I", "BI"} {
 		f := tree.Rules.Get(lex.TypeAction)
 		f.Style = style
