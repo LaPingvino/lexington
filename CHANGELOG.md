@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.60.0] - 2026-11-24
+
 ### Added
 - **Characters Courier Badi lacks print, from the computer's fonts.** CJK and any other character the PDF's
   font has no glyph for is taken from a font on the computer (fontconfig on Linux; the system's and the
