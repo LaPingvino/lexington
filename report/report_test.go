@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -186,5 +187,22 @@ func TestHTML(t *testing.T) {
 	}
 	if strings.Contains(page, "<th>Heading</th>") {
 		t.Error("the CSV's data columns are printed")
+	}
+}
+
+// A scene's synopsis is its own, as Accolade's outline reads it: its
+// first synopsis paragraph (blank lines and a note may come before it),
+// its lines joined; not one after the scene's action, nor a second
+// paragraph (a beat still to write).
+func TestSceneOwnSynopsis(t *testing.T) {
+	const src = "INT. A - DAY\n= Anna waits\n= for the rain.\n\n= A beat still to write.\n\nRain.\n\nINT. B - DAY\n\n= After a blank line.\n\n= Later.\n\nINT. C - DAY\n[[ask Tom]]\n\n= After a note.\n\nINT. D - DAY\n\nRain.\n\n= After the action.\n"
+	s := fountain.Parse(rules.DefaultConf().Scenes("en"), strings.NewReader(src))
+	r := Make(s, Options{})
+	var got []string
+	for _, sc := range r.Scenes {
+		got = append(got, sc.Synopsis)
+	}
+	if want := []string{"Anna waits for the rain.", "After a blank line.", "After a note.", ""}; !slices.Equal(got, want) {
+		t.Errorf("synopses %q, want %q", got, want)
 	}
 }

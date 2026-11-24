@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.63.0] - 2026-11-24
+
+### Changed
+- **A scene's synopsis is its own, as Accolade's outline reads it.** The breakdown sheets, the scene list and
+  the schedule take a scene's synopsis from its first synopsis paragraph (blank lines and notes may come between
+  it and the heading), its lines joined, where before they took the first synopsis line anywhere in the scene,
+  one after the action included, and only its first line.
+
 ## [1.62.0] - 2026-11-24
 
 ### Added

@@ -49,8 +49,11 @@ type Scene struct {
 	// Characters are those who speak in it, in the order they first do.
 	Characters []string
 	Omitted    bool // an OMITTED scene: it keeps its number, it has no length
-	// Synopsis is the scene's first synopsis (Fountain's "= …"), as a
-	// breakdown sheet's.
+	// Synopsis is the scene's own synopsis (Fountain's "= …"), as a
+	// breakdown sheet's, read as Accolade's outline reads it: its first
+	// synopsis paragraph (blank lines and notes may come between it and
+	// the heading), its lines joined; not a synopsis after the scene's
+	// action, which is a beat of its own.
 	Synopsis string
 }
 
@@ -114,6 +117,10 @@ func Make(s lex.Screenplay, o Options) Report {
 	var scene *Scene
 	var speaker *Character
 	inTitle := false
+	// own: the scene's own synopsis can still come (only blank lines and
+	// notes since its heading, or its own lines); inSyn: the line before
+	// was a synopsis
+	own, inSyn := false, false
 	for _, l := range s {
 		switch l.Type {
 		case lex.TypeTitlePage:
@@ -125,11 +132,24 @@ func Make(s lex.Screenplay, o Options) Report {
 			continue
 		}
 		switch l.Type {
+		case lex.TypeEmpty:
+			if inSyn {
+				own = false // its own synopsis has ended
+			}
+			inSyn = false
+		case lex.TypeNote:
+			inSyn = false
+		case lex.TypeSynopsis, lex.TypeScene:
+		default:
+			own, inSyn = false, false
+		}
+		switch l.Type {
 		case lex.TypeScene:
 			r.Scenes = append(r.Scenes, heading(l.Contents, starts))
 			scene = &r.Scenes[len(r.Scenes)-1]
 			scene.Order = len(r.Scenes)
 			speaker = nil
+			own, inSyn = true, false
 		case lex.TypeSpeaker:
 			name := o.alias(CueName(l.Contents))
 			if name == "" {
@@ -153,9 +173,11 @@ func Make(s lex.Screenplay, o Options) Report {
 			}
 		case lex.TypeParen, lex.TypeEmpty, lex.TypeDualOpen, lex.TypeDualNext, lex.TypeDualClose, lex.TypeNote:
 		case lex.TypeSynopsis:
-			if scene != nil && scene.Synopsis == "" {
-				scene.Synopsis = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(lex.StripNotes(l.Contents)), "="))
+			if scene != nil && own {
+				syn := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(lex.StripNotes(l.Contents)), "="))
+				scene.Synopsis = strings.TrimSpace(scene.Synopsis + " " + syn)
 			}
+			inSyn = true
 			speaker = nil
 		default:
 			speaker = nil
