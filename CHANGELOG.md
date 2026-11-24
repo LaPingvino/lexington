@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Devanagari's headline overlaps from piece to piece.** Courier Badi 1.108 (unhinted, as 1.107): each
+  headline end, a cluster's and a pad's, runs 20 units (of 2048) past its edge, so neighbours overlap by
+  40 instead of nearly meeting edge to edge; ी's headline reaches its cell's edge (in हिन्दी it stopped 16
+  short of द's). A test shapes words in all four styles and checks that the pads with the headline are
+  chosen and that every join of the headline overlaps by 30 units at least.
+
 ## [1.57.0] - 2026-11-24
 
 ### Changed
