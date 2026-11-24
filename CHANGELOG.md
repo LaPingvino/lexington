@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.56.0] - 2026-11-24
+
+### Fixed
+- **The PDF's embedded font has a sound cmap.** The font Lexington embeds (each glyph given a character, so
+  shaped glyphs can be printed) had its first Unicode cmap record pointing at the cmap's own header: an
+  offset written into the table before it grew was lost. gofpdf and the viewers read the Windows record and
+  printed right, but a strict reader (fontTools) refused the font.
+
 ## [1.55.0] - 2026-11-23
 
 ### Fixed

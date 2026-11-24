@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"cmp"
+	"encoding/binary"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -325,4 +326,34 @@ func TestDevanagariCellWidth(t *testing.T) {
 			t.Errorf("%q: printed %.3f wide, cellWidth %.3f", w, total, cellWidth(pdf, w, false))
 		}
 	}
+}
+
+// The coded font's cmap points each of its records at a subtable (an
+// offset was lost when the table grew: the first record pointed at the
+// cmap's own header, which a strict reader, fontTools, refuses).
+func TestGlyphCodedCmapRecords(t *testing.T) {
+	c := glyphCoded(font.GetFont(font.CourierPrimeName, ""))
+	data := c.data
+	n := int(binary.BigEndian.Uint16(data[4:]))
+	for i := 0; i < n; i++ {
+		rec := data[12+16*i:]
+		if string(rec[:4]) != "cmap" {
+			continue
+		}
+		off, length := binary.BigEndian.Uint32(rec[8:]), binary.BigEndian.Uint32(rec[12:])
+		cmap := data[off : off+length]
+		subs := int(binary.BigEndian.Uint16(cmap[2:]))
+		for k := 0; k < subs; k++ {
+			r := cmap[4+8*k:]
+			p, e, at := binary.BigEndian.Uint16(r), binary.BigEndian.Uint16(r[2:]), binary.BigEndian.Uint32(r[4:])
+			if at < uint32(4+8*subs) || at+2 > uint32(len(cmap)) {
+				t.Fatalf("cmap record %d/%d points at %d", p, e, at)
+			}
+			if f := binary.BigEndian.Uint16(cmap[at:]); f != 4 && f != 12 && f != 14 && f != 6 && f != 0 {
+				t.Errorf("cmap record %d/%d: format %d", p, e, f)
+			}
+		}
+		return
+	}
+	t.Fatal("no cmap")
 }

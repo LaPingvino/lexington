@@ -273,9 +273,8 @@ func newCmap(old []byte, mapping map[rune]gofont.GID) []byte {
 	binary.BigEndian.PutUint16(out[2:], uint16(len(subs)))
 	at := map[*byte]uint32{} // a subtable shared by two records is written once
 	for i, s := range subs {
-		rec := out[4+8*i:]
-		binary.BigEndian.PutUint16(rec, s.platform)
-		binary.BigEndian.PutUint16(rec[2:], s.encoding)
+		binary.BigEndian.PutUint16(out[4+8*i:], s.platform)
+		binary.BigEndian.PutUint16(out[4+8*i+2:], s.encoding)
 		off, ok := at[unsafe.SliceData(s.data)]
 		if !ok {
 			for len(out)%4 != 0 {
@@ -285,7 +284,8 @@ func newCmap(old []byte, mapping map[rune]gofont.GID) []byte {
 			at[unsafe.SliceData(s.data)] = off
 			out = append(out, s.data...)
 		}
-		binary.BigEndian.PutUint32(rec[4:], off)
+		// (out as it is now: an append may have moved it)
+		binary.BigEndian.PutUint32(out[4+8*i+4:], off)
 	}
 	return out
 }
