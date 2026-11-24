@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.61.0] - 2026-11-24
+
 ### Changed
 - **The system's own font fallback first, in the script's language.** For the characters the PDF's font
   lacks, the operating system's fallback is asked first and its order is kept: each character comes from
