@@ -15,6 +15,8 @@ import (
 	"golang.org/x/image/math/fixed"
 
 	"github.com/LaPingvino/lexington/font"
+	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // TestArabicShapedAsHarfBuzz is the proof of the shaping: for every line
@@ -159,6 +161,44 @@ func TestLamAlefCells(t *testing.T) {
 	for w, want := range map[string]int{"لا": 1, "لَا": 1, "لّٰا": 1, "فَلَّا": 2, "لَـا": 3, "ل\u200dا": 2} {
 		if cells(w) != want {
 			t.Errorf("Lekhan width of %q: %d, want %d", w, cells(w), want)
+		}
+	}
+}
+
+// A vowel on the lam of a lam-alef sits on the lam's half of the
+// ligature, one on the alef on the alef's, in each style: its place
+// comes from the shaping of the text as written (fonts.marks), as both
+// print as U+FEFB U+064E, and the printed form reshaped puts the fatha on
+// the alef.
+func TestLamAlefMarkOnItsStroke(t *testing.T) {
+	pdf := NewFpdf("P", "in", "Letter")
+	for _, s := range []string{"", "B", "I", "BI"} {
+		AddFont(pdf, "CourierPrime", s, font.GetFont("CourierPrime", s))
+	}
+	tree := &Tree{PDF: pdf, Rules: rules.Default, Fonts: newFonts(pdf)}
+	for _, style := range []string{"", "B", "I", "BI"} {
+		f := tree.Rules.Get(lex.TypeAction)
+		f.Style = style
+		_, lines := tree.visualLines(f, "لَا لاَ", true, 6)
+		var marks []placed
+		for _, p := range lines[0] {
+			for _, m := range p.marks {
+				if m.mark == "َ" {
+					if r := []rune(p.text); m.at >= len(r) || r[m.at] != 0xFEFB {
+						t.Errorf("%s: the fatha on %+q, want the lam-alef", style, p.text)
+					}
+					marks = append(marks, m)
+				}
+			}
+		}
+		if len(marks) != 2 {
+			t.Fatalf("%s: fathas placed: %+v", style, marks)
+		}
+		// in visual order: لاَ (the second word) first, at the left
+		onAlef, onLam := marks[0], marks[1]
+		if onLam.dx < 0.05 || onAlef.dx > -0.05 {
+			t.Errorf("%s: the fatha on the lam at %.3f em, on the alef at %.3f em: want the lam's half (> 0.05) and the alef's (< -0.05)",
+				style, onLam.dx, onAlef.dx)
 		}
 	}
 }

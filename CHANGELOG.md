@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.59.0] - 2026-11-24
+
 ### Fixed
 - **Lam-alef with a vowel on the lam is one glyph, one cell.** Courier Badi 1.109 (unhinted, as 1.108)
   ligates lam and alef over the marks between (لَا, لّا, لٰا, فَلَّا, السَّلَام): the PDF prints the
@@ -19,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on each side of it were printed in their isolated forms (لـا as ل ـ ا); it is shaped with the run.
 - **A ZWJ in an Arabic word prints nothing.** The shaper hides it as a space glyph in the letter's
   cluster, and the PDF printed that space: a blank cell in ل‍ا, three cells instead of two.
+- **A vowel on a lam-alef sits on its own stroke.** لَا and لاَ both print as the ligature and a fatha
+  (U+FEFB U+064E), and the marks were placed by shaping that printed form again, which puts every mark on
+  the alef. A mark's place now comes from the shaping of the text as written (the font's ligature anchors:
+  the fatha of لَا on the lam's half, of لاَ on the alef's), carried to where the line is printed; where
+  it is not known (text composed apart from its source, through `Shaper.CellRTL`), the printed form is
+  reshaped as before. The text read out of the PDF is unchanged (pdftotext reads لَا as ﻻَ).
+
+## [1.58.0] - 2026-11-24
+
+### Fixed
 - **Devanagari's headline overlaps from piece to piece.** Courier Badi 1.108 (unhinted, as 1.107): each
   headline end, a cluster's and a pad's, runs 20 units (of 2048) past its edge, so neighbours overlap by
   40 instead of nearly meeting edge to edge; ी's headline reaches its cell's edge (in हिन्दी it stopped 16

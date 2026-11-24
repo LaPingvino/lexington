@@ -172,6 +172,7 @@ type placed struct {
 	at     int
 	mark   string
 	dx, dy float64
+	known  markAt // its place from the shaping of the text as written (fonts.marks), if known
 }
 
 // markRune tells whether a character is a combining mark that the font's
@@ -189,7 +190,22 @@ func (t Tree) visualLines(f rules.Format, text string, rtl bool, width float64) 
 	var chars []string
 	var runes []rune
 	var style []lex.Span
+	var known []markAt // each char's mark place, from the shaping of the text as written
 	for i, s := range spans {
+		var marks []markAt
+		if !core && i < len(plain) {
+			marks = t.Fonts.marks(fontName, fontStyle(f.Style, s), plain[i].Text, s.Text)
+		}
+		for k, r := range []rune(s.Text) {
+			if r == '\r' {
+				continue
+			}
+			if k < len(marks) {
+				known = append(known, marks[k])
+			} else {
+				known = append(known, markAt{})
+			}
+		}
 		printed := strings.ReplaceAll(s.Text, "\r", "")
 		var cs []string
 		if core {
@@ -212,6 +228,9 @@ func (t Tree) visualLines(f rules.Format, text string, rtl bool, width float64) 
 		for range cs {
 			style = append(style, s)
 		}
+	}
+	if len(known) != len(chars) { // (a standard font's bytes)
+		known = make([]markAt, len(chars))
 	}
 	for len(chars) > 0 && chars[len(chars)-1] == "\n" {
 		chars, runes, style = chars[:len(chars)-1], runes[:len(runes)-1], style[:len(style)-1]
@@ -246,7 +265,7 @@ func (t Tree) visualLines(f rules.Format, text string, rtl bool, width float64) 
 				// in a right-to-left run a mark comes before its letter:
 				// held for it, unless no letter of the run follows
 				if v+1 < len(order) && lv[order[v+1]]%2 == 1 && order[v+1] == i-1 {
-					pending = append(pending, placed{mark: c})
+					pending = append(pending, placed{mark: c, known: known[i]})
 					continue
 				}
 			}
@@ -331,8 +350,13 @@ func placeMarks(sh *fontShaper, base string, pending []placed, at int) []placed 
 		cluster = append(cluster, []rune(pending[k].mark)[0])
 	}
 	var dx, dy []float64
-	ok := false
-	if sh != nil {
+	ok := true
+	for k := range pending { // placed by the shaping of the text as written
+		m := pending[len(pending)-1-k]
+		ok = ok && m.known.ok
+		dx, dy = append(dx, m.known.dx), append(dy, m.known.dy)
+	}
+	if !ok && sh != nil {
 		dx, dy, ok = sh.markOffsets(cluster)
 	}
 	out := make([]placed, 0, len(pending))

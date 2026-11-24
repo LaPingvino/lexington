@@ -28,8 +28,10 @@ import (
 // beyond Arabic's, Persian's and Urdu's, which Courier Badi has but only
 // through GSUB) cannot be printed so: such a letter stays as written, its
 // isolated form (Unsupported warns of it). The font's GPOS (mark to base,
-// mark to mark: a fatha on a hamza, over a shadda) places the marks:
-// markOffsets, printed apart by bidiPrint, for Hebrew's points too.
+// mark to mark: a fatha on a hamza, over a shadda; mark to ligature: a
+// vowel on the lam of لَا) places the marks, printed apart by bidiPrint:
+// as the text as written shapes (shapeMarks), else by its printed form
+// (markOffsets), for Hebrew's points too.
 
 // fontShaper shapes a font's Arabic runs (here) and Devanagari ones (devanagari.go).
 type fontShaper struct {
@@ -105,44 +107,79 @@ func arabicRunEnd(rs []rune, i int) int {
 // shape is text with its Arabic runs shaped; unshaped is how many of its
 // letters could not be (no character for their form).
 func (s *fontShaper) shape(text string) (out string, unshaped int) {
+	out, _, unshaped = s.shapeMarks(text)
+	return out, unshaped
+}
+
+// markAt is where the font's GPOS puts a printed mark on its letter, as
+// markOffsets gives it (in ems from where it would stand unplaced, y up);
+// ok is false for a character that is no placed mark, or when unknown.
+type markAt struct {
+	dx, dy float64
+	ok     bool
+}
+
+// shapeMarks is shape, with where each printed mark goes (marks, one for
+// each character of out), from the shaping of the text as written: a
+// mark's place is its own (a vowel on the lam of لَا on the lam's half of
+// the ligature, on the alef's in لاَ), which the printed form (both are
+// U+FEFB U+064E) no longer tells.
+func (s *fontShaper) shapeMarks(text string) (out string, marks []markAt, unshaped int) {
 	rs := []rune(text)
 	var b []rune
 	for i := 0; i < len(rs); {
 		if !arabicRune(rs[i]) {
 			b = append(b, rs[i])
+			marks = append(marks, markAt{})
 			i++
 			continue
 		}
 		j := arabicRunEnd(rs, i)
-		run, n := s.shapeRun(rs[i:j])
-		b, unshaped = append(b, run...), unshaped+n
+		run, at, n := s.shapeRun(rs[i:j])
+		b, marks, unshaped = append(b, run...), append(marks, at...), unshaped+n
 		i = j
 	}
-	return string(b), unshaped
+	return string(b), marks, unshaped
 }
 
-// shapeRun is one Arabic run shaped, in logical order.
-func (s *fontShaper) shapeRun(run []rune) ([]rune, int) {
+// shapeRun is one Arabic run shaped, in logical order, and where each of
+// its printed marks goes on its letter (markAt).
+func (s *fontShaper) shapeRun(run []rune) ([]rune, []markAt, int) {
+	upem := int(s.face.Upem())
 	s.mu.Lock()
 	out := s.sh.Shape(shaping.Input{Text: run, RunStart: 0, RunEnd: len(run), Direction: di.DirectionRTL,
-		Face: s.face, Size: fixed.I(12), Script: language.Arabic, Language: arabicLanguage})
+		Face: s.face, Size: fixed.I(upem), Script: language.Arabic, Language: arabicLanguage})
 	s.mu.Unlock()
+	em := float64(upem) * 64
 	// the glyphs come right to left (visual order): by cluster, in
-	// logical order, each cluster's glyphs as they come within it
+	// logical order, each cluster's glyphs as they come within it, and
+	// where each stands (its pen and offset)
+	type glyph struct {
+		gid  gofont.GID
+		x, y fixed.Int26_6
+	}
 	type cluster struct {
-		start int
-		gids  []gofont.GID
+		start  int
+		glyphs []glyph
+	}
+	pens := make([]fixed.Int26_6, len(out.Glyphs))
+	pen := fixed.Int26_6(0)
+	for k, g := range out.Glyphs {
+		pens[k] = pen
+		pen += g.Advance
 	}
 	var cs []cluster
 	for k := len(out.Glyphs) - 1; k >= 0; k-- {
 		g := out.Glyphs[k]
+		gl := glyph{g.GlyphID, pens[k] + g.XOffset, g.YOffset}
 		if n := len(cs); n > 0 && cs[n-1].start == g.ClusterIndex {
-			cs[n-1].gids = append(cs[n-1].gids, g.GlyphID)
+			cs[n-1].glyphs = append(cs[n-1].glyphs, gl)
 			continue
 		}
-		cs = append(cs, cluster{start: g.ClusterIndex, gids: []gofont.GID{g.GlyphID}})
+		cs = append(cs, cluster{start: g.ClusterIndex, glyphs: []glyph{gl}})
 	}
 	var b []rune
+	var marks []markAt
 	unshaped := 0
 	for k, c := range cs {
 		end := len(run)
@@ -150,32 +187,40 @@ func (s *fontShaper) shapeRun(run []rune) ([]rune, int) {
 			end = cs[k+1].start
 		}
 		if c.start >= end || c.start < 0 || end > len(run) {
-			return run, 0 // not in logical order: leave it as written
+			return run, make([]markAt, len(run)), 0 // not in logical order: leave it as written
 		}
 		if strings.Trim(string(run[c.start:end]), "\u200c\u200d") == "" {
 			continue // a joiner: it sets the forms, prints nothing
 		}
 		var chars []rune
+		var at []markAt
 		ok := true
-		for _, g := range c.gids {
-			if s.joiner[g] {
+		var base *glyph
+		for i, g := range c.glyphs {
+			if s.joiner[g.gid] {
 				continue // a joiner in a letter's cluster (ل‍ا): it sets the forms, prints nothing
 			}
-			r, has := s.chars[g]
+			r, has := s.chars[g.gid]
 			if !has {
 				ok = false
 				break
 			}
-			chars = append(chars, r)
+			m := markAt{}
+			if base == nil {
+				base = &c.glyphs[i]
+			} else if markRune(r) {
+				m = markAt{float64(g.x-base.x) / em, float64(g.y-base.y) / em, true}
+			}
+			chars, at = append(chars, r), append(at, m)
 		}
 		if !ok {
 			unshaped++
-			chars = run[c.start:end]
+			chars, at = run[c.start:end], make([]markAt, end-c.start)
 		}
 		// marks after their letter, as in logical order
-		b = append(b, chars...)
+		b, marks = append(b, chars...), append(marks, at...)
 	}
-	return b, unshaped
+	return b, marks, unshaped
 }
 
 // markOffsets are where the font's GPOS puts the marks on a base

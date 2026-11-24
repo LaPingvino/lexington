@@ -57,6 +57,32 @@ func (f *fonts) compose(name, text string) string {
 	return text
 }
 
+// marks are where the font name in style puts the marks of text (a span
+// as written) printed as printed (compose's), one for each character of
+// printed: from the shaping of text itself (shapeMarks), in the style's
+// own face. Nil where they are not known (no Arabic, or the style's face
+// shapes text other than printed): the marks are then placed by
+// reshaping the printed form (markOffsets).
+func (f *fonts) marks(name, style, text, printed string) []markAt {
+	if f == nil {
+		return nil
+	}
+	has := f.has[name]
+	sh := f.shaper(name, style)
+	if has == nil || sh == nil {
+		return nil
+	}
+	text = composeHebrew(text, has)
+	if !hasArabic(text) {
+		return nil
+	}
+	out, marks, _ := sh.shapeMarks(text)
+	if out != printed {
+		return nil
+	}
+	return marks
+}
+
 // shaper is the shaper of the (embedded or file) font name in a style,
 // nil if it has none.
 func (f *fonts) shaper(name, style string) *fontShaper {
