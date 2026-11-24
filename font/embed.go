@@ -2,9 +2,11 @@
 //
 // The fonts are Courier Badi's unhinted static TTFs (its build's
 // fonts/unhinted/ttf): the installable fonts' outlines, metrics and
-// OpenType tables without the TrueType hinting, which neither go-text
-// (Accolade's editor, Lexington's shaping) nor PDF viewers run; the hinting
-// was about 1.5 MB of each style's 4 MB.
+// OpenType tables without the TrueType hinting, which go-text (Accolade's
+// editor, Lexington's shaping), poppler and pdf.js do not run (Ghostscript
+// does: a PDF's glyph edges move there by a fraction of a pixel); the
+// hinting was about 1.5 MB of each style's 4 MB. For hinted PDFs, put
+// Courier Badi's fonts/ttf here instead.
 package font
 
 import (
