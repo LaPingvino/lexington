@@ -376,17 +376,19 @@ action: CROWDS.`
 
 // A book's layout: a name above its speech at the same indent, the line
 // break kept (not joined into the speech); words broken at line ends
-// joined where the script has the whole word, left as printed elsewhere.
+// joined where the script has the whole word, compounds kept whole
+// (both words in the script), left as printed elsewhere.
 func TestHardBreaksAndHyphens(t *testing.T) {
 	const step = 1.0 / 6
 	page := []line{
 		ln(1, 1.0, at(1.5, "The returned sol-")),
 		ln(1, 1.0+step, at(1.5, "diers wait in line with their bas-")),
-		ln(1, 1.0+2*step, at(1.5, "kets, as soldiers do, in the cold of the morning.")),
-		ln(1, 1.0+4*step, at(1.5, "Doctor")),
-		ln(1, 1.0+5*step, at(1.5, "That little girl needs bread and something warm to drink.")),
+		ln(1, 1.0+2*step, at(1.5, "kets, as soldiers do, in the cold of the smoke-")),
+		ln(1, 1.0+3*step, at(1.5, "filled morning. The smoke is filled with ash.")),
+		ln(1, 1.0+5*step, at(1.5, "Doctor")),
+		ln(1, 1.0+6*step, at(1.5, "That little girl needs bread and something warm to drink.")),
 	}
-	want := `action: The returned soldiers wait in line with their bas- kets, as soldiers do, in the cold of the morning.
+	want := `action: The returned soldiers wait in line with their bas- kets, as soldiers do, in the cold of the smoke-filled morning. The smoke is filled with ash.
 action: Doctor
 action: That little girl needs bread and something warm to drink.`
 	if got := kinds(classify([][]line{page}, 8.5, scenePrefix)); got != want {
@@ -428,5 +430,52 @@ func TestShotIsNoCue(t *testing.T) {
 		if l.Type == lex.TypeSpeaker {
 			t.Errorf("a cue: %q", l.Contents)
 		}
+	}
+}
+
+// A title over several lines above an unusual credit, a "From a story
+// by" line under the author.
+func TestTitlePageMultiLine(t *testing.T) {
+	page := []line{
+		ln(1, 1.0, at(3.75, "MOON PIRATES")),
+		ln(1, 1.2, at(3.8, "PART TWO")),
+		ln(1, 1.4, at(3.55, "THE LOST HARBOUR")),
+		ln(1, 2.0, at(3.25, "Written and Directed by")),
+		ln(1, 2.6, at(3.65, "Anna Smith")),
+		ln(1, 3.4, at(2.75, "From a story by Bo Berg")),
+		ln(1, 9.2, at(5.0, "Third Draft, May 2026")),
+	}
+	s, ok := titlePage(page, 8.5, scenePrefix)
+	if !ok {
+		t.Fatal("no title page")
+	}
+	var got []string
+	for _, l := range s {
+		got = append(got, string(l.Type)+"="+l.Contents)
+	}
+	want := "titlepage=|Title=MOON PIRATES|Title=PART TWO|Title=THE LOST HARBOUR|Credit=Written and Directed by|" +
+		"Author=Anna Smith|Source=From a story by Bo Berg|Draft date=Third Draft, May 2026|newpage="
+	if strings.Join(got, "|") != want {
+		t.Errorf("got  %s\nwant %s", strings.Join(got, "|"), want)
+	}
+}
+
+// The script's end: FADE OUT: and THE END, numbered as scenes or not,
+// are a transition and a centred line, never headings.
+func TestTheEnd(t *testing.T) {
+	const step = 0.1667
+	page := []line{
+		ln(1, 1.0, at(1.5, "Pia waves.")),
+		ln(1, 1.0+2*step, at(6.3, "FADE OUT:")),
+		ln(1, 1.0+4*step, at(1.0, "90"), at(1.5, "THE END"), at(7.5, "90")),
+	}
+	want := "action: Pia waves.\ntrans: FADE OUT:\ncenter: THE END"
+	if got := kinds(classify([][]line{page}, 8.5, scenePrefix)); got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+	page[2] = ln(1, 1.0+4*step, at(3.9, "THE END."))
+	want = "action: Pia waves.\ntrans: FADE OUT:\ncenter: THE END"
+	if got := kinds(classify([][]line{page}, 8.5, scenePrefix)); got != want {
+		t.Errorf("unnumbered, got:\n%s", got)
 	}
 }

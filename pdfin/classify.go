@@ -156,8 +156,9 @@ func joinWrapped(before, text string) string {
 var brokenEnd = regexp.MustCompile(`\p{L}-$`)
 
 // dehyphenate joins the words broken at line ends where the script has
-// the whole word elsewhere ("sol-" "diers" and "soldiers"); the rest are
-// left as printed, with a space ("sol- diers"), never guessed.
+// the whole word elsewhere ("sol-" "diers" and "soldiers"), keeps the
+// compounds whole ("smoke-filled", with both words in the script); the
+// rest are left as printed, with a space ("sol- diers"), never guessed.
 func dehyphenate(s lex.Screenplay) lex.Screenplay {
 	marked := false
 	words := map[string]bool{}
@@ -184,6 +185,10 @@ func dehyphenate(s lex.Screenplay) lex.Screenplay {
 			tail := wordRe.FindString(p)
 			if whole := strings.ToLower(strings.TrimSuffix(head, "-") + tail); head != "" && tail != "" && words[whole] {
 				b.WriteString("\x01") // the hyphen goes
+			} else if head != "" && tail != "" && (words[strings.ToLower(head+tail)] ||
+				words[strings.ToLower(strings.TrimSuffix(head, "-"))] && words[strings.ToLower(tail)]) {
+				// a compound: written whole elsewhere, or both its words are
+				// the script's ("smoke-" "filled"); the hyphen stays
 			} else {
 				b.WriteString(" ")
 			}
@@ -261,6 +266,11 @@ func elementOf(l line, next, after *line, margin, width float64, prev lex.Elemen
 		return lex.TypeScene, strings.ToUpper(strings.Trim(m[3], " -–—:")) + " #" + m[2] + "#"
 	case prev == lex.TypeSpeaker && d < nameTo && parenLine(text):
 		return lex.TypeParen, text // under its name, centred or not
+	case endMark.MatchString(text):
+		// the script's last line, numbered as a scene's or not
+		return lex.TypeCenter, endMark.FindStringSubmatch(text)[1]
+	case fadeOut.MatchString(text):
+		return lex.TypeTrans, strings.TrimSpace(strings.Split(text, "#")[0])
 	case l.numbered && (d < 0.3 || strings.HasPrefix(text, "#")),
 		d < 0.3 && l.upper() && (scene.MatchString(text) || (l.bold() && len(text) < 60)),
 		// its scene word and the next word in capitals, the rest not
@@ -530,31 +540,40 @@ func titlePage(ls []line, width float64, scene *regexp.Regexp) (lex.Screenplay, 
 	}
 	out := lex.Screenplay{{Type: lex.TypeTitlePage}}
 	// the centred lines in the upper half are the title, the credit and
-	// the author, in that order; the rest are details
+	// the author, in that order; the rest are details. With a credit line
+	// ("Written by", "Written and directed by"), all above it is the
+	// title, a line of its own each ("STAR WARS" / "EPISODE IV" / ...).
 	fields := []string{"Title", "Credit", "Author"}
 	stage, meta := 0, false
+	credit := hasCreditLine(ls, width)
 	for _, l := range ls {
 		t := l.text()
 		if pageNumber.MatchString(t) {
 			continue
 		}
 		isCentred := math.Abs((l.x()+l.end())/2-width/2) < 0.6
-		if isCentred && l.Y < 7 && !meta {
-			if stage < len(fields) {
+		if isCentred && l.Y < 7 && !meta && !sourceLine.MatchString(t) {
+			switch {
+			case credit && stage == 1 && !creditLine.MatchString(t):
+				out = append(out, lex.Line{Type: "Title", Contents: t}) // the title goes on
+			case stage < len(fields):
 				// no credit line ("Written by")? then the second is the author
 				if stage == 1 && !creditLine.MatchString(t) && len(ls) > 0 && !hasCredit(ls, width) {
 					stage = 2
 				}
 				out = append(out, lex.Line{Type: fields[stage], Contents: t})
 				stage++
-			} else {
+			default:
 				out[len(out)-1].Contents += " " + t
 			}
 			continue
 		}
 		meta = true
 		key := "Contact"
-		if dateLike.MatchString(t) {
+		switch {
+		case sourceLine.MatchString(t):
+			key = "Source"
+		case dateLike.MatchString(t):
 			key = "Draft date"
 		}
 		out = append(out, lex.Line{Type: key, Contents: t})
@@ -563,6 +582,17 @@ func titlePage(ls []line, width float64, scene *regexp.Regexp) (lex.Screenplay, 
 		return nil, false
 	}
 	return append(out, lex.Line{Type: lex.TypeNewPage}), true
+}
+
+// hasCreditLine: whether one of the title page's centred lines in its
+// upper part is a credit line ("Written by").
+func hasCreditLine(ls []line, width float64) bool {
+	for _, l := range ls {
+		if math.Abs((l.x()+l.end())/2-width/2) < 0.6 && l.Y < 7 && creditLine.MatchString(l.text()) {
+			return true
+		}
+	}
+	return false
 }
 
 // hasCredit: whether the title page's centred lines are three or more

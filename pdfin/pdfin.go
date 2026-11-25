@@ -369,8 +369,15 @@ var (
 	scenePrefix = regexp.MustCompile(`^(INT|EXT|EST|INT\.?/EXT|EXT\.?/INT|I/E)[ .,]`)
 	ocrComma    = regexp.MustCompile(`^(INT|EXT|EST|I/E),`)
 	transition  = regexp.MustCompile(`(TO:|TO BLACK\.|OUT\.|IN:)$`)
-	creditLine  = regexp.MustCompile(`(?i)^(written by|screenplay by|teleplay by|story by|by|an? .* by)$`)
-	dateLike    = regexp.MustCompile(`(?i)\b(19|20)\d\d\b|\b(draft|revis)`)
+	// "Written by", "Written and Directed by", "Original screenplay by"
+	creditLine = regexp.MustCompile(`(?i)^(((original|final|revised) )?(written|directed|screenplay|teleplay|story|adapted|created|produced)` +
+		`(,? (and|&) (written|directed|produced|screenplay))*( for the screen)? by|by|an? .* by):?$`)
+	// "From a story by ...", "Based on the novel by ..."
+	sourceLine = regexp.MustCompile(`(?i)^(from|based on|adapted from|inspired by) (a|an|the) .*\bby\b`)
+	// the script's last line; and the fade out before it
+	endMark  = regexp.MustCompile(`^(THE END|END|FIN)\.?( #[^#]*#)?$`)
+	fadeOut  = regexp.MustCompile(`^(FADE OUT|FADE TO BLACK|CUT TO BLACK)[.:]?( #[^#]*#)?$`)
+	dateLike = regexp.MustCompile(`(?i)\b(19|20)\d\d\b|\b(draft|revis)`)
 )
 
 // scenePattern matches the start of a scene heading: starts are the words

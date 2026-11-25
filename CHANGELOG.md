@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.64.0] - 2026-11-25
+
+### Fixed
+- **A PDF's title page over several lines, its credit in other words.** With a credit line on the title page,
+  all the centred lines above it are the title, a line each ("STAR WARS" / "EPISODE IV" / "A NEW HOPE"), where
+  before only the first was and the next became the credit and the author. Credit lines in more wordings
+  ("Written and Directed by", "Original screenplay by", "Screenplay for the screen by"), and "From a story by
+  ..." / "Based on the novel by ..." is the Source, not the contact.
+- **A PDF's THE END is not a scene.** THE END (END, FIN), numbered in the margins like a scene or not, is a
+  centred line; FADE OUT: / FADE TO BLACK / CUT TO BLACK a transition wherever they stand.
+- **Compounds broken at a PDF's line ends stay whole.** "smoke-" / "filled" is "smoke-filled" when the script
+  has the compound whole or both its words, not "smoke- filled".
+
 ## [1.63.0] - 2026-11-24
 
 ### Changed
