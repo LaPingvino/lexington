@@ -332,7 +332,9 @@ func (lay layout) element(l line, next *line, prev lex.ElementType, margin float
 
 // cueName is a name at the margin without the colon a stage play's
 // names have ("EDWARD:").
-func cueName(text string) string { return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(text), ":")) }
+func cueName(text string) string {
+	return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(text), ":"))
+}
 
 // elementOf is the type and the text of a line, by its indent.
 //
