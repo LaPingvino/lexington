@@ -563,11 +563,8 @@ var fountainMarkup = []struct{ style, marker string }{
 }
 
 // run is a text run as Fountain has it: its text (in capitals if
-// AllCaps) and emphasis, or a note.
-type run struct {
-	lex.Span
-	note bool
-}
+// AllCaps) and emphasis, or a note (lex.Run).
+type run = lex.Run
 
 // runs are a paragraph's text runs and notes, in order, with the type's
 // settings: its capitals, and its bold, italics and underlining for types
@@ -582,7 +579,7 @@ func (r reader) runs(p FdxParagraph) []run {
 	addNotes := func(upto int) {
 		for ; note < len(p.ScriptNotes) && p.noteAt[note] <= upto; note++ {
 			if n := r.notes(p.ScriptNotes[note : note+1]); n != "" {
-				out = append(out, run{Span: lex.Span{Text: n}, note: true})
+				out = append(out, run{Span: lex.Span{Text: n}, Note: true})
 			}
 		}
 	}
@@ -591,7 +588,7 @@ func (r reader) runs(p FdxParagraph) []run {
 		styles := strings.Split(t.Style, "+")
 		if slices.Contains(styles, "HiddenText") {
 			if text := strings.TrimSpace(t.Content); text != "" {
-				out = append(out, run{Span: lex.Span{Text: noteText(text)}, note: true})
+				out = append(out, run{Span: lex.Span{Text: noteText(text)}, Note: true})
 			}
 			continue
 		}
@@ -617,164 +614,17 @@ func (r reader) runs(p FdxParagraph) []run {
 func (r reader) text(p FdxParagraph) string {
 	runs := r.runs(p)
 	var lead []run
-	for len(runs) > 0 && (runs[0].note || strings.TrimSpace(runs[0].Text) == "") && nextText(runs) != "" {
-		if runs[0].note {
+	for len(runs) > 0 && (runs[0].Note || strings.TrimSpace(runs[0].Text) == "") && lex.RunsText(runs) != "" {
+		if runs[0].Note {
 			lead = append(lead, runs[0])
 		}
 		runs = runs[1:]
 	}
-	text := fountainText(runs)
-	if text == "" && nextText(runs) != "" {
-		// emphasis Fountain cannot write as it is: kept run by run, as
-		// far as Fountain reads it back, the rest plain
-		kept := slices.Clone(runs)
-		for i := range kept {
-			if kept[i].note || (!kept[i].Bold && !kept[i].Italic && !kept[i].Underline) {
-				continue
-			}
-			try := slices.Clone(kept)
-			for j := i + 1; j < len(try); j++ {
-				if !try[j].note {
-					try[j].Bold, try[j].Italic, try[j].Underline = false, false, false
-				}
-			}
-			if fountainText(try) == "" {
-				kept[i].Bold, kept[i].Italic, kept[i].Underline = false, false, false
-			}
-		}
-		if text = fountainText(kept); text == "" { // cannot be: plain text escaped reads as itself
-			text = markup(kept, "*_")
-		}
-	}
+	text := lex.FountainRuns(runs)
 	for _, n := range lead {
 		text = strings.TrimRightFunc(text, unicode.IsSpace) + " " + n.Text
 	}
 	return text
-}
-
-// fountainText is the runs as Fountain that reads back as them, with as
-// few markers escaped as will do; "" if there is none.
-func fountainText(runs []run) string {
-	for _, escape := range []string{"", "*", "_", "*_"} {
-		if s := markup(runs, escape); same(lex.Emphasis(lex.StripNotes(s)), runs) {
-			return s
-		}
-	}
-	return ""
-}
-
-// markers are Fountain's emphasis markers, in the order they open.
-var markers = []struct {
-	marker string
-	on     func(lex.Span) bool
-}{
-	{"_", func(s lex.Span) bool { return s.Underline }},
-	{"**", func(s lex.Span) bool { return s.Bold }},
-	{"*", func(s lex.Span) bool { return s.Italic }},
-}
-
-// markup writes runs with Fountain's emphasis markers, escaping the ones
-// in their text that are in escape ("*", "_", "*_"). A marker opens and closes where the style
-// changes, next to the text: the spaces around a change are outside it.
-func markup(runs []run, escape string) string {
-	var b strings.Builder
-	var open []int // markers open, in order
-	space := ""    // spaces not yet written
-	bare := false  // some of them are not underlined (an underline would show under them)
-	change := func(s lex.Span) {
-		keep := 0 // the markers open that stay open: up to the first that does not
-		for keep < len(open) && markers[open[keep]].on(s) && (!bare || markers[open[keep]].marker != "_") {
-			keep++
-		}
-		for i := len(open) - 1; i >= keep; i-- {
-			b.WriteString(markers[open[i]].marker)
-		}
-		open = open[:keep]
-		b.WriteString(space)
-		space, bare = "", false
-		for m := range markers {
-			if markers[m].on(s) && !slices.Contains(open, m) {
-				b.WriteString(markers[m].marker)
-				open = append(open, m)
-			}
-		}
-	}
-	for i, t := range runs {
-		if t.note {
-			// with no space after it, before the spaces in front of
-			// it, so that the text without it keeps them ("Rain[[note]]
-			// falls.")
-			if next := nextText(runs[i+1:]); next == "" || unicode.IsSpace([]rune(next)[0]) {
-				b.WriteString(space + t.Text)
-				space = ""
-			} else {
-				b.WriteString(t.Text)
-			}
-			continue
-		}
-		text := t.Text
-		for _, m := range escape {
-			text = strings.ReplaceAll(text, string(m), `\`+string(m))
-		}
-		content := strings.TrimSpace(text)
-		if content == "" {
-			space += text
-			bare = bare || !t.Underline
-			continue
-		}
-		lead := text[:strings.Index(text, content)]
-		trail := text[len(lead)+len(content):]
-		space += lead
-		bare = bare || lead != "" && !t.Underline
-		change(t.Span)
-		b.WriteString(content)
-		space, bare = trail, trail != "" && !t.Underline
-	}
-	change(lex.Span{})
-	b.WriteString(space)
-	return b.String()
-}
-
-// nextText is the text of the first of runs that is not a note.
-func nextText(runs []run) string {
-	for _, t := range runs {
-		if !t.note && t.Text != "" {
-			return t.Text
-		}
-	}
-	return ""
-}
-
-// same reports whether spans read from Fountain are the runs' text and
-// styles (notes aside; spaces have no style that shows).
-func same(spans []lex.Span, runs []run) bool {
-	var want []lex.Span
-	for _, t := range runs {
-		if !t.note {
-			want = append(want, t.Span)
-		}
-	}
-	return slices.Equal(styledRunes(spans), styledRunes(want))
-}
-
-// styledRune is a character and its style, none for a space.
-type styledRune struct {
-	r                       rune
-	bold, italic, underline bool
-}
-
-func styledRunes(spans []lex.Span) []styledRune {
-	var out []styledRune
-	for _, s := range spans {
-		for _, r := range s.Text {
-			if unicode.IsSpace(r) {
-				out = append(out, styledRune{r: r})
-			} else {
-				out = append(out, styledRune{r, s.Bold, s.Italic, s.Underline})
-			}
-		}
-	}
-	return out
 }
 
 // startsBlock reports whether an element begins a new block, as opposed to

@@ -98,7 +98,7 @@ func TestQuotesFromFountainGenerated(t *testing.T) {
 		if touching {
 			continue
 		}
-		if !slicesEqual(styledRunes(lex.Emphasis(l[0])), styledRunes(lex.Emphasis(src))) {
+		if !lex.SameStyled(lex.Emphasis(l[0]), lex.Emphasis(src)) {
 			t.Errorf("%q back from FDX as %q", src, l[0])
 			continue
 		}
