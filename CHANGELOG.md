@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.66.0] - 2026-11-26
+
+### Added
+- **`lexington convert IN OUT`: any format to any.** Each file told by its name, the input else by its
+  content (a KIT database, a Fade In zip, Trelby's `#Version` line, a PDF, Final Draft's or OSF's XML);
+  every other flag before, between or after the files. `-i`/`-o` work as before. `cli.ReadScreenplay`
+  reads any of them for a program, `cli.Inputs` lists them, `cli.Sniff` tells one by its first bytes.
+- **Fade In: `.fadein` and `.osf`, read and written.** The Open Screenplay Format in its three versions
+  (1.2, 2.x, 4.0) read, and written in any of them (`-osfversion`, 4.0 by default); a `.fadein` zipped or
+  as a folder, like a `.highland`, what else is in it kept. Package `osf`.
+- **Trelby: `.trelby`, read and written** (its formats 1 to 3; written as 3). Package `trelby`.
+- **KIT Scenarist: `.kitsp`, read and written.** Its SQLite projects read and a new one written by
+  Lexington's own SQLite reader and writer (`internal/sqlite`, checked by `sqlite3`'s integrity check);
+  folders are sections, review comments notes, scene colours colour notes. Package `kitsp`.
+- **lex.Paragraphs and lex.Builder:** a script as the paragraphs other programs keep it in, and laid out
+  from them as Fountain's parser lays it out; `lex.FountainRuns`, styled runs as Fountain's emphasis (what
+  the FDX reader had, for every format).
+
+### Fixed
+- **A PDF with its names at the margin.** Names with a colon after them at the left margin, the speech a
+  little in on the next line and the action further in (a stage play's layout, and an "alternative"
+  screenplay one) read as names and speeches; before, such a script read as action and centred lines, no
+  one speaking, and Accolade took it for a novel.
+
 ## [1.65.0] - 2026-11-26
 
 ### Added
