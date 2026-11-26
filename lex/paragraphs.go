@@ -197,7 +197,9 @@ func (b *Builder) Add(p Paragraph) {
 			text += " #" + p.Number + "#"
 		}
 	case TypeSection:
-		text = strings.Repeat("#", max(p.Level, 1)) + " " + text
+		if strings.TrimSpace(text) != "" { // a folder without a name is none
+			text = strings.Repeat("#", max(p.Level, 1)) + " " + text
+		}
 	}
 	for _, n := range p.Notes {
 		if n = strings.TrimSpace(n); n != "" {
@@ -207,6 +209,9 @@ func (b *Builder) Add(p Paragraph) {
 	t := p.Type
 	if strings.TrimSpace(p.Text) == "" && len(p.Notes) > 0 {
 		t = TypeNote // a paragraph of notes alone
+	}
+	if t == TypeDialog && strings.TrimSpace(text) == "" && b.inSpeech() {
+		b.out = append(b.out, Line{Type: TypeDialog, Revision: p.Revision}) // a blank line in a speech
 	}
 	if strings.TrimSpace(text) != "" {
 		if t == TypeDialog || t == TypeLyrics {
