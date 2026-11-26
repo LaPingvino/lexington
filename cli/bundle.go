@@ -17,6 +17,7 @@ import (
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/internal"
 	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/osf"
 	"github.com/LaPingvino/lexington/rules"
 )
 
@@ -33,6 +34,9 @@ func isBundleInput(name string) bool {
 	}
 	if bundle.Is(name) {
 		return true
+	}
+	if osf.IsFadeIn(name) { // a folder of Fade In's own
+		return false
 	}
 	st, err := os.Stat(name)
 	return err == nil && st.IsDir()
