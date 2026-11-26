@@ -510,3 +510,49 @@ func TestMaxPages(t *testing.T) {
 		t.Error("the first pages read otherwise than in the whole")
 	}
 }
+
+// A script with its names at the margin, a colon after each, the speech
+// a little in on the next line and the action further in (a stage play's
+// layout, as some programs print a screenplay too): names and speeches
+// read as such, the action as action, though its lines look centred.
+func TestNamesAtTheMargin(t *testing.T) {
+	const step = 1.0 / 6
+	var page []line
+	y := 1.0
+	add := func(x float64, text string) {
+		page = append(page, ln(1, y, run{X: x, End: x + 0.1*float64(len([]rune(text))), Text: text}))
+		y += step
+	}
+	gap := func() { y += step }
+	add(1.55, "INT. CIRCUS TENT - NIGHT")
+	gap()
+	action := "The ringmaster waits in the dark, a lamp in hand, and..."
+	page = append(page, ln(1, y, run{X: 2.05, End: 7.0, Text: action}))
+	y += step
+	gap()
+	for i, name := range []string{"EDWARD:", "SANDRA:", "EDWARD:", "AMOS:", "SANDRA:", "EDWARD:"} {
+		add(1.5, name)
+		add(1.8, "A line of the speech, wrapped over")
+		add(1.8, "two lines.")
+		if i == 2 {
+			gap()
+			page = append(page, ln(1, y, run{X: 2.05, End: 7.0, Text: "He bows."}))
+			y += step
+		}
+		gap()
+	}
+	s := classify([][]line{page}, 8.5, scenePrefix)
+	counts := map[lex.ElementType]int{}
+	for _, l := range s {
+		counts[l.Type]++
+		if l.Type == lex.TypeSpeaker && strings.HasSuffix(l.Contents, ":") {
+			t.Errorf("a name with its colon: %q", l.Contents)
+		}
+		if l.Type == lex.TypeDialog && l.Contents != "A line of the speech, wrapped over two lines." {
+			t.Errorf("speech %q", l.Contents)
+		}
+	}
+	if counts[lex.TypeSpeaker] != 6 || counts[lex.TypeDialog] != 6 || counts[lex.TypeAction] != 2 || counts[lex.TypeCenter] != 0 {
+		t.Errorf("counts %v in\n%v", counts, s)
+	}
+}

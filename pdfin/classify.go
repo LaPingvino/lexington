@@ -42,6 +42,7 @@ func classify(pages [][]line, width float64, scene *regexp.Regexp) lex.Screenpla
 	}
 	margin := actionMargin(body)
 	step := lineStep(body)
+	lay := layoutOf(body, margin, step, scene)
 	bottom := 0.0 // how low the text goes on a full page
 	for _, l := range body {
 		bottom = math.Max(bottom, l.Y)
@@ -93,6 +94,9 @@ func classify(pages [][]line, width float64, scene *regexp.Regexp) lex.Screenpla
 			after = &body[i+1]
 		}
 		t, text := elementOf(l, next, after, margin, width, prevType, scene)
+		if lay.flush {
+			t, text = lay.element(l, next, prevType, margin, scene, t, text)
+		}
 		// a name glued to its parenthetical: THE WOMAN(very calmly)
 		if t == lex.TypeSpeaker {
 			if m := gluedCue.FindStringSubmatch(text); m != nil && !contd.MatchString(text) && !extension.MatchString(m[2]) {
@@ -240,6 +244,95 @@ func baseName(s string) string {
 	}
 	return strings.TrimSpace(s)
 }
+
+// layout is a script's own indents, where they are not a screenplay's
+// usual ones: names at the margin (with a colon or not), each with its
+// speech on the next line a little in, the action further in (a stage
+// play's layout, and some programs' "alternative" screenplay one).
+type layout struct {
+	flush          bool    // names at the margin
+	speech, action float64 // the speech's and the action's indents from the margin
+}
+
+// layoutOf finds a script's layout: names at the margin when many lines
+// at it are names with a speech under them at one indent, and few names
+// stand where a screenplay's do.
+func layoutOf(ls []line, margin, step float64, scene *regexp.Regexp) layout {
+	speech := map[float64]int{}
+	flushNames, usual := 0, 0
+	for i := 0; i+1 < len(ls); i++ {
+		l, n := ls[i], ls[i+1]
+		if n.Page != l.Page || n.Y-l.Y > 1.5*step || !l.upper() || n.upper() {
+			continue
+		}
+		d := l.x() - margin
+		switch {
+		case d >= nameFrom && d < nameTo:
+			usual++
+		case d < 0.15 && nameLike(cueName(l.text())) && !scene.MatchString(l.text()):
+			if in := n.x() - margin; in >= 0.1 && in < 1.0 {
+				speech[math.Round(in*20)/20]++
+				flushNames++
+			}
+		}
+	}
+	if flushNames < 5 || usual*3 > flushNames {
+		return layout{}
+	}
+	lay := layout{flush: true}
+	best := 0
+	for in, c := range speech {
+		if c > best || c == best && in < lay.speech {
+			lay.speech, best = in, c
+		}
+	}
+	// the action: the most common indent of the lines that are neither
+	// at the margin nor at the speech's
+	other := map[float64]int{}
+	for _, l := range ls {
+		if d := l.x() - margin; d >= 0.1 && math.Abs(d-lay.speech) > 0.1 && d < 2 {
+			other[math.Round(d*20)/20]++
+		}
+	}
+	lay.action = -1
+	best = 0
+	for in, c := range other {
+		if c > best {
+			lay.action, best = in, c
+		}
+	}
+	return lay
+}
+
+// element is a line's type and text in a layout with names at the
+// margin: a name over its speech, the speech's lines, the action at its
+// indent; else as elementOf read it (t, text).
+func (lay layout) element(l line, next *line, prev lex.ElementType, margin float64, scene *regexp.Regexp,
+	t lex.ElementType, text string) (lex.ElementType, string) {
+	d := l.x() - margin
+	inSpeech := prev == lex.TypeSpeaker || prev == lex.TypeParen || prev == lex.TypeDialog
+	atSpeech := func(n *line) bool { return n != nil && math.Abs(n.x()-margin-lay.speech) < 0.15 }
+	switch {
+	case t == lex.TypeScene || t == lex.TypeTrans:
+		return t, text
+	case d < 0.15 && l.upper() && nameLike(cueName(l.text())) && !scene.MatchString(l.text()) && atSpeech(next) &&
+		(!next.upper() || parenLine(next.text())):
+		return lex.TypeSpeaker, contd.ReplaceAllString(cueName(l.text()), "")
+	case inSpeech && atSpeech(&l) && strings.HasPrefix(l.text(), "("):
+		return lex.TypeParen, l.text()
+	case inSpeech && prev == lex.TypeParen && atSpeech(&l) && !strings.HasSuffix(l.text(), ")") && t == lex.TypeParen:
+		return lex.TypeParen, l.text()
+	case inSpeech && atSpeech(&l):
+		return lex.TypeDialog, l.text()
+	case lay.action >= 0 && math.Abs(d-lay.action) < 0.1 && (t == lex.TypeCenter || t == lex.TypeDialog || t == lex.TypeParen):
+		return lex.TypeAction, l.text() // the action's indent, not a centred line
+	}
+	return t, text
+}
+
+// cueName is a name at the margin without the colon a stage play's
+// names have ("EDWARD:").
+func cueName(text string) string { return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(text), ":")) }
 
 // elementOf is the type and the text of a line, by its indent.
 //
