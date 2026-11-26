@@ -63,18 +63,17 @@ func (w *OSFWriter) Document(s lex.Screenplay) []byte {
 	for _, p := range paras {
 		switch p.Type {
 		case lex.TypeBoneyard:
+			pending = append(pending, p.Before...)
 			continue
 		case lex.TypeSection:
-			pending = append(pending, strings.Repeat("#", max(p.Level, 1))+" "+p.Text)
-			pending = append(pending, synopsisNotes(p.Synopses)...)
-			pending = append(pending, p.Notes...)
+			pending = append(append(pending, p.Before...), strings.Repeat("#", max(p.Level, 1))+" "+p.Text)
+			pending = append(append(pending, p.Notes...), synopsisNotes(p.Synopses)...)
 			continue
 		case lex.TypeSynopsis:
-			pending = append(pending, synopsisNotes([]string{p.Text})...)
-			pending = append(pending, p.Notes...)
+			pending = append(append(pending, p.Before...), synopsisNotes([]string{p.Text})...)
 			continue
 		}
-		p.Notes = append(pending, p.Notes...)
+		p.Notes = append(append(pending, p.Before...), p.Notes...)
 		pending = nil
 		writePara(&b, v, base, p)
 	}

@@ -1,0 +1,172 @@
+package trelby
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"strings"
+
+	"github.com/LaPingvino/lexington/lex"
+)
+
+// TrelbyWriter writes a screenplay as a Trelby screenplay (format 3).
+type TrelbyWriter struct{}
+
+// Write writes the screenplay.
+func (w *TrelbyWriter) Write(out io.Writer, s lex.Screenplay) error {
+	bw := bufio.NewWriter(out)
+	title, paras := lex.Paragraphs(s)
+	bw.WriteString("\ufeff#Version 3\n")
+	for _, t := range titleStrings(title) {
+		bw.WriteString("#Title-String " + t + "\n")
+	}
+	bw.WriteString("#Header-String 1,0,r,,${PAGE}.\n#Header-Empty-Lines 1\n#Start-Script \n")
+	n := 0
+	element := func(typ byte, text string) {
+		text = strings.TrimSpace(lex.Unstyled(text))
+		lines := strings.Split(text, "\n")
+		for i, l := range lines {
+			end := byte(endForced)
+			if i == len(lines)-1 {
+				end = endLast
+			}
+			bw.WriteString(string([]byte{end, typ}) + strings.ReplaceAll(strings.TrimRight(l, " \t"), "\t", " ") + "\n")
+		}
+		n++
+	}
+	notes := func(ns []string) {
+		for _, note := range ns {
+			if note = strings.TrimSpace(note); note != "" {
+				element(typeNote, lex.EscapeEmphasis(note))
+			}
+		}
+	}
+	for _, p := range paras {
+		notes(p.Before)
+		switch p.Type {
+		case lex.TypeBoneyard:
+			continue
+		case lex.TypeSection:
+			if p.Level <= 1 {
+				element(typeActBreak, p.Text)
+			} else {
+				element(typeNote, lex.EscapeEmphasis(strings.Repeat("#", p.Level))+" "+p.Text)
+			}
+		case lex.TypeSynopsis:
+			element(typeNote, "= "+p.Text)
+		default:
+			if strings.TrimSpace(p.Text) != "" {
+				element(typeOf(p.Type), p.Text)
+			}
+		}
+		notes(p.Notes)
+		for _, syn := range p.Synopses {
+			element(typeNote, "= "+syn)
+		}
+	}
+	if n == 0 {
+		element(typeAction, "") // Trelby reads no script without a line
+	}
+	return bw.Flush()
+}
+
+func typeOf(t lex.ElementType) byte {
+	switch t {
+	case lex.TypeScene:
+		return typeScene
+	case lex.TypeSpeaker:
+		return typeChar
+	case lex.TypeDialog, lex.TypeLyrics:
+		return typeDialog
+	case lex.TypeParen:
+		return typeParen
+	case lex.TypeTrans:
+		return typeTrans
+	}
+	return typeAction
+}
+
+// titleStrings are the title page as #Title-Strings, placed as Trelby
+// places its own (millimetres from the top left): the title, "by" and the
+// authors, the source and notes centred; the contact at the bottom left,
+// the draft at the bottom right, the copyright at the bottom centre.
+func titleStrings(fields []lex.TitleField) []string {
+	var out []string
+	put := func(x, y float64, size int, flags, value string) {
+		var lines []string
+		for _, l := range strings.Split(value, "\n") {
+			lines = append(lines, lex.Unstyled(strings.TrimSpace(l)))
+		}
+		out = append(out, fmt.Sprintf("%f,%f,%d,%s,Courier,,%s", x, y, size, flags, escape(lines)))
+	}
+	byKey := map[string][]string{}
+	var order []string
+	for _, f := range fields {
+		k := strings.ToLower(f.Key)
+		if k == "authors" {
+			k = "author"
+		}
+		if _, ok := byKey[k]; !ok {
+			order = append(order, k)
+		}
+		byKey[k] = append(byKey[k], f.Value)
+	}
+	join := func(k string) string { return strings.Join(byKey[k], "\n") }
+	if v := join("title"); v != "" {
+		put(0, 70, 24, "c"+styleFlags(v), v)
+	}
+	if credit, author := join("credit"), join("author"); credit != "" || author != "" {
+		v := author
+		if credit != "" {
+			v = credit + "\n\n" + author
+		}
+		put(0, authorY, 12, "c", strings.TrimSpace(v))
+	}
+	y := 120.0
+	if v := join("source"); v != "" {
+		put(0, y, 12, "c", v)
+		y += 20
+	}
+	for _, k := range order {
+		switch k {
+		case "title", "credit", "author", "source", "contact", "draft date", "copyright":
+			continue
+		}
+		put(0, y, 12, "c", join(k))
+		y += 20
+	}
+	if v := join("copyright"); v != "" {
+		put(0, 250, 12, "c", v)
+	}
+	if v := join("contact"); v != "" {
+		put(15, 240, 12, "", v)
+	}
+	if v := join("draft date"); v != "" {
+		put(200, 240, 12, "r", v)
+	}
+	return out
+}
+
+// styleFlags are the b, i and u of a value styled as a whole
+// ("_**TITLE**_": bu).
+func styleFlags(v string) string {
+	spans := lex.Emphasis(v)
+	bold, italic, underline := true, true, true
+	for _, s := range spans {
+		if strings.TrimSpace(s.Text) == "" {
+			continue
+		}
+		bold, italic, underline = bold && s.Bold, italic && s.Italic, underline && s.Underline
+	}
+	flags := ""
+	if bold {
+		flags += "b"
+	}
+	if italic {
+		flags += "i"
+	}
+	if underline {
+		flags += "u"
+	}
+	return flags
+}

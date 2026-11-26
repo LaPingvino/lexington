@@ -30,9 +30,9 @@ type Paragraph struct {
 	// Text is the text with Fountain's emphasis, without its notes (and a
 	// heading's number, a section's #s).
 	Text string
-	// Notes are the notes' texts, without their brackets: the line's own
-	// and those of lines of notes alone before it.
-	Notes []string
+	// Notes are the line's notes' texts, without their brackets; Before
+	// those of the lines of notes alone before it.
+	Notes, Before []string
 	// Number is a scene heading's number (#1A#), "" for none.
 	Number string
 	// Level is a section's depth (# is 1).
@@ -106,7 +106,7 @@ func Paragraphs(s Screenplay) (title []TitleField, out []Paragraph) {
 			out[n-1].Notes = append(out[n-1].Notes, Notes(l.Contents)...)
 			continue
 		}
-		p := Paragraph{Type: l.Type, Notes: append(notes, Notes(l.Contents)...), NewPage: newPage, Revision: l.Revision}
+		p := Paragraph{Type: l.Type, Notes: Notes(l.Contents), Before: notes, NewPage: newPage, Revision: l.Revision}
 		notes, newPage = nil, false
 		p.Text = strings.TrimSpace(StripNotes(l.Contents))
 		switch l.Type {
@@ -119,8 +119,7 @@ func Paragraphs(s Screenplay) (title []TitleField, out []Paragraph) {
 			p.Dual = dual
 			dual = NotDual // on the first speaker of each side only
 		case TypeSynopsis, TypeBoneyard:
-			p.Text = l.Contents
-			p.Notes = notes
+			p.Text, p.Notes = l.Contents, nil
 		}
 		if l.Type == TypeScene || l.Type == TypeSection {
 			heading = len(out)
@@ -129,11 +128,8 @@ func Paragraphs(s Screenplay) (title []TitleField, out []Paragraph) {
 		}
 		out = append(out, p)
 	}
-	if len(notes) > 0 {
-		if len(out) == 0 {
-			out = append(out, Paragraph{Type: TypeAction})
-		}
-		out[len(out)-1].Notes = append(out[len(out)-1].Notes, notes...)
+	if len(notes) > 0 { // after all else
+		out = append(out, Paragraph{Type: TypeAction, Before: notes})
 	}
 	return title, out
 }
@@ -176,6 +172,12 @@ func (b *Builder) Add(p Paragraph) {
 	if p.NewPage {
 		b.blank()
 		b.out = append(b.out, Line{Type: TypeNewPage})
+	}
+	for _, n := range p.Before {
+		if n = strings.TrimSpace(n); n != "" {
+			b.blank()
+			b.out = append(b.out, Line{Type: TypeNote, Contents: NoteText(n)})
+		}
 	}
 	if !inSpeech {
 		b.blank()
