@@ -163,7 +163,11 @@ func readPages(r io.ReaderAt, size int64, opts Options) (pages [][]line, width f
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	for i := 1; i <= doc.NumPage(); i++ {
+	last := doc.NumPage()
+	if opts.MaxPages > 0 && opts.MaxPages < last {
+		last = opts.MaxPages
+	}
+	for i := 1; i <= last; i++ {
 		if err := ctx.Err(); err != nil {
 			return nil, 0, err
 		}
@@ -177,7 +181,7 @@ func readPages(r io.ReaderAt, size int64, opts Options) (pages [][]line, width f
 		ls, err := readPage(ctx, i, p, width, opts)
 		// every page counts, read or not, so the count reaches the end
 		if opts.Progress != nil {
-			opts.Progress(i, doc.NumPage())
+			opts.Progress(i, last)
 		}
 		if ctx.Err() != nil {
 			return nil, 0, ctx.Err()

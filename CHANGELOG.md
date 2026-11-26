@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.65.0] - 2026-11-26
+
+### Added
+- **pdfin.Options.MaxPages: read only a PDF's first pages.** Enough to tell what a PDF is (a screenplay or a
+  book: Accolade's file dialog sorts them by kind) without reading all of a 300-page book; Progress counts to
+  the pages read.
+
 ## [1.64.0] - 2026-11-25
 
 ### Fixed

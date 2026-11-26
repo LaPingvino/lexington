@@ -479,3 +479,34 @@ func TestTheEnd(t *testing.T) {
 		t.Errorf("unnumbered, got:\n%s", got)
 	}
 }
+
+// MaxPages reads the first pages only, as many as it says.
+func TestMaxPages(t *testing.T) {
+	src, err := os.ReadFile("../examples/tv-episode.fountain")
+	if err != nil {
+		t.Fatal(err)
+	}
+	orig := fountain.Parse(scenes, strings.NewReader(string(src)))
+	file := filepath.Join(t.TempDir(), "tv.pdf")
+	if err := (&pdf.PDFWriter{OutputFile: file, Elements: rules.Default}).Write(nil, orig); err != nil {
+		t.Fatal(err)
+	}
+	all, err := ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var read []int
+	first, err := ReadFileWith(file, Options{MaxPages: 2, Progress: func(done, pages int) { read = append(read, done, pages) }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(read) != "[1 2 2 2]" {
+		t.Errorf("progress %v, want two pages of two", read)
+	}
+	if len(first) == 0 || len(first) >= len(all) {
+		t.Errorf("%d lines of the first two pages, %d of all", len(first), len(all))
+	}
+	if !strings.HasPrefix(fountainOf(t, all), fountainOf(t, first)[:200]) {
+		t.Error("the first pages read otherwise than in the whole")
+	}
+}
