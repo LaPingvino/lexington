@@ -244,7 +244,7 @@ var creditLine = regexp.MustCompile(`(?i)\bby:?$`)
 // places them: centred, the title first, then "by" and the authors, the
 // source and notes, the copyright low on the page (the authors without a
 // credit where the credit would be); on the left the
-// contact, on the right the draft.
+// contact, on the right the draft (alone on the right, the contact).
 func titlePage(ts []titleString) []lex.TitleField {
 	sort.SliceStable(ts, func(i, j int) bool { return ts[i].y < ts[j].y || ts[i].y == ts[j].y && ts[i].x < ts[j].x })
 	var out []lex.TitleField
@@ -255,6 +255,10 @@ func titlePage(ts []titleString) []lex.TitleField {
 		}
 	}
 	seenTitle, seenSource := false, false
+	left := false // a block on the left: then the one on the right is the draft
+	for _, t := range ts {
+		left = left || !t.centered && !t.right
+	}
 	for _, t := range ts {
 		lines := t.lines
 		if t.bold || t.italic || t.underln {
@@ -269,8 +273,10 @@ func titlePage(ts []titleString) []lex.TitleField {
 			}
 		}
 		switch {
-		case t.right:
+		case t.right && left:
 			add("Draft date", lines)
+		case t.right: // alone, as Trelby's own sample has its agent
+			add("Contact", lines)
 		case !t.centered:
 			add("Contact", lines)
 		case !seenTitle && !creditLine.MatchString(strings.TrimSpace(lines[0])):

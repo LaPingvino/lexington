@@ -121,7 +121,7 @@ const v12 = `<?xml version="1.0" encoding="utf-8" ?>
 <para><style basestylename="Parenthetical"/><text>(quietly)</text></para>
 <para><style basestylename="Dialogue"/><text>Hello &lt;u&gt;there&lt;/u&gt;.&lt;br&gt;How are you?</text></para>
 <para><style basestylename="Character"/><text>Mary</text></para>
-<para><style basestylename="Dialogue"/><text>&lt;font="Times"&gt;Hi&lt;/font&gt; &amp;amp; bye.</text></para>
+<para><style basestylename="Dialogue"/><text>&lt;font="Times"&gt;Hi&lt;/font&gt; &amp; bye.</text></para>
 <para><style basestylename="Insert"/><text>a note on the door</text></para>
 <para><style basestylename="Action" align="center"/><text>THE END</text></para>
 <para><style basestylename="Transition" pagebreakbefore="1"/><text>Cut to:</text></para>

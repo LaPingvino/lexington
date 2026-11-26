@@ -14,8 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   content (a KIT database, a Fade In zip, Trelby's `#Version` line, a PDF, Final Draft's or OSF's XML);
   every other flag before, between or after the files. `-i`/`-o` work as before. `cli.ReadScreenplay`
   reads any of them for a program, `cli.Inputs` lists them, `cli.Sniff` tells one by its first bytes.
-- **Fade In: `.fadein` and `.osf`, read and written.** The Open Screenplay Format in its three versions
-  (1.2, 2.x, 4.0) read, and written in any of them (`-osfversion`, 4.0 by default); a `.fadein` zipped or
+- **Fade In: `.fadein` and `.osf`, read and written.** The Open Screenplay Format in its versions (1.2,
+  2.x, 3.0, 4.0) read, and written in any of them (`-osfversion`, 4.0 by default); a `.fadein` zipped or
   as a folder, like a `.highland`, what else is in it kept. Package `osf`.
 - **Trelby: `.trelby`, read and written** (its formats 1 to 3; written as 3). Package `trelby`.
 - **KIT Scenarist: `.kitsp`, read and written.** Its SQLite projects read and a new one written by

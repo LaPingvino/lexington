@@ -313,11 +313,12 @@ func (lay layout) element(l line, next *line, prev lex.ElementType, margin float
 	inSpeech := prev == lex.TypeSpeaker || prev == lex.TypeParen || prev == lex.TypeDialog
 	atSpeech := func(n *line) bool { return n != nil && math.Abs(n.x()-margin-lay.speech) < 0.15 }
 	switch {
+	case d < 0.15 && l.upper() && nameLike(cueName(l.text())) && !scene.MatchString(l.text()) && atSpeech(next) &&
+		(!next.upper() || parenLine(next.text())) && t != lex.TypeTrans:
+		// (a name in bold, which elementOf takes for a heading, too)
+		return lex.TypeSpeaker, contd.ReplaceAllString(cueName(l.text()), "")
 	case t == lex.TypeScene || t == lex.TypeTrans:
 		return t, text
-	case d < 0.15 && l.upper() && nameLike(cueName(l.text())) && !scene.MatchString(l.text()) && atSpeech(next) &&
-		(!next.upper() || parenLine(next.text())):
-		return lex.TypeSpeaker, contd.ReplaceAllString(cueName(l.text()), "")
 	case inSpeech && atSpeech(&l) && strings.HasPrefix(l.text(), "("):
 		return lex.TypeParen, l.text()
 	case inSpeech && prev == lex.TypeParen && atSpeech(&l) && !strings.HasSuffix(l.text(), ")") && t == lex.TypeParen:

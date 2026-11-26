@@ -430,15 +430,17 @@ lexington convert download film.fountain               # no extension: told by i
 
 | Program | Read | Written | What it keeps |
 |---|---|---|---|
-| Fade In (`.fadein`, zipped or a folder; `.osf`) | OSF 1.2, 2.x, 4.0 | OSF 4.0 (`-osfversion 2.0`, `1.2`) | all printed elements and emphasis, dual dialogue, scene numbers, page breaks, notes, a scene's synopsis; the title page |
+| Fade In (`.fadein`, zipped or a folder; `.osf`) | OSF 1.2, 2.x, 3.0, 4.0 | OSF 4.0 (`-osfversion 2.0`, `1.2`) | all printed elements and emphasis, dual dialogue, scene numbers, page breaks, notes, a scene's synopsis; the title page |
 | Trelby (`.trelby`) | formats 1–3 | format 3 | the text of each element and its type, notes, the title page; no emphasis, dual dialogue, scene numbers or page breaks |
 | KIT Scenarist (`.kitsp`) | its projects (0.7) | a new project, as KIT 0.7.2 makes one | all elements and emphasis, dual dialogue, scene numbers and colours, folders as sections, notes as review comments, the title page's fields; no page breaks |
 
 - **Fade In:** a `.fadein` is a zip holding the script as `document.xml`, in Fade In's Open Screenplay
   Format; like a `.highland` it can be a folder, and is written back in the form it has, what else is in it
   kept. OSF has no outline: a section (`# Act One`) and a synopsis not on a scene heading go in the next
-  paragraph's note, which Fade In does not print either. The format is known from the OSF SDK's samples;
-  no file has been opened in Fade In itself yet.
+  paragraph's note, which Fade In does not print either. The format is known from the OSF SDK's samples
+  and checked on real `.fadein` files (OSF 3.0); no file Lexington wrote has been opened in Fade In itself
+  yet. In 1.2, whose emphasis is tags in the text (`<b>`), a `<` or `>` of the text's own is written
+  `&lt;`, a guess: no 1.2 file seen has one.
 - **Trelby:** as Trelby's own `fileformat.txt` and loader describe it. Its act break is a first-level
   section; deeper sections and synopses are notes that start with `##` and `=`, which read back as what
   they were. A centred line is action, lyrics are dialogue.

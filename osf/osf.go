@@ -2,10 +2,11 @@
 // an XML document (a .osf file), which a .fadein file holds zipped as its
 // document.xml (fadein.go).
 //
-// Three versions are known, each read here: 1.2 (version="12", its
-// emphasis as tags in the text: <b>, <i>, <u>, <br>), 2.x (version="20",
-// "21": text runs with attributes, the title page in <titlepage>) and 4.0
-// (version="40": basestyle for basestylename, number for scene_number).
+// Its versions are each read here: 1.2 (version="12", its emphasis as
+// tags in the text: <b>, <i>, <u>, <br>), 2.x and 3.0 (version="20",
+// "21", "30": text runs with attributes, the title page in <titlepage>)
+// and 4.0 (version="40": basestyle for basestylename, number for
+// scene_number).
 // The writer writes any of them (OSFWriter.Version), 4.0 unless told.
 //
 // The format is known from the OSF SDK's sample documents
@@ -234,7 +235,8 @@ var inlineTag = regexp.MustCompile(`<(/?)(b|i|u|s|br|font|size|bgcolor|color|rev
 
 // inlineRuns are an OSF 1.2 text's runs: its emphasis tags read, <br> a
 // line break, the other tags (font, size, colours, revisions) left out;
-// <, > and & in its text are escaped (&lt;).
+// < and > in its text are escaped (&lt;), as they would be tags (no 1.2
+// file seen has one: the escape is a guess).
 func inlineRuns(text string) []lex.Run {
 	var out []lex.Run
 	var cur lex.Span
@@ -274,7 +276,7 @@ var creditLine = regexp.MustCompile(`(?i)\bby:?$`)
 
 // inlineUnescape reads the characters a 1.2 text escapes, as they are
 // markup in it.
-var inlineUnescape = strings.NewReplacer("&lt;", "<", "&gt;", ">", "&quot;", `"`, "&amp;", "&")
+var inlineUnescape = strings.NewReplacer("&lt;", "<", "&gt;", ">")
 
 // Fade In's placeholders in a new 1.2 document's <info>.
 var placeholders = map[string]bool{

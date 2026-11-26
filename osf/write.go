@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/LaPingvino/lexington/lex"
@@ -84,6 +85,7 @@ func (w *OSFWriter) Document(s lex.Screenplay) []byte {
 	if v >= 20 {
 		writeTitlePage(&b, v, base, title)
 	}
+	writeLists(&b, paras)
 	b.WriteString("</document>\n")
 	return []byte(b.String())
 }
@@ -217,7 +219,7 @@ func writeText(b *strings.Builder, v int, text string) {
 func inlineText(spans []lex.Span) string {
 	var t strings.Builder
 	for _, s := range spans {
-		body := strings.ReplaceAll(escText(s.Text), "\n", "<br>")
+		body := strings.ReplaceAll(strings.NewReplacer("<", "&lt;", ">", "&gt;").Replace(s.Text), "\n", "<br>")
 		if body == "" {
 			continue
 		}
@@ -257,10 +259,45 @@ func titleBookmark(key string) (mark string, centered bool) {
 	return "Notes", false
 }
 
-func writeTitlePage(b *strings.Builder, v int, base string, fields []lex.TitleField) {
-	if len(fields) == 0 {
-		return
+// writeLists writes the script's characters and locations, as Fade In
+// lists them for its completion.
+func writeLists(b *strings.Builder, paras []lex.Paragraph) {
+	var chars, places []string
+	seen := map[string]bool{}
+	for _, p := range paras {
+		switch p.Type {
+		case lex.TypeSpeaker:
+			name := strings.TrimSpace(extension.ReplaceAllString(lex.Unstyled(p.Text), ""))
+			if name != "" && !seen["c"+name] {
+				seen["c"+name] = true
+				chars = append(chars, name)
+			}
+		case lex.TypeScene:
+			if m := location.FindStringSubmatch(lex.Unstyled(p.Text)); m != nil && !seen["l"+m[1]] {
+				seen["l"+m[1]] = true
+				places = append(places, m[1])
+			}
+		}
 	}
+	b.WriteString("  <lists>\n    <characters>\n")
+	for _, c := range chars {
+		b.WriteString(`      <character name="` + esc(c) + `"/>` + "\n")
+	}
+	b.WriteString("    </characters>\n    <locations>\n")
+	for _, l := range places {
+		b.WriteString(`      <location name="` + esc(l) + `"/>` + "\n")
+	}
+	b.WriteString("    </locations>\n  </lists>\n")
+}
+
+var (
+	// extension is a name's (V.O.), (CONT'D)
+	extension = regexp.MustCompile(`\s*\([^()]*\)\s*`)
+	// location is a heading's place: after INT., before " - DAY"
+	location = regexp.MustCompile(`^(?i)(?:int|ext|est|i/e|int\.?/ext)[.\s]+(.+?)(?:\s+[-–—]\s+.*)?$`)
+)
+
+func writeTitlePage(b *strings.Builder, v int, base string, fields []lex.TitleField) {
 	b.WriteString("  <titlepage>\n")
 	for _, f := range fields {
 		mark, centered := titleBookmark(f.Key)
