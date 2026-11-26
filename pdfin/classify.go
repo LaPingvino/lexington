@@ -276,7 +276,9 @@ func layoutOf(ls []line, margin, step float64, scene *regexp.Regexp) layout {
 			}
 		}
 	}
-	if flushNames < 5 || usual*3 > flushNames {
+	// enough of them, and often: a book's or a paper's headings in capitals
+	// over indented paragraphs are a few
+	if flushNames < 8 || flushNames*25 < len(ls) || usual*3 > flushNames {
 		return layout{}
 	}
 	lay := layout{flush: true}

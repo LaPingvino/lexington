@@ -530,7 +530,7 @@ func TestNamesAtTheMargin(t *testing.T) {
 	page = append(page, ln(1, y, run{X: 2.05, End: 7.0, Text: action}))
 	y += step
 	gap()
-	for i, name := range []string{"EDWARD:", "SANDRA:", "EDWARD:", "AMOS:", "SANDRA:", "EDWARD:"} {
+	for i, name := range []string{"EDWARD:", "SANDRA:", "EDWARD:", "AMOS:", "SANDRA:", "EDWARD:", "AMOS:", "SANDRA:"} {
 		add(1.5, name)
 		add(1.8, "A line of the speech, wrapped over")
 		add(1.8, "two lines.")
@@ -542,6 +542,13 @@ func TestNamesAtTheMargin(t *testing.T) {
 		gap()
 	}
 	s := classify([][]line{page}, 8.5, scenePrefix)
+	// a few headings in capitals over paragraphs a little in are no names
+	few := classify([][]line{page[:12]}, 8.5, scenePrefix)
+	for _, l := range few {
+		if l.Type == lex.TypeSpeaker {
+			t.Errorf("a name in a few lines: %q", l.Contents)
+		}
+	}
 	counts := map[lex.ElementType]int{}
 	for _, l := range s {
 		counts[l.Type]++
@@ -552,7 +559,7 @@ func TestNamesAtTheMargin(t *testing.T) {
 			t.Errorf("speech %q", l.Contents)
 		}
 	}
-	if counts[lex.TypeSpeaker] != 6 || counts[lex.TypeDialog] != 6 || counts[lex.TypeAction] != 2 || counts[lex.TypeCenter] != 0 {
+	if counts[lex.TypeSpeaker] != 8 || counts[lex.TypeDialog] != 8 || counts[lex.TypeAction] != 2 || counts[lex.TypeCenter] != 0 {
 		t.Errorf("counts %v in\n%v", counts, s)
 	}
 }
