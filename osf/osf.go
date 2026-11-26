@@ -29,15 +29,15 @@ const DocumentType = "Open Screenplay Format document"
 
 // The built-in styles' names (builtin_index 0 to 7).
 const (
-	styleNormal  = "Normal Text"
-	styleScene   = "Scene Heading"
-	styleAction  = "Action"
-	styleChar    = "Character"
-	styleParen   = "Parenthetical"
-	styleDialog  = "Dialogue"
-	styleTrans   = "Transition"
-	styleShot    = "Shot"
-	styleLyrics  = "Lyrics" // Lexington's own, for Fountain's ~lyrics
+	styleNormal = "Normal Text"
+	styleScene  = "Scene Heading"
+	styleAction = "Action"
+	styleChar   = "Character"
+	styleParen  = "Parenthetical"
+	styleDialog = "Dialogue"
+	styleTrans  = "Transition"
+	styleShot   = "Shot"
+	styleLyrics = "Lyrics" // Lexington's own, for Fountain's ~lyrics
 )
 
 // attrs are an element's attributes, read by name whatever its case or
@@ -63,11 +63,11 @@ func (as attrs) on(names ...string) bool {
 }
 
 type xdoc struct {
-	Attrs  attrs    `xml:",any,attr"`
-	Info   *xelem   `xml:"info"`
-	Styles []xelem  `xml:"styles>style"`
-	Paras  []xpara  `xml:"paragraphs>para"`
-	Title  []xpara  `xml:"titlepage>para"`
+	Attrs  attrs   `xml:",any,attr"`
+	Info   *xelem  `xml:"info"`
+	Styles []xelem `xml:"styles>style"`
+	Paras  []xpara `xml:"paragraphs>para"`
+	Title  []xpara `xml:"titlepage>para"`
 }
 
 type xelem struct {

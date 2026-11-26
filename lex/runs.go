@@ -170,7 +170,6 @@ func styledRunes(spans []Span) []styledRune {
 	return out
 }
 
-
 // SameRuns reports whether spans read from Fountain are the runs' text
 // and styles (notes aside; spaces have no style that shows).
 func SameRuns(spans []Span, runs []Run) bool { return same(spans, runs) }
