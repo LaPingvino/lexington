@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/LaPingvino/lexington/lex"
@@ -36,15 +37,39 @@ func (w *TrelbyWriter) Write(out io.Writer, s lex.Screenplay) error {
 		}
 		n++
 	}
+	// Notes within dual dialogue wait for its end: Trelby's caret pairs
+	// the second speech only with a speech right before it.
+	held, hold := []string(nil), false
+	note := func(text string) {
+		if hold {
+			held = append(held, text)
+		} else {
+			element(typeNote, text)
+		}
+	}
+	release := func() {
+		hold = false
+		for _, h := range held {
+			element(typeNote, h)
+		}
+		held = nil
+	}
 	notes := func(ns []string) {
-		for _, note := range ns {
-			if note = strings.TrimSpace(note); note != "" {
-				element(typeNote, note)
+		for _, n := range ns {
+			if n = strings.TrimSpace(n); n != "" {
+				note(n)
 			}
 		}
 	}
 	for _, p := range paras {
+		inSpeech := p.Type == lex.TypeParen || p.Type == lex.TypeDialog || p.Type == lex.TypeLyrics
+		if hold && !inSpeech && !(p.Type == lex.TypeSpeaker && p.Dual == lex.DualSecond) {
+			release()
+		}
 		notes(p.Before)
+		if p.Type == lex.TypeSpeaker && p.Dual == lex.DualFirst {
+			hold = true
+		}
 		switch p.Type {
 		case lex.TypeBoneyard:
 			continue
@@ -64,13 +89,14 @@ func (w *TrelbyWriter) Write(out io.Writer, s lex.Screenplay) error {
 			if p.Type == lex.TypeSpeaker && p.Dual == lex.DualSecond {
 				text = strings.TrimSpace(text) + " ^" // as Fountain marks dual dialogue
 			}
-			element(typeOf(p.Type), text)
+			element(typeOf(p.Type), needlessEscapes(text))
 		}
 		notes(p.Notes)
 		for _, syn := range p.Synopses {
-			element(typeNote, "= "+lex.Unstyled(syn))
+			note("= " + lex.Unstyled(syn))
 		}
 	}
+	release()
 	if n == 0 {
 		element(typeAction, "") // Trelby reads no script without a line
 	}
@@ -183,4 +209,29 @@ func styleFlags(v string) string {
 		flags += "u"
 	}
 	return flags
+}
+
+// needlessEscapes drops the backslashes before asterisks and underscores
+// that read as text without them (snake\_case, 2 \* 3), Trelby showing
+// them as they are.
+func needlessEscapes(text string) string {
+	if !strings.Contains(text, `\`) {
+		return text
+	}
+	want := lex.Emphasis(text)
+	for i := 0; i < len(text)-1; i++ {
+		if text[i] != '\\' {
+			continue
+		}
+		if c := text[i+1]; c != '*' && c != '_' {
+			i++
+			continue
+		}
+		if t := text[:i] + text[i+1:]; slices.Equal(lex.Emphasis(t), want) {
+			text = t // the marker is now at i
+		} else {
+			i++
+		}
+	}
+	return text
 }

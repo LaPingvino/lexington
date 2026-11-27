@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reader reads them back: in Trelby they show and print as they are. Reading a Trelby file now reads such
   markers in every file (`*men*` is italics, where it was text), and an element type the file's config
   exports bold, italic or underlined as styled throughout. A title page value styled as a whole is written
-  with the title string's b, i, u flags (before, only the title).
+  with the title string's b, i, u flags (before, only the title). A note within dual dialogue is written
+  after it, and a plain asterisk or underscore is written without its backslash where it reads as text anyway.
 
 ## [1.66.1] - 2026-11-27
 

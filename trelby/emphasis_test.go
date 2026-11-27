@@ -1,6 +1,7 @@
 package trelby
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -62,7 +63,7 @@ func TestStyledRoundTrip(t *testing.T) {
 	out := write(t, orig)
 	checkLoadable(t, out)
 	for _, w := range []string{
-		"..She is **very** *angry*, _alone_ and ***late***; a plain \\* and *69.\n",
+		"..She is **very** *angry*, _alone_ and ***late***; a plain * and *69.\n", // the backslash needless
 		"._MARY ^\n",
 		"._BOB\n",
 	} {
@@ -71,7 +72,7 @@ func TestStyledRoundTrip(t *testing.T) {
 		}
 	}
 	back := parse(t, out)
-	formattest.Same(t, "back", formattest.Rows(orig, nil), formattest.Rows(back, nil))
+	formattest.Same(t, "back", spanRows(orig), spanRows(back))
 	if again := write(t, back); again != out {
 		t.Errorf("written again, not the same:\n%s\nvs\n%s", out, again)
 	}
@@ -116,4 +117,52 @@ func TestTitleFlags(t *testing.T) {
 			t.Errorf("no %q in\n%s", w, back)
 		}
 	}
+}
+
+// TestStyledCredit: a credit and its authors styled alike go out as one
+// styled title string and read back as credit and authors.
+func TestStyledCredit(t *testing.T) {
+	back := strings.Join(formattest.Rows(parse(t, write(t, formattest.Read(
+		"Title: X\nCredit: **Written by**\nAuthor: **Ann**\n\nINT. A - DAY\n"))), nil), "\n")
+	for _, w := range []string{"Title: X", "Credit: **Written by**", "Author: **Ann**"} {
+		if !strings.Contains(back, w) {
+			t.Errorf("no %q in\n%s", w, back)
+		}
+	}
+}
+
+// TestNoteInDual: a note in the first speech of dual dialogue goes after
+// the second, so the caret still pairs them.
+func TestNoteInDual(t *testing.T) {
+	out := write(t, formattest.Read("INT. A - DAY\n\nBOB\nHi. [[check]]\n\nMARY ^\nHo.\n\nThey go.\n"))
+	if !strings.Contains(out, "._BOB\n.:Hi.\n._MARY ^\n.:Ho.\n.%check\n") {
+		t.Errorf("the note is not after the dual dialogue:\n%s", out)
+	}
+	rows := strings.Join(formattest.Rows(parse(t, out), nil), "\n")
+	if !strings.Contains(rows, "dualspeaker_next") {
+		t.Errorf("the pair is lost:\n%s", rows)
+	}
+}
+
+// TestNeedlessEscapes: plain asterisks and underscores that read as text
+// anyway go out without backslashes; those that would not, with them.
+func TestNeedlessEscapes(t *testing.T) {
+	s := lex.Screenplay{{Type: lex.TypeAction, Contents: lex.EscapeEmphasis("snake_case 2 * 3, *not italics*")}}
+	out := write(t, s)
+	if !strings.Contains(out, "..snake_case 2 * 3, *not italics\\*\n") {
+		t.Errorf("escapes:\n%s", out)
+	}
+	formattest.Same(t, "back", spanRows(s), spanRows(parse(t, out)))
+}
+
+// spanRows are a script's rows with their emphasis as spans, however its
+// plain asterisks are escaped.
+func spanRows(s lex.Screenplay) []string {
+	var out []string
+	for _, l := range s {
+		if l.Type != lex.TypeEmpty {
+			out = append(out, fmt.Sprintf("%s: %v", l.Type, lex.Emphasis(l.Contents)))
+		}
+	}
+	return out
 }

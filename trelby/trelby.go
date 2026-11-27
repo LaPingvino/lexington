@@ -17,8 +17,10 @@
 // there as here. The reader reads Fountain's markers in every Trelby
 // file (a file of Trelby's own with "*69" or snake_case keeps them as
 // text, as Fountain would), and an element type its config exports bold,
-// italic or underlined as styled throughout. A title string styled in
-// part is written plain, Trelby styling it only as a whole.
+// italic or underlined as styled throughout (written again, with the
+// markers on each element and no config). A title string styled in part
+// is written plain, Trelby styling it only as a whole. Notes within dual
+// dialogue are written after it, so the caret pairs the two speeches.
 //
 // Trelby keeps less than Fountain says, and the writer leaves out what
 // else it has no place for: scene numbers (Trelby numbers scenes
@@ -381,10 +383,10 @@ func titlePage(ts []titleString) []lex.TitleField {
 			add("Contact", lines)
 		case !t.centered:
 			add("Contact", lines)
-		case !seenTitle && !creditLine.MatchString(strings.TrimSpace(lines[0])):
+		case !seenTitle && !creditLine.MatchString(strings.TrimSpace(lex.Unstyled(lines[0]))):
 			add("Title", lines)
 			seenTitle = true
-		case creditLine.MatchString(strings.TrimSpace(lines[0])):
+		case creditLine.MatchString(strings.TrimSpace(lex.Unstyled(lines[0]))):
 			add("Credit", lines[:1])
 			add("Author", lines[1:])
 		case t.y >= authorY && t.y < authorY+10:

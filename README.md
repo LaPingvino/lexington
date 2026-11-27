@@ -455,7 +455,8 @@ lexington -i download -o film.fountain                # no extension: told by it
   speaker (`MARY ^`), the two speeches one after the other. Trelby shows and prints them as they are; its
   Fountain export writes them out unchanged. Every Trelby file is read so, and an element type its config
   exports bold, italic or underlined reads as styled throughout. A title page value styled as a whole
-  keeps its style in the title string's flags; styled in part, it is written plain.
+  keeps its style in the title string's flags; styled in part, it is written plain. A note within dual
+  dialogue is written after it, so that the caret still pairs the two speeches.
 - **KIT Scenarist:** a project is an SQLite database, read and written by Lexington itself (no SQLite
   library, so it works in the browser too). Written projects pass `sqlite3`'s integrity check; none has
   been opened in KIT itself yet. The title page maps as KIT's own Fountain import maps it (Credit is its
