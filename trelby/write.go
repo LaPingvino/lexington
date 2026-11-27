@@ -22,8 +22,10 @@ func (w *TrelbyWriter) Write(out io.Writer, s lex.Screenplay) error {
 	}
 	bw.WriteString("#Header-String 1,0,r,,${PAGE}.\n#Header-Empty-Lines 1\n#Start-Script \n")
 	n := 0
+	// element writes an element's text as it is: Fountain's emphasis
+	// markers in it, as Trelby has no styles in its text.
 	element := func(typ byte, text string) {
-		text = strings.TrimSpace(lex.Unstyled(text))
+		text = strings.TrimSpace(text)
 		lines := strings.Split(text, "\n")
 		for i, l := range lines {
 			end := byte(endForced)
@@ -37,7 +39,7 @@ func (w *TrelbyWriter) Write(out io.Writer, s lex.Screenplay) error {
 	notes := func(ns []string) {
 		for _, note := range ns {
 			if note = strings.TrimSpace(note); note != "" {
-				element(typeNote, lex.EscapeEmphasis(note))
+				element(typeNote, note)
 			}
 		}
 	}
@@ -48,20 +50,25 @@ func (w *TrelbyWriter) Write(out io.Writer, s lex.Screenplay) error {
 			continue
 		case lex.TypeSection:
 			if p.Level <= 1 {
-				element(typeActBreak, p.Text)
+				element(typeActBreak, lex.Unstyled(p.Text))
 			} else {
-				element(typeNote, lex.EscapeEmphasis(strings.Repeat("#", p.Level))+" "+p.Text)
+				element(typeNote, strings.Repeat("#", p.Level)+" "+lex.Unstyled(p.Text))
 			}
 		case lex.TypeSynopsis:
-			element(typeNote, "= "+p.Text)
+			element(typeNote, "= "+lex.Unstyled(p.Text))
 		default:
-			if strings.TrimSpace(p.Text) != "" {
-				element(typeOf(p.Type), p.Text)
+			text := p.Text
+			if strings.TrimSpace(text) == "" {
+				break
 			}
+			if p.Type == lex.TypeSpeaker && p.Dual == lex.DualSecond {
+				text = strings.TrimSpace(text) + " ^" // as Fountain marks dual dialogue
+			}
+			element(typeOf(p.Type), text)
 		}
 		notes(p.Notes)
 		for _, syn := range p.Synopses {
-			element(typeNote, "= "+syn)
+			element(typeNote, "= "+lex.Unstyled(syn))
 		}
 	}
 	if n == 0 {
@@ -97,6 +104,7 @@ func titleStrings(fields []lex.TitleField) []string {
 		for _, l := range strings.Split(value, "\n") {
 			lines = append(lines, lex.Unstyled(strings.TrimSpace(l)))
 		}
+		flags += styleFlags(value) // styled as a whole; in part, plain
 		out = append(out, fmt.Sprintf("%f,%f,%d,%s,Courier,,%s", x, y, size, flags, escape(lines)))
 	}
 	byKey := map[string][]string{}
@@ -113,7 +121,7 @@ func titleStrings(fields []lex.TitleField) []string {
 	}
 	join := func(k string) string { return strings.Join(byKey[k], "\n") }
 	if v := join("title"); v != "" {
-		put(0, 70, 24, "c"+styleFlags(v), v)
+		put(0, 70, 24, "c", v)
 	}
 	if credit, author := join("credit"), join("author"); credit != "" || author != "" {
 		v := author
@@ -148,17 +156,23 @@ func titleStrings(fields []lex.TitleField) []string {
 }
 
 // styleFlags are the b, i and u of a value styled as a whole
-// ("_**TITLE**_": bu).
+// ("_**TITLE**_": bu): Trelby's flags for a title string, and what an
+// element styled by its type has already.
 func styleFlags(v string) string {
 	spans := lex.Emphasis(v)
 	bold, italic, underline := true, true, true
+	text := false
 	for _, s := range spans {
 		if strings.TrimSpace(s.Text) == "" {
 			continue
 		}
+		text = true
 		bold, italic, underline = bold && s.Bold, italic && s.Italic, underline && s.Underline
 	}
 	flags := ""
+	if !text {
+		return ""
+	}
 	if bold {
 		flags += "b"
 	}

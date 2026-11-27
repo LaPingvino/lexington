@@ -4,12 +4,28 @@
 // format is as Trelby's own fileformat.txt and its loader
 // (trelby/screenplay.py) have it; no code of Trelby's is in this package.
 //
+// Trelby's text is plain: it styles a whole element type at once (its
+// config's Element/<type>/Export/Bold, Italic, Underlined) and a title
+// string as a whole (its b, i, u flags), and it has no dual dialogue. So
+// emphasis and dual dialogue are kept the way Trelby's own Fountain
+// import keeps them when its "Remove unsupported formatting markup" is
+// off: Fountain's markers in the text (*italics*, **bold**, _underline_,
+// \* for a plain asterisk) and a caret after the second speaker of dual
+// dialogue ("BOB ^"), the two speeches one after the other. Trelby
+// shows and prints these as they are, and its Fountain export writes
+// them out unchanged, so they come back as emphasis and dual dialogue
+// there as here. The reader reads Fountain's markers in every Trelby
+// file (a file of Trelby's own with "*69" or snake_case keeps them as
+// text, as Fountain would), and an element type its config exports bold,
+// italic or underlined as styled throughout. A title string styled in
+// part is written plain, Trelby styling it only as a whole.
+//
 // Trelby keeps less than Fountain says, and the writer leaves out what
-// it has no place for: emphasis, dual dialogue (the two speeches one
-// after the other), scene numbers (Trelby numbers scenes itself), page
-// breaks, boneyards. A centred line is action, lyrics are dialogue. A
-// first-level section is Trelby's act break; a deeper one ("## …") and a
-// synopsis ("= …") are notes, which read back as what they were.
+// else it has no place for: scene numbers (Trelby numbers scenes
+// itself), page breaks, boneyards. A centred line is action, lyrics are
+// dialogue. A first-level section is Trelby's act break; a deeper one
+// ("## …") and a synopsis ("= …") are notes, which read back as what
+// they were. Notes, sections and synopses are plain text.
 package trelby
 
 import (
@@ -96,7 +112,7 @@ func Parse(r io.Reader) (lex.Screenplay, error) {
 	}
 	version, _ := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(lines[0], "#Version ")))
 	started := version < 3 // before 3, no #Start-Script line
-	var b lex.Builder
+	var rd reader
 	var titles []titleString
 	inSection := ""
 	var text strings.Builder
@@ -104,6 +120,8 @@ func Parse(r io.Reader) (lex.Screenplay, error) {
 		if inSection != "" {
 			if strings.TrimSpace(l) == "#End-"+inSection {
 				inSection = ""
+			} else if inSection == "Config" {
+				rd.config(l)
 			}
 			continue
 		}
@@ -136,44 +154,128 @@ func Parse(r io.Reader) (lex.Screenplay, error) {
 		case endSpace2:
 			text.WriteString("  ")
 		case endLast:
-			add(&b, typ, text.String())
+			rd.add(typ, text.String())
 			text.Reset()
 		default: // endSpace, and as Trelby reads one it does not know
 			text.WriteString(" ")
 		}
 	}
 	if text.Len() > 0 {
-		add(&b, typeAction, text.String())
+		rd.add(typeAction, text.String())
 	}
+	var b lex.Builder
 	b.TitlePage(titlePage(titles))
+	for _, p := range rd.paras {
+		b.Add(p)
+	}
 	return b.Screenplay(), nil
 }
 
-// add adds an element: in capitals for the types Trelby prints so.
-func add(b *lex.Builder, typ byte, text string) {
+// reader gathers the elements as paragraphs, with the styles the
+// config gives the element types.
+type reader struct {
+	paras  []lex.Paragraph
+	styles map[byte]string // the b, i, u an element type is exported in
+}
+
+// configTypes are the config's names of the element types that are
+// styled as text (notes and act breaks are not).
+var configTypes = map[string]byte{
+	"Scene": typeScene, "Action": typeAction, "Character": typeChar, "Dialogue": typeDialog,
+	"Parenthetical": typeParen, "Transition": typeTrans, "Shot": typeShot,
+}
+
+// configStyle is a config line on an element type's exported style.
+var configStyle = regexp.MustCompile(`^Element/([^/]+)/Export/(Bold|Italic|Underlined):True\s*$`)
+
+func (r *reader) config(l string) {
+	m := configStyle.FindStringSubmatch(l)
+	if m == nil {
+		return
+	}
+	typ, ok := configTypes[m[1]]
+	if !ok {
+		return
+	}
+	if r.styles == nil {
+		r.styles = map[byte]string{}
+	}
+	r.styles[typ] += strings.ToLower(m[2][:1])
+}
+
+// add adds an element: in capitals for the types Trelby prints so, its
+// Fountain markers read as emphasis, a speaker's caret as dual dialogue.
+func (r *reader) add(typ byte, text string) {
 	t, caps := elementType(typ)
 	text = strings.TrimSpace(text)
 	if caps {
 		text = strings.ToUpper(text)
 	}
-	text = lex.EscapeEmphasis(text) // Trelby's text is plain
 	p := lex.Paragraph{Type: t, Text: text}
 	switch t {
 	case lex.TypeSection:
 		p.Level = 1
+		p.Text = lex.EscapeEmphasis(text) // an act break is plain
 	case lex.TypeNote:
-		plain := lex.Unstyled(text)
-		if m := noteSection.FindStringSubmatch(plain); m != nil {
+		if m := noteSection.FindStringSubmatch(text); m != nil {
 			p = lex.Paragraph{Type: lex.TypeSection, Level: len(m[1]), Text: lex.EscapeEmphasis(m[2])}
 			break
 		}
-		if m := noteSynopsis.FindStringSubmatch(plain); m != nil {
-			b.Add(lex.Paragraph{Type: lex.TypeSynopsis, Text: m[1]})
-			return
+		if m := noteSynopsis.FindStringSubmatch(text); m != nil {
+			p = lex.Paragraph{Type: lex.TypeSynopsis, Text: m[1]}
+			break
 		}
-		p = lex.Paragraph{Type: lex.TypeAction, Notes: []string{plain}}
+		p = lex.Paragraph{Type: lex.TypeAction, Notes: []string{text}}
+	case lex.TypeSpeaker:
+		if cue, ok := strings.CutSuffix(text, "^"); ok {
+			p.Text = strings.TrimSpace(cue)
+			if first := r.dualFirst(); first >= 0 {
+				r.paras[first].Dual = lex.DualFirst
+				p.Dual = lex.DualSecond
+			} // a caret with no speech before it to pair with: an ordinary speech
+		}
 	}
-	b.Add(p)
+	if f := r.styles[typ]; f != "" && p.Text != "" {
+		p.Text = styled(p.Text, f)
+	}
+	r.paras = append(r.paras, p)
+}
+
+// dualFirst is the speaker of the speech just before, if it is not in
+// dual dialogue already: -1 if there is none.
+func (r *reader) dualFirst() int {
+	for i := len(r.paras) - 1; i >= 0; i-- {
+		switch p := r.paras[i]; p.Type {
+		case lex.TypeDialog, lex.TypeParen:
+			continue
+		case lex.TypeSpeaker:
+			if p.Dual == lex.NotDual {
+				return i
+			}
+		}
+		return -1
+	}
+	return -1
+}
+
+// styled is text in the style flags give (b, i, u), but for the part of
+// it it has already: each line on its own, as Fountain's emphasis does
+// not go over a line break.
+func styled(text, flags string) string {
+	has := styleFlags(text)
+	bold := strings.Contains(flags, "b") && !strings.Contains(has, "b")
+	italic := strings.Contains(flags, "i") && !strings.Contains(has, "i")
+	underline := strings.Contains(flags, "u") && !strings.Contains(has, "u")
+	if !bold && !italic && !underline {
+		return text
+	}
+	lines := strings.Split(text, "\n")
+	for i, l := range lines {
+		if l = strings.TrimSpace(l); l != "" {
+			lines[i] = mark(l, bold, italic, underline)
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // titleString is a #Title-String: where it is and how it looks, and its

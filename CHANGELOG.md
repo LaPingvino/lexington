@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Trelby: emphasis and dual dialogue kept.** Trelby's text has no styles and Trelby has no dual dialogue,
+  so the writer keeps Fountain's markers in the text (`**bold**`, `*italics*`, `_underline_`) and a caret
+  after the second speaker (`MARY ^`), as Trelby's own Fountain import does with its markup kept, and the
+  reader reads them back: in Trelby they show and print as they are. Reading a Trelby file now reads such
+  markers in every file (`*men*` is italics, where it was text), and an element type the file's config
+  exports bold, italic or underlined as styled throughout. A title page value styled as a whole is written
+  with the title string's b, i, u flags (before, only the title).
+
 ## [1.66.1] - 2026-11-27
 
 ### Added

@@ -50,7 +50,7 @@ var sampleRows = []string{
 	"action: Act one",
 	"section: # ACT ONE",
 	"scene: INT. WAREHOUSE - NIGHT",
-	`action: JIM and JASON, two \*men\* in their thirties, stand.`,
+	"action: JIM and JASON, two *men* in their thirties, stand.",
 	"note: [[Do we need more?]]",
 	"synopse: They meet.",
 	"section: ## The shooting",
@@ -121,7 +121,8 @@ func checkLoadable(t *testing.T, out string) {
 }
 
 // TestFountain: Fountain in, Trelby out, read back: what Trelby holds is
-// kept (its text, without emphasis; the title page's fields).
+// kept (its text with its emphasis, dual dialogue; the title page's
+// fields).
 func TestFountain(t *testing.T) {
 	for name, src := range formattest.Inputs(t) {
 		t.Run(name, func(t *testing.T) {
@@ -134,9 +135,9 @@ func TestFountain(t *testing.T) {
 	}
 }
 
-// trelbyRows are a script's rows as Trelby keeps them: plain text, no
-// numbers, notes or outline, centred lines and lyrics as action and
-// dialogue, the title page's fields in any order.
+// trelbyRows are a script's rows as Trelby keeps them: no numbers, notes
+// or outline, centred lines and lyrics as action and dialogue, the title
+// page's fields plain and in any order.
 func trelbyRows(s lex.Screenplay) []string {
 	var title, body []string
 	inTitle := len(s) > 0 && s[0].Type == lex.TypeTitlePage
@@ -151,8 +152,10 @@ func trelbyRows(s lex.Screenplay) []string {
 		}
 		t := l.Type
 		switch t {
-		case lex.TypeEmpty, lex.TypeNewPage, lex.TypeNote, lex.TypeSection, lex.TypeSynopsis, lex.TypeBoneyard,
-			lex.TypeDualOpen, lex.TypeDualNext, lex.TypeDualClose:
+		case lex.TypeEmpty, lex.TypeNewPage, lex.TypeNote, lex.TypeSection, lex.TypeSynopsis, lex.TypeBoneyard:
+			continue
+		case lex.TypeDualOpen, lex.TypeDualNext, lex.TypeDualClose:
+			body = append(body, string(t))
 			continue
 		case lex.TypeCenter:
 			t = lex.TypeAction
@@ -163,7 +166,7 @@ func trelbyRows(s lex.Screenplay) []string {
 		if l.Type == lex.TypeScene {
 			text, _ = lex.SceneNumber(text)
 		}
-		text = strings.TrimSpace(lex.Unstyled(lex.StripNotes(text)))
+		text = strings.TrimSpace(lex.StripNotes(text))
 		if text == "" {
 			continue
 		}
