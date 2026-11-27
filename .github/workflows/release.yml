@@ -21,12 +21,12 @@ jobs:
             goarch: arm64
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
-          go-version: "1.23"
+          go-version-file: go.mod
 
       - name: Get dependencies
         run: go mod download
@@ -50,7 +50,11 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
         run: |
-          go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" -o ${{ steps.binary.outputs.name }} .
+          go build -trimpath -ldflags="-s -w -X main.version=${{ github.ref_name }} -X main.commit=${{ github.sha }} -X main.date=$(git log -1 --format=%cI)" -o ${{ steps.binary.outputs.name }} .
+
+      - name: The binary knows its version
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        run: ./lexington -version 2>&1 | tee version.txt && grep -q "Lexington version ${{ github.ref_name }} (commit: ${{ github.sha }}" version.txt
 
       - name: Create archive
         run: |
@@ -61,7 +65,7 @@ jobs:
           fi
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.binary.outputs.archive }}
           path: |
@@ -75,10 +79,10 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: ./artifacts
 
@@ -122,7 +126,7 @@ jobs:
           find ./artifacts -name "*.zip" -exec mv {} . \;
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             *.tar.gz
