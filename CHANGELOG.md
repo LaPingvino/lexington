@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.66.1] - 2026-11-27
+
+### Added
+- **`lexington IN [OUT]`: the files without `-i` and `-o`,** the shortest form; the flags before, between
+  or after them, one file alone the input (to standard output). Mixed with `-i` or `-o` it is an error.
+
+### Removed
+- **`lexington convert IN OUT`, in favour of `lexington IN OUT` and `-i`/`-o`:** one syntax for one
+  action, one path. Both do all it did: each file told by its name, the input else by its content (a KIT database, a Fade In zip or
+  folder, Trelby's `#Version` line, a PDF, Final Draft's or OSF's XML). `cli.ReadScreenplay`, `cli.Inputs`
+  and `cli.Sniff` stay.
+
 ## [1.66.0] - 2026-11-26
 
 ### Added

@@ -32,7 +32,10 @@ This installs Lexington to your go/bin directory. If this directory is in your e
 
 Convert a Fountain screenplay to PDF (multiple options):
 ```bash
-# Direct PDF generation (built-in, supports dual dialogue)
+# Direct PDF generation (built-in, supports dual dialogue); the shortest form,
+# each format told by the file's name (else the input's content)
+lexington inputfile.fountain outputfile.pdf
+# the same with -i and -o (not mixed with plain files)
 lexington -i inputfile.fountain -o outputfile.pdf -to pdf
 
 # HTML to PDF (requires wkhtmltopdf, preserves CSS styling)
@@ -416,16 +419,18 @@ The layout is described roughly, as a draft that will change, in
 
 ### Other programs' formats: Fade In, Trelby, KIT Scenarist
 
-`lexington convert IN OUT` converts any format Lexington reads into any it writes, each told by its name,
-else (the input) by its content. Every other flag goes before, between or after the two files:
+`lexington IN OUT` (or `-i IN -o OUT`) converts any format Lexington reads into any it writes, each told
+by its name, else (the input) by its content; the other flags go before, between or after the files, and
+`IN` alone writes to standard output:
 
 ```bash
-lexington convert script.pdf script.fountain          # any screenplay PDF, read back to Fountain
-lexington convert film.fadein film.fdx                 # Fade In to Final Draft
-lexington convert film.trelby film.kitsp               # Trelby to KIT Scenarist
-lexington convert film.fountain film.fadein -form folder   # an unzipped .fadein
-lexington convert film.fountain film.osf -osfversion 1.2   # an older Fade In's OSF
-lexington convert download film.fountain               # no extension: told by its content
+lexington script.pdf script.fountain                 # the shortest form
+lexington -i script.pdf -o script.fountain           # any screenplay PDF, read back to Fountain
+lexington -i film.fadein -o film.fdx                  # Fade In to Final Draft
+lexington -i film.trelby -o film.kitsp                # Trelby to KIT Scenarist
+lexington -i film.fountain -o film.fadein -form folder    # an unzipped .fadein
+lexington -i film.fountain -o film.osf -osfversion 1.2    # an older Fade In's OSF
+lexington -i download -o film.fountain                # no extension: told by its content
 ```
 
 | Program | Read | Written | What it keeps |

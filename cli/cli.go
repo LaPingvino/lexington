@@ -357,11 +357,7 @@ func Main(ctx context.Context, args []string) int {
 	if len(args) > 0 && args[0] == "check" {
 		return checkBundles(args[1:])
 	}
-	parse := parseFlags
-	if len(args) > 0 && args[0] == "convert" {
-		parse, args = parseConvert, args[1:]
-	}
-	o, ok, err := parse(args)
+	o, ok, err := parseFlags(args)
 	if err != nil {
 		return 2
 	}
@@ -385,6 +381,10 @@ type flagState struct {
 // newFlagSet is the command line's flags, set into st.
 func newFlagSet(st *flagState) *flag.FlagSet {
 	fs := flag.NewFlagSet("lexington", flag.ContinueOnError)
+	fs.Usage = func() {
+		fmt.Fprintln(fs.Output(), "usage: lexington [flags] IN [OUT], or lexington -i IN -o OUT [flags]: each format as its name, else (IN) its content, says")
+		fs.PrintDefaults()
+	}
 	fs.StringVar(&st.o.ConfigFile, "config", "lexington.toml", "Configuration file to use.")
 	fs.StringVar(&st.o.FormatDir, "formats", "", "Folders of format files of your own (name.toml, as Lexington's presets), as a path list, to use with -e.")
 	fs.BoolVar(&st.dump, "dumpconfig", false,
@@ -461,20 +461,10 @@ func newFlagSet(st *flagState) *flag.FlagSet {
 }
 
 // parseFlags reads the arguments; ok is false when there is nothing to
-// convert (help, presets, version, dumped settings).
+// convert (help, presets, version, dumped settings). The files can be
+// given as -i and -o, or plainly, IN [OUT], with the flags before,
+// between or after them; not both ways at once.
 func parseFlags(args []string) (o Options, ok bool, err error) {
-	st := &flagState{}
-	fs := newFlagSet(st)
-	if err := fs.Parse(args); err != nil {
-		return st.o, false, err
-	}
-	return st.after(fs)
-}
-
-// parseConvert reads "convert IN OUT" and its flags, before, between or
-// after the two files: IN is -i, OUT -o, each format as its name or its
-// content says.
-func parseConvert(args []string) (o Options, ok bool, err error) {
 	st := &flagState{}
 	fs := newFlagSet(st)
 	var files []string
@@ -487,14 +477,24 @@ func parseConvert(args []string) (o Options, ok bool, err error) {
 		}
 		files, args = append(files, fs.Arg(0)), fs.Args()[1:]
 	}
-	if st.help || st.presets || st.titlePages || st.version || st.dump {
-		return st.after(fs)
+	if len(files) > 0 {
+		named := false
+		fs.Visit(func(f *flag.Flag) { named = named || f.Name == "i" || f.Name == "o" })
+		switch {
+		case named:
+			err = fmt.Errorf("give the files as IN [OUT] or as -i and -o, not both: %s", strings.Join(files, " "))
+		case len(files) > 2:
+			err = fmt.Errorf("one input and one output, not %d files: %s", len(files), strings.Join(files, " "))
+		}
+		if err != nil {
+			fmt.Fprintln(fs.Output(), err)
+			return st.o, false, err
+		}
+		st.o.Input = files[0]
+		if len(files) == 2 {
+			st.o.Output = files[1]
+		}
 	}
-	if len(files) != 2 {
-		fmt.Fprintln(fs.Output(), "usage: lexington convert IN OUT [flags]: IN and OUT in any format Lexington reads and writes, by their names or IN's content")
-		return st.o, false, errors.New("convert takes two files")
-	}
-	st.o.Input, st.o.Output = files[0], files[1]
 	return st.after(fs)
 }
 
@@ -503,7 +503,7 @@ func (st *flagState) after(fs *flag.FlagSet) (Options, bool, error) {
 	o := st.o
 	switch {
 	case st.help:
-		fs.PrintDefaults()
+		fs.Usage()
 	case st.presets:
 		list, err := rules.PresetsIn(filepath.SplitList(o.FormatDir)...)
 		if err != nil {

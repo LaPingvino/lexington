@@ -26,8 +26,8 @@ func TestOtherProgramsFormats(t *testing.T) {
 	for _, ext := range []string{"fadein", "osf", "trelby", "kitsp", "fdx"} {
 		t.Run(ext, func(t *testing.T) {
 			out := filepath.Join(dir, "script."+ext)
-			if code := Main(context.Background(), []string{"convert", src, out}); code != 0 {
-				t.Fatalf("convert to %s: exit %d", ext, code)
+			if code := Main(context.Background(), []string{"-i", src, "-o", out}); code != 0 {
+				t.Fatalf("-o %s: exit %d", ext, code)
 			}
 			back, err := ReadScreenplay(context.Background(), out, Options{})
 			if err != nil {
@@ -47,6 +47,18 @@ func TestOtherProgramsFormats(t *testing.T) {
 				t.Fatal(err)
 			}
 			formattest.Same(t, ext+" by content", formattest.Rows(back, nil), formattest.Rows(again, nil))
+			// and through -i, by its content alone
+			fromBare := filepath.Join(dir, "bare-"+ext+".fountain")
+			if code := Main(context.Background(), []string{"-i", bare, "-o", fromBare}); code != 0 {
+				t.Fatalf("-i %s by content: exit %d", ext, code)
+			}
+			viaI, err := ReadScreenplay(context.Background(), fromBare, Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if speakers(viaI) != speakers(want) || headings(viaI) != headings(want) {
+				t.Errorf("-i %s by content:\n%s", ext, formattest.Dump(viaI))
+			}
 		})
 	}
 }
@@ -72,17 +84,16 @@ func headings(s lex.Screenplay) string {
 	return strings.Join(out, "|")
 }
 
-// TestConvertArgs: convert's flags go before, between or after its two
-// files; a .fadein is written as a folder with -form folder, and read
-// back from it.
-func TestConvertArgs(t *testing.T) {
+// TestFadeInFolder: a .fadein is written as a folder with -form folder,
+// and read back from it with -i.
+func TestFadeInFolder(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "a.fountain")
 	if err := os.WriteFile(src, []byte(formattest.Script), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	out := filepath.Join(dir, "a.fadein")
-	if code := Main(context.Background(), []string{"convert", "-osfversion", "2.0", src, out, "-form", "folder"}); code != 0 {
+	if code := Main(context.Background(), []string{"-osfversion", "2.0", "-i", src, "-o", out, "-form", "folder"}); code != 0 {
 		t.Fatalf("exit %d", code)
 	}
 	doc, err := os.ReadFile(filepath.Join(out, "document.xml"))
@@ -93,15 +104,47 @@ func TestConvertArgs(t *testing.T) {
 		t.Errorf("not OSF 2.0: %.200s", doc)
 	}
 	back := filepath.Join(dir, "back.fountain")
-	if code := Main(context.Background(), []string{"convert", out, back}); code != 0 {
+	if code := Main(context.Background(), []string{"-i", out, "-o", back}); code != 0 {
 		t.Fatalf("back: exit %d", code)
 	}
 	text, _ := os.ReadFile(back)
 	if !strings.Contains(string(text), "MARY ^") || !strings.Contains(string(text), "INT. HALL - DAY #1#") {
 		t.Errorf("back from the folder:\n%s", text)
 	}
-	if code := Main(context.Background(), []string{"convert", src}); code == 0 {
-		t.Error("convert with one file did not fail")
+}
+
+// TestPlainFiles: IN [OUT] without -i and -o, the flags anywhere; mixed
+// with -i or -o, or more than two, an error.
+func TestPlainFiles(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "a.fountain")
+	if err := os.WriteFile(src, []byte(formattest.Script), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "a.trelby")
+	if code := Main(context.Background(), []string{src, "-e", "default", out}); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	bare := filepath.Join(dir, "bare")
+	data, _ := os.ReadFile(out)
+	if err := os.WriteFile(bare, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	back := filepath.Join(dir, "back.txt")
+	if code := Main(context.Background(), []string{"-to", "fountain", bare, back}); code != 0 {
+		t.Fatalf("back: exit %d", code)
+	}
+	if text, _ := os.ReadFile(back); !strings.Contains(string(text), "MARY") {
+		t.Errorf("back by content:\n%s", text)
+	}
+	o, ok, err := parseFlags([]string{src})
+	if err != nil || !ok || o.Input != src || o.Output != "-" {
+		t.Errorf("one file: %+v %v %v", o.Input+" "+o.Output, ok, err)
+	}
+	for _, args := range [][]string{{"-i", src, out}, {src, "-o", out}, {src, out, back}} {
+		if _, _, err := parseFlags(args); err == nil {
+			t.Errorf("%q: no error", args)
+		}
 	}
 }
 
