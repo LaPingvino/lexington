@@ -54,7 +54,9 @@ jobs:
 
       - name: The binary knows its version
         if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
-        run: ./lexington -version 2>&1 | tee version.txt && grep -q "Lexington version ${{ github.ref_name }} (commit: ${{ github.sha }}" version.txt
+        run: |
+          ./lexington -version 2>&1 | tee version.txt
+          grep -qF "Lexington version ${{ github.ref_name }} (commit: ${{ github.sha }}" version.txt
 
       - name: Create archive
         run: |
