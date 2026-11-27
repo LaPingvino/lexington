@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.67.0] - 2026-11-27
+
 ### Changed
 - **Trelby: emphasis and dual dialogue kept.** Trelby's text has no styles and Trelby has no dual dialogue,
   so the writer keeps Fountain's markers in the text (`**bold**`, `*italics*`, `_underline_`) and a caret
