@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.67.2] - 2026-11-28
+
 ### Changed
 - **The Fountain writer forces only what needs forcing.** A force mark (`!`, `@`, `.`, `>`) is written only
   where the strict reading of the written text, in its place, would read the line otherwise; the writer
