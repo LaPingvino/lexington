@@ -441,7 +441,7 @@ lexington -i download -o film.fountain                # no extension: told by it
 | Fade In (`.fadein`, zipped or a folder; `.osf`) | OSF 1.2, 2.x, 3.0, 4.0, 5.0 | OSF 5.0, Fade In 5's (`-osfversion 4.0`, `2.0`, `1.2`) | all printed elements and emphasis, dual dialogue, scene numbers, page breaks, notes, a scene's synopsis; the title page |
 | Trelby (`.trelby`) | formats 1–3 | format 3 | the text of each element and its type, emphasis and dual dialogue as Fountain's markers in the text, notes, the title page; no scene numbers or page breaks |
 | KIT Scenarist (`.kitsp`) | its projects (0.7) | a new project, as KIT 0.7.2 makes one | all elements and emphasis, dual dialogue, scene numbers and colours, folders as sections, notes as review comments, the title page's fields; no page breaks |
-| Celtx (`.celtx`, desktop 2.x) | its projects: the first script, or `-script` | a project of one screenplay (*unverified* in Celtx) | all elements and emphasis, notes, a scene's index card as its synopsis, breakdown tags (Cast, Props, Sound written), the title page Celtx has; dual dialogue, centred lines, lyrics and the outline as Fountain's markers; no scene numbers or page breaks |
+| Celtx (`.celtx`, desktop 2.x) | its projects: the first script, or `-script` | a project of one screenplay (*unverified* in Celtx) | all elements and emphasis, notes, a scene's index card as its synopsis, the title page Celtx has, and for programs the breakdown tags (Cast, Props, Sound written); dual dialogue, centred lines, lyrics and the outline as Fountain's markers; no scene numbers or page breaks |
 
 - **Fade In:** a `.fadein` is a zip holding the script as `document.xml`, in Fade In's Open Screenplay
   Format; like a `.highland` it can be a folder, and is written back in the form it has, what else is in it
@@ -479,8 +479,9 @@ lexington -i download -o film.fountain                # no extension: told by it
   author, credit ("By"), source, copyright and contact (Draft date and Notes have no place). A scene's
   index card text is its synopsis. Breakdown tags (`<span class="cast" ref="…">`) are read as Lexington's
   breakdown (`celtx.ParseTags`, as `fdx.ParseTags`), the item's name and department from the catalogue;
-  the writer writes Cast, Props and Sound, the departments seen in a project Celtx saved, and leaves other
-  categories' words plain. Celtx numbers scenes itself, so its numbers are not read and none are written;
+  `CeltxWriter.Tags` writes Cast, Props and Sound, the departments seen in a project Celtx saved, and leaves
+  other categories' words plain. As with Final Draft's, `lexington IN OUT` itself does not carry the tags
+  from one file to another. Celtx numbers scenes itself, so its numbers are not read and none are written;
   attachments (media) are passed over; the storyboard, schedule and other documents are not read. What
   Celtx lacks is kept as Trelby's is: a caret on dual dialogue's second speaker, `> THE END <`, `~` before
   lyrics, sections and synopses as notes (`# Act One`, `= …`). The writer follows what Celtx itself writes

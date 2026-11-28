@@ -57,8 +57,12 @@ func (w *CeltxWriter) Write(out io.Writer, s lex.Screenplay) error {
 // store puts a file in the zip uncompressed, its sizes in its header (no
 // data descriptor), as Celtx stores its files.
 func store(z *zip.Writer, name string, data []byte, now time.Time) error {
-	h := &zip.FileHeader{Name: name, Method: zip.Store, Modified: now,
+	h := &zip.FileHeader{Name: name, Method: zip.Store, Modified: now, CreatorVersion: 20, ReaderVersion: 20,
 		CRC32: crc32.ChecksumIEEE(data), CompressedSize64: uint64(len(data)), UncompressedSize64: uint64(len(data))}
+	// CreateRaw takes the header as it is: the MS-DOS date and time too
+	local := now.Local()
+	h.ModifiedDate = uint16(max(local.Year()-1980, 0)<<9 | int(local.Month())<<5 | local.Day())
+	h.ModifiedTime = uint16(local.Hour()<<11 | local.Minute()<<5 | local.Second()/2)
 	f, err := z.CreateRaw(h)
 	if err != nil {
 		return err
@@ -260,23 +264,12 @@ func (pw *projectWriter) para(b *bytes.Buffer, p lex.Paragraph) {
 	}
 	b.WriteString(open)
 	lines := strings.Split(text, "\n")
+	lineTags := pw.lineTags(p, lines)
 	for i, l := range lines {
 		if i > 0 {
 			b.WriteString("<br>\n")
 		}
-		var tags []lex.LineTag
-		if p.Type != lex.TypeCenter {
-			src := 0
-			if i < len(p.Sources) {
-				src = p.Sources[i]
-			} else if len(p.Sources) == 1 { // the paragraph's lines are one row
-				src = p.Sources[0]
-			}
-			if src > 0 {
-				tags = pw.w.LineTags[src]
-			}
-		}
-		b.WriteString(pw.line(l, tags, sc))
+		b.WriteString(pw.line(l, lineTags[i], sc))
 	}
 	for _, n := range p.Notes {
 		if n = strings.TrimSpace(n); n != "" {
@@ -284,6 +277,41 @@ func (pw *projectWriter) para(b *bytes.Buffer, p lex.Paragraph) {
 		}
 	}
 	b.WriteString("</p>\n")
+}
+
+// lineTags are the tags of each of a paragraph's lines: a speech's lines
+// are rows of their own, with their own tags; the lines of another
+// paragraph are one row, whose tags are found in the row's text and go
+// on the line they are in, counted again there.
+func (pw *projectWriter) lineTags(p lex.Paragraph, lines []string) [][]lex.LineTag {
+	out := make([][]lex.LineTag, len(lines))
+	if p.Type == lex.TypeCenter || len(pw.w.LineTags) == 0 {
+		return out
+	}
+	if len(p.Sources) != 1 || len(lines) == 1 {
+		for i := range lines {
+			if i < len(p.Sources) && p.Sources[i] > 0 {
+				out[i] = pw.w.LineTags[p.Sources[i]]
+			}
+		}
+		return out
+	}
+	plains := make([]string, len(lines))
+	for i, l := range lines {
+		plains[i] = lex.Unstyled(strings.TrimSpace(l))
+	}
+	whole := strings.Join(plains, "\n")
+	for _, t := range pw.w.LineTags[p.Sources[0]] {
+		at := lex.TagIndex(whole, t.Text, t.At)
+		if at < 0 {
+			continue
+		}
+		line := strings.Count(whole[:at], "\n")
+		start := strings.LastIndex(whole[:at], "\n") + 1
+		t.At = strings.Count(strings.ToLower(whole[start:at]), strings.ToLower(t.Text))
+		out[line] = append(out[line], t)
+	}
+	return out
 }
 
 // line is a line of a paragraph as HTML: its emphasis, its tags.
@@ -433,6 +461,13 @@ func attrEscape(s string) string {
 	return strings.NewReplacer("&", "&amp;", `"`, "&quot;", "<", "&lt;", ">", "&gt;").Replace(s)
 }
 
+// rdfEscape is a text as an attribute's value in project.rdf (XML, whose
+// readers make a line break in an attribute a space): its line breaks
+// as character references.
+func rdfEscape(s string) string {
+	return strings.NewReplacer("\r", "", "\n", "&#10;", "\t", "&#9;").Replace(attrEscape(s))
+}
+
 // manifest is project.rdf: the project, its tree (a catalogue and the
 // script), the script's scenes, the items tagged.
 func (pw *projectWriter) manifest() []byte {
@@ -448,10 +483,10 @@ func (pw *projectWriter) manifest() []byte {
 		`xmlns:RDF="` + nsRDF + `">` + "\n")
 	date := cmp.Or(pw.w.Now, time.Now()).UTC().Format("2006-01-02T15:04:05Z")
 	fmt.Fprintf(&b, "  <cx:Project RDF:about=\"%s\"\n                   cx:fileVersion=\"1.4\"\n                   dc:title=\"%s\"\n                   dc:modified=\"%s\">\n    <cx:components RDF:resource=\"%s\"/>\n  </cx:Project>\n",
-		project, attrEscape(name), date, components)
+		project, rdfEscape(name), date, components)
 	fmt.Fprintf(&b, "  <RDF:Seq RDF:about=\"%s\">\n    <RDF:li RDF:resource=\"%s\"/>\n  </RDF:Seq>\n", components, root)
 	fmt.Fprintf(&b, "  <RDF:Seq RDF:about=\"%s\">\n    <RDF:li RDF:resource=\"%s\"/>\n    <RDF:li RDF:resource=\"%s\"/>\n  </RDF:Seq>\n", root, catalog, script)
-	fmt.Fprintf(&b, "  <RDF:Description RDF:about=\"%s\"\n                   cx:projectRoot=\"true\"\n                   dc:title=\"%s\" />\n", root, attrEscape(name))
+	fmt.Fprintf(&b, "  <RDF:Description RDF:about=\"%s\"\n                   cx:projectRoot=\"true\"\n                   dc:title=\"%s\" />\n", root, rdfEscape(name))
 
 	// the catalogue: every item, and the items by department
 	members, depts := anon(), anon()
@@ -475,9 +510,9 @@ func (pw *projectWriter) manifest() []byte {
 	b.WriteString("  </RDF:Seq>\n")
 	for i, s := range pw.scenes {
 		sm, mk := anon(), anon()
-		fmt.Fprintf(&b, "  <RDF:Description RDF:about=\"%s\"\n                   cx:sceneid=\"%s\"\n                   dc:title=\"%s\"\n                   cx:ordinal=\"%d\"", s.res, s.id, attrEscape(s.title), i+1)
+		fmt.Fprintf(&b, "  <RDF:Description RDF:about=\"%s\"\n                   cx:sceneid=\"%s\"\n                   dc:title=\"%s\"\n                   cx:ordinal=\"%d\"", s.res, s.id, rdfEscape(s.title), i+1)
 		if s.card != "" {
-			fmt.Fprintf(&b, "\n                   dc:description=\"%s\"", attrEscape(s.card))
+			fmt.Fprintf(&b, "\n                   dc:description=\"%s\"", rdfEscape(s.card))
 		}
 		fmt.Fprintf(&b, ">\n    <cx:members RDF:resource=\"%s\"/>\n    <cx:markup RDF:resource=\"%s\"/>\n  </RDF:Description>\n", sm, mk)
 		pw.deptLists(&b, sm, s.items, anon)
@@ -486,7 +521,7 @@ func (pw *projectWriter) manifest() []byte {
 
 	// the items
 	for _, it := range pw.items {
-		fmt.Fprintf(&b, "  <cx:%s RDF:about=\"%s\"\n                   dc:title=\"%s\" />\n", it.dept, it.res, attrEscape(it.name))
+		fmt.Fprintf(&b, "  <cx:%s RDF:about=\"%s\"\n                   dc:title=\"%s\" />\n", it.dept, it.res, rdfEscape(it.name))
 	}
 	b.WriteString("</RDF:RDF>\n")
 	return b.Bytes()

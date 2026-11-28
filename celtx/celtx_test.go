@@ -436,8 +436,8 @@ func TestStored(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range z.File {
-		if f.Method != zip.Store || f.Flags&0x8 != 0 {
-			t.Errorf("%s: method %d, flags %#x", f.Name, f.Method, f.Flags)
+		if f.Method != zip.Store || f.Flags&0x8 != 0 || f.ReaderVersion != 20 || f.ModifiedDate == 0 {
+			t.Errorf("%s: method %d, flags %#x, version %d, date %d", f.Name, f.Method, f.Flags, f.ReaderVersion, f.ModifiedDate)
 		}
 	}
 	if !IsProject(out) || IsProject([]byte("PK\x03\x04junk")) {
@@ -485,5 +485,39 @@ func TestOz(t *testing.T) {
 			t.Fatal(err)
 		}
 		formattest.Same(t, p.Scripts[i].Title, celtxRows(s), celtxRows(back))
+	}
+}
+
+// TestLinesOfARow: the tags of an action of several lines in one row (as
+// a Celtx paragraph with a <br> reads) go on the line their words are
+// in; a scene's two synopses keep their line break in project.rdf.
+func TestLinesOfARow(t *testing.T) {
+	src0 := 7
+	rows := lex.Screenplay{{Type: lex.TypeScene, Contents: "INT. ATTIC - DAY", Source: 1}, {Type: lex.TypeEmpty},
+		{Type: lex.TypeSynopsis, Contents: "One.", Source: 3}, {Type: lex.TypeEmpty},
+		{Type: lex.TypeSynopsis, Contents: "Two.", Source: 5}, {Type: lex.TypeEmpty},
+		{Type: lex.TypeAction, Contents: "Ann holds the key.\nThe key glows.", Source: src0}}
+	set := &lex.TagSet{Elements: []lex.TagElement{{ID: "k", Category: "05c556eb-6bc1-4a3a-b09f-f8b5ba1b6afa", Name: "Key"}}}
+	out := write(t, &CeltxWriter{Tags: set, LineTags: map[int][]lex.LineTag{src0: {{Text: "key", At: 1, Elements: []string{"k"}}}}}, rows)
+	checkProject(t, out)
+	p, _ := ReadProject(out)
+	html := string(mustRead(t, p, scriptFile))
+	if !strings.Contains(html, "Ann holds the key.<br>\nThe <span ref=") || strings.Count(html, "<span ref=") != 1 {
+		t.Errorf("the tag not on the second line once:\n%s", html)
+	}
+	if man := string(mustRead(t, p, ManifestName)); !strings.Contains(man, `dc:description="One.&#10;Two."`) {
+		t.Errorf("the scene's card:\n%s", man)
+	}
+	s, _, byRow, err := ParseTags(out, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for row, ts := range byRow {
+		if len(ts) != 1 || ts[0].At != 1 || !strings.HasPrefix(s[row].Contents, "Ann holds the key.\nThe key glows.") {
+			t.Errorf("row %d %q: %+v", row, s[row].Contents, ts)
+		}
+	}
+	if len(byRow) != 1 {
+		t.Errorf("tags back: %+v", byRow)
 	}
 }
