@@ -917,7 +917,7 @@ func detectFormats(o *Options, conf rules.TOMLConf) {
 		if o.From == "" {
 			o.From = ins[len(ins)-1]
 		}
-		if len(ins) > 2 && o.SceneIn == "" {
+		if len(ins) > 2 && o.SceneIn == "" && nameLanguage(conf, ins[len(ins)-2]) {
 			o.SceneIn = ins[len(ins)-2]
 		}
 	}
@@ -932,10 +932,19 @@ func detectFormats(o *Options, conf rules.TOMLConf) {
 		if o.To == "" {
 			o.To = outs[len(outs)-1]
 		}
-		if len(outs) > 2 && o.SceneOut == "" {
+		if len(outs) > 2 && o.SceneOut == "" && nameLanguage(conf, outs[len(outs)-2]) {
 			o.SceneOut = outs[len(outs)-2]
 		}
 	}
+}
+
+// nameLanguage tells whether the part of a file's name before its
+// extension names a language (script.zh.fountain, script.de-CH.fountain,
+// one of the configuration's own): script.back.fountain or film.v2.fdx
+// is no language's, and is English.
+func nameLanguage(conf rules.TOMLConf, part string) bool {
+	_, ok := conf.Lookup(part)
+	return ok
 }
 
 // rtlFor tells whether the script's lines with no direction of their own

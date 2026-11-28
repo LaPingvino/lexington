@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode"
 
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/rules"
@@ -14,8 +15,25 @@ import (
 type FountainWriter struct {
 	SceneConfig []string // Configuration for scene headers
 	// Language is what the text written is read with (its scene words,
-	// cue and transition rules); nil: rules.Words(SceneConfig).
+	// cue and transition rules); nil: rules.Words(SceneConfig), or, with
+	// no SceneConfig either, English as the default configuration has it.
 	Language *rules.Language
+}
+
+// language is what the text written is read with, and the scene words
+// a heading is written with: a zero FountainWriter writes English
+// Fountain, whose INT. heading needs no dot.
+func (f *FountainWriter) language() (rules.Language, []string) {
+	switch {
+	case f.Language != nil && f.SceneConfig == nil:
+		return *f.Language, f.Language.Scenes
+	case f.Language != nil:
+		return *f.Language, f.SceneConfig
+	case f.SceneConfig == nil:
+		en := rules.DefaultLanguages()["en"]
+		return en, en.Scenes
+	}
+	return rules.Words(f.SceneConfig), f.SceneConfig
 }
 
 // WriteState holds the state needed during writing
@@ -30,8 +48,12 @@ type WriteState struct {
 }
 
 // forceMark is a force mark the writer put before a line (from 0) of
-// what it wrote: n bytes ("!", "> ").
-type forceMark struct{ line, n int }
+// what it wrote: n bytes ("!", "> "); a kept one stays whatever the
+// reading needs.
+type forceMark struct {
+	line, n int
+	kept    bool
+}
 
 // Write converts the internal lex.Screenplay format to a Fountain file.
 // It implements the writer.Writer interface.
@@ -39,11 +61,12 @@ func (f *FountainWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	// Remove trailing empty line if present
 	screenplay = f.trimTrailingEmpty(screenplay)
 
+	lang, scenes := f.language()
 	var buf bytes.Buffer
 	state := &WriteState{
 		titlepage: "start",
 		writer:    &tailWriter{w: &buf},
-		config:    f.SceneConfig,
+		config:    scenes,
 	}
 
 	for k, line := range screenplay {
@@ -53,18 +76,17 @@ func (f *FountainWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		}
 	}
 
-	lang := rules.Words(f.SceneConfig)
-	if f.Language != nil {
-		lang = *f.Language
-	}
 	_, err := io.WriteString(w, minimalMarks(buf.String(), state.marks, lang))
 	return err
 }
 
 // mark writes the force mark m before the line being started.
-func (state *WriteState) mark(m string) error {
+func (state *WriteState) mark(m string) error { return state.markKept(m, false) }
+
+// markKept is mark, the mark kept by minimalMarks when kept.
+func (state *WriteState) markKept(m string, kept bool) error {
 	if t, ok := state.writer.(*tailWriter); ok {
-		state.marks = append(state.marks, forceMark{t.lines, len(m)})
+		state.marks = append(state.marks, forceMark{t.lines, len(m), kept})
 	}
 	_, err := fmt.Fprint(state.writer, m)
 	return err
@@ -85,8 +107,8 @@ func minimalMarks(text string, marks []forceMark, lang rules.Language) string {
 	lines := strings.Split(text, "\n")
 	want := rowsByLine(text, lang)
 	off := make([]bool, len(marks)) // marks[k] taken off
-	for k := range off {
-		off[k] = true
+	for k, m := range marks {
+		off[k] = !m.kept
 	}
 	for {
 		try := append([]string(nil), lines...)
@@ -257,8 +279,13 @@ func (state *WriteState) writeEmpty() error {
 func (state *WriteState) writeSpeaker(line lex.Line) error {
 	// the notes are no part of the name ("BOB [[note]]" is in capitals)
 	// a name is one by itself in capitals after a blank line
-	if name, _, _ := strings.Cut(lex.StripNotes(line.Contents), "("); !AllCaps(name) || !state.afterBlank() {
-		if err := state.mark("@"); err != nil {
+	// a name in a script without capitals (Hebrew, Arabic, Chinese)
+	// keeps its @ always, as such scripts write it: a cue the reading
+	// takes by its context alone is one an edit can lose
+	bare := lex.StripNotes(line.Contents)
+	if name, _, _ := strings.Cut(bare, "("); !AllCaps(name) || !state.afterBlank() {
+		own, _, _ := strings.Cut(name, "（")
+		if err := state.markKept("@", caseless(own)); err != nil {
 			return err
 		}
 	}
@@ -269,6 +296,18 @@ func (state *WriteState) writeSpeaker(line lex.Line) error {
 	}
 	_, err := fmt.Fprintln(state.writer, line.Contents)
 	return err
+}
+
+// caseless tells whether s has letters and none of them has a case.
+func caseless(s string) bool {
+	letters := false
+	for _, r := range s {
+		if unicode.IsUpper(r) || unicode.IsLower(r) {
+			return false
+		}
+		letters = letters || unicode.IsLetter(r)
+	}
+	return letters
 }
 
 func (state *WriteState) writeScene(line lex.Line) error {

@@ -54,6 +54,10 @@ func latin(scenes, matchup []string, extensions, transitions []string, ends ...s
 	return l
 }
 
+// offScreen is the extension of a voice off screen, as Dutch, German,
+// French and Japanese scripts write it.
+const offScreen = "OFF"
+
 // noCaps are the cue rules of a language written without capitals
 // (Joop, LOOP.md 2026-11-20): a name in the list, before a
 // parenthetical, with an extension, or one that comes back; and caps,
@@ -238,7 +242,7 @@ func defaultLanguages() map[string]Language {
 		"nl": latin([]string{"BIN.", "BUI.", "BI.", "BU.", "OPEN.", "BIN./BUI", "BUI./BIN", "BIN/BUI", "BI/BU"},
 			[]string{"BIN.", "BUI.", "BIN./BUI.", "BUI./BIN.", ""}, nil, nil).with(
 			none, none, []string{"DAG", "NACHT", "SCHEMER"},
-			[]string{"OFF", "O.S.", "V.O.", "VERVOLGT", "VERVOLG", "CONT'D"}, nil, nil),
+			[]string{offScreen, "O.S.", "V.O.", "VERVOLGT", "VERVOLG", "CONT'D"}, nil, []string{" TO:", " NAAR:"}),
 		// "18. GERICHTSSAAL INNEN/TAG" (MURER), SCHNITT AUF: (de.wikibooks)
 		"de": latin([]string{"INT", "EXT", "ETABL.", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E",
 			"INNEN.", "AUSSEN."},
@@ -253,12 +257,14 @@ func defaultLanguages() map[string]Language {
 			[]string{"JOUR", "NUIT", "SOIR", "MATIN", "FIN DE JOURNÉE"},
 			[]string{"OFF", "V.O.", "O.S.", "SUITE", "CONT'D"}, []string{"FONDU AU NOIR", "FONDU AU NOIR."}, nil),
 		"eo": latin([]string{"EN.", "ENE.", "EKST.", "EK.", "EN/EKST", "EKST/EN", "EKST./EN", "EN./EKST"},
-			[]string{"EN.", "EKST.", "EN./EKST.", "EKST./EN.", ""}, nil, nil).with(none, none, none, nil, nil, nil),
+			[]string{"EN.", "EKST.", "EN./EKST.", "EKST./EN.", ""}, nil, nil).with(
+			none, none, none, nil, nil, []string{" TO:", " AL:"}),
 		// "1. НАТ. ГОРОДСКАЯ ПЛОЩАДЬ. НОЧЬ" (kinodramaturg)
 		"ru": latin([]string{"ИНТ", "НАТ", "ИНТ/НАТ", "ИНТ./НАТ", "НАТ/ИНТ", "НАТ./ИНТ", "ЭКСТ", "И/Н", "Н/И"},
 			[]string{"ИНТ.", "НАТ.", "ИНТ./НАТ.", "НАТ./ИНТ.", ""}, nil, nil).with(
 			[]string{"{n}. {io} {any}"}, none, []string{"ДЕНЬ", "НОЧЬ"},
-			[]string{"ЗА КАДРОМ", "ПРОДОЛЖАЕТ", "V.O.", "O.S.", "CONT'D"}, nil, nil),
+			[]string{"ЗА КАДРОМ", "ПРОДОЛЖАЕТ", "V.O.", "O.S.", "CONT'D"},
+			[]string{"СМЕНА КАДРА", "ЗАТЕМНЕНИЕ", "ИЗ ЗАТЕМНЕНИЯ", "НАПЛЫВ", "ВЫХОД ИЗ ЗАТЕМНЕНИЯ"}, []string{" TO:", " К:"}),
 		"tok": latin([]string{"INSA.", "KON.", "INSA/KON", "I./K", "I/K", "KON/INSA", "K./I", "K/I"},
 			[]string{"INSA.", "KON.", "INSA/KON.", "KON/INSA.", ""}, nil, nil).with(none, none, none, nil, nil, nil),
 		"ar":      ar,
@@ -300,6 +306,26 @@ func defaultLanguages() map[string]Language {
 			Transitions:    []string{"淡入", "淡出", "淡入：", "淡出："},
 			TitleKeys:      map[string]string{},
 		},
+		// Korean headings: "S#14. 지훈의 집 거실 (밤)", cues "상연 (E)", as a
+		// web search summarised Korean drama scripts (not checked against
+		// one); (F), (NA), F.I./F.O. and the rest are Lexington's own
+		// (docs/LANGUAGES.md)
+		"ko": {
+			Scenes:         []string{"S#"},
+			Headings:       []string{"S#{n}. {place} ({time})", "S#{n} {place} ({time})", "#{n}. {place} ({time})"},
+			NewHeading:     "S#{n}. {place} ({time})",
+			Settings:       none,
+			Times:          []string{"낮", "밤", "아침", "저녁", "새벽", "오후", "오전"},
+			Matchup:        []string{"", "", "", "", ""},
+			Direction:      "ltr",
+			Cues:           noCaps,
+			Extensions:     []string{"E", "F", "NA", "NA.", "V.O.", "O.S.", "OFF"},
+			Shape:          Shape{Words: 3, Ends: ".!?,;:…"},
+			Repeat:         2,
+			TransitionEnds: []string{" TO:"},
+			Transitions:    []string{"F.I.", "F.O.", "디졸브", "컷"},
+			TitleKeys:      map[string]string{},
+		},
 		// Japanese headings (hashira) start with a circle: ○走る阪堺電車・外観（朝）
 		// (Sakai City), ○警察署・外観（夜） (ja.wikipedia 脚本)
 		"ja": {
@@ -319,6 +345,9 @@ func defaultLanguages() map[string]Language {
 			TitleKeys:      map[string]string{},
 		},
 	}
+	ru := ls["ru"]
+	ru.TransitionMarks = ".:" // ЗАТЕМНЕНИЕ., СМЕНА КАДРА:
+	ls["ru"] = ru
 	for k, keys := range titleKeys {
 		l := ls[k]
 		l.TitleKeys = maps.Clone(keys)
@@ -364,6 +393,8 @@ var titleKeys = map[string]map[string]string{
 		"作者": "Author", "原著": "Source", "来源": "Source", "來源": "Source", "稿本": "Draft",
 		"定稿日期": "Draft date", "日期": "Date", "联系方式": "Contact", "聯絡方式": "Contact",
 		"备注": "Notes", "備註": "Notes", "版权": "Copyright", "版權": "Copyright"},
+	"ko": {"제목": "Title", "크레딧": "Credit", "극본": "Author", "각본": "Author", "작가": "Author",
+		"원작": "Source", "날짜": "Date", "연락처": "Contact", "메모": "Notes", "저작권": "Copyright"},
 	"ja": {"題名": "Title", "タイトル": "Title", "クレジット": "Credit", "脚本": "Author", "作者": "Author",
 		"原作": "Source", "稿": "Draft", "改訂日": "Draft date", "日付": "Date", "連絡先": "Contact",
 		"備考": "Notes", "著作権": "Copyright"},
@@ -374,13 +405,13 @@ var titleKeys = map[string]map[string]string{
 func DefaultLanguages() map[string]Language { return maps.Clone(defaultLanguages()) }
 
 // formerlyBare are the default configuration's scene words that started
-// a heading without their dot before 1.68 (ENE KUIREJO): ordinary words
+// a heading without their dot before 1.67.3 (ENE KUIREJO): ordinary words
 // or a sentence's start, which now need it (docs/LANGUAGES.md, "A scene
 // word of its own needs its dot").
 var formerlyBare = []string{"ENE", "EKST", "EK", "INNEN", "AUSSEN", "ETABL", "BIN", "BUI", "BI", "BU", "OPEN",
 	"INSA", "KON", "פנים", "חוץ"}
 
-// Undotted is scenes with each of them that before 1.68 started a
+// Undotted is scenes with each of them that before 1.67.3 started a
 // heading without its dot (ENE. of ENE) there without it too, as the
 // reading before 1.19 (fountain.ParseLoose) reads them: an old script's
 // "ENE KUIREJO" a heading there still. A word that always had its dot

@@ -77,7 +77,7 @@ before. Left as they were: Hekaya's Arabic (its spec), Russian
 (`ИНТ`, `НАТ`, `ЭКСТ` are no ordinary words), Chinese (`内景`, `外景`)
 and Japanese (`○`); Italian's `EST` is Fountain's own word.
 
-Before 1.68 these words started a heading without their dot as well
+Before 1.67.3 these words started a heading without their dot as well
 (`ENE KUIREJO`, `INNEN KÜCHE`, `BIN KEUKEN`, `פנים משרד`). Such a heading
 now reads as action, as it would in Fountain; `ParseLoose` (`-loose`)
 still reads it as a heading, and `KeepLoose` (`-keeploose`) converts a
@@ -109,8 +109,15 @@ Names are compared without their extension and dual dialogue's `^`, in
 capitals, with their spaces as one, Arabic without its vowel marks and with
 one alef (`أ إ آ ٱ` as `ا`), as Hekaya's registry compares them. English
 and the other languages written in capitals keep Fountain's `caps`; Hebrew,
-Chinese and Japanese take `forced, list, parenthetical, extension, repeat`;
-Arabic is Hekaya's `forced, caps, list`. In Go: `fountain.NewDialect(lang)`
+Chinese, Japanese and Korean take `forced, list, parenthetical, extension, repeat`;
+Arabic is Hekaya's `forced, caps, list`. A parenthetical is in ASCII's
+brackets or the full-width ones Chinese, Japanese and Korean scripts write
+(`（轻声）`, and the small `﹙…﹚` and white `｟…｠` forms), in every language;
+the writer keeps them as written. Writing Fountain, a cue whose name has no
+letter case (Hebrew, Arabic, Chinese, Japanese, Korean) always gets its `@`,
+even where the reading would take it as a cue by its context: an edit that
+takes the parenthetical away would lose it. A name in capitals gets one only
+where the reading needs it. In Go: `fountain.NewDialect(lang)`
 reads lines by a language's rules (`Heading`, `Transition`, `Cue` with the
 script's `Cast`), which is what Accolade's editor reads with too.
 
@@ -120,6 +127,11 @@ A line with blank lines around it, with no small letters, that ends in one
 of `TransitionEnds` or is one of `Transitions` (its `TransitionMarks`
 around it left out). `>` forces one anywhere, as in Fountain. English has
 only ` TO:`: `FADE OUT.` stays action unless forced, as Fountain reads it.
+Russian has `СМЕНА КАДРА:` (cut), `ЗАТЕМНЕНИЕ.` (fade out), `ИЗ ЗАТЕМНЕНИЯ:`
+and `ВЫХОД ИЗ ЗАТЕМНЕНИЯ` (fade in), `НАПЛЫВ:` (dissolve) and lines ending
+in ` К:` (`ПЕРЕХОД К:`); Dutch lines ending in ` NAAR:`, Esperanto in ` AL:`;
+Korean `F.I.`, `F.O.`, `디졸브`, `컷`. These are Lexington's own (the usual
+renderings; no style guide was found for them): a correction is welcome.
 
 ### Heading patterns
 
@@ -152,7 +164,7 @@ locked script's scene put in between.
 (Accolade's Insert › New Scene…): one of `Headings`, or one that starts
 with a scene word. Left empty it is the first of `Headings`, else
 Fountain's own form, `rules.SceneForm` (`{io} {place} - {time}`: INT.
-KITCHEN - DAY). Japanese writes `○{place}（{time}）`, its hashira
+KITCHEN - DAY). Korean writes `S#{n}. {place} ({time})`. Japanese writes `○{place}（{time}）`, its hashira
 (○走る阪堺電車・外観（朝）, Sakai City; ○警察署・外観（夜）, ja.wikipedia
 脚本). It is only for writing: `Scenes` and `Headings` are what reads one.
 
@@ -227,7 +239,7 @@ two-column). So the default table has Hekaya only.
 - Headings by the patterns: numbered Chinese, Arabic, Italian, Russian and
   Hebrew headings, German and French place-first ones; German lines
   starting with `INNEN.` or `AUSSEN.` after a blank line are headings
-  (before 1.68 without the dot too: see above).
+  (before 1.67.3 without the dot too: see above).
 - Arabic title keys (`العنوان` is the title).
 
 ## How real scripts write scene headings
@@ -241,6 +253,7 @@ verbatim; the Arabic and Japanese layouts are given in reading order.
 | Chinese (mainland) | numbered, place first, then time, then 内/外; or time first, place last: `场景1    小区楼下    日    外`, `13. 街道  黄昏  外  夏` (《孔雀》), `1.日  外  清晨的田野间` (《那山那人那狗》), `2. 大华宾馆房间   夜   内`. Cues on the dialogue's line with a full-width colon (`小慧：你为什么躲着不见我？`); `淡入`, `[画外音]` | thesis screenplay, Xi'an International Studies University, zwxy.xisu.edu.cn/__local/9/79/53/8C038E0EDC07DD0F22C105DD80D_16629828_19A00.doc; amber-zhang.ghost.io/fen-chang-jing-ju-ben-ge-shi/ (quoting the films); sohu.com/a/452935672_693248 (a translated US guide: `内 起居室——日`, `淡入：`, `淡出`) |
 | Chinese (Taiwan) | `1. 內景 阿強家客廳 夜` (number, 內景/外景, place, time); the cue on its own line or with a colon; contest templates `場：1 景：捷運淡水站大廳` / `時：日 人：…` | 48th 優良電影劇本 template, ghsa.org.tw/esa/datas/upload/finder/files/20251112144310612.pdf; ed.arte.gov.tw/uploadfile/NewsFile/2369L_劇本格式(範例).pdf |
 | Japanese | `○` + place, `・` sub-place, time in `（）`: `○走る阪堺電車・外観（朝）`, `○警察署・外観（夜）`; cues `里子「…」`, `Ｍ「…」` (monologue), N, （OFF）, F・I, F・O | Sakai City's published script, city.sakai.lg.jp/…/omnibus_pdf.pdf; ja.wikipedia.org/wiki/脚本; koubo.jp/article/17953 |
+| Korean | `S#` and a number, place, time in brackets: `S#14. 지훈의 집 거실 (밤)`; cues with `(E)`; cues often on the dialogue's line (`지훈: …`) | not fetched: a web search's summary of Korean drama script samples (2026-11-28); Lexington's own until checked against a script |
 | Hebrew | interior/exterior first, numbered: `1. פנים. משרד דפנה – יום.`; also `חוץ. יום. גינתו של יוסף`; cue on its own line; `דיזולב ל:`, `קאט ל` | dlg.co.il/knowledge-base/sequence/; icinemaspot.com/index.php?p=tuts&tut=53; akolnoa.blogspot.com/2012/05/blog-post_1153.html; he.wikipedia.org/wiki/תסריט |
 | Arabic | numbered first, place in the middle, time/setting last: `مشهد 12  خارج شقة إنجي/البسطة  ن/د` (ن/د = نهار/داخلي), `مشهد (1)  غرفة الضيوف  ليل / داخلي`; cues on their own line or `إنجي : …`; Hekaya: `داخلي - قهوة بلدي - نهار` | Egyptian series شقة 6, episode 5 (a public Google Doc); University of Diyala lecture شكل السيناريو, colarts.uodiyala.edu.iq; michaelkmalak.github.io/hekaya |
 | German | place first, `INNEN/TAG` at the end: `18. GERICHTSSAAL INNEN/TAG`, `HOTEL DAVOR AUSSEN/NACHT`; also `INNEN, BÜRO – TAG`; `(OFF)`, `SCHNITT`, `SCHNITT AUF:` | MURER shooting script, drehbuchforum.at/media/drehbuch_murer_shooting_script.pdf; de.wikibooks.org/wiki/Wie_schreibe_ich_ein_Drehbuch/_Das_Layout_eines_Drehbuches |
@@ -357,7 +370,10 @@ connection and was not read.
 Every language but English has its own title page keys (`TitleKeys`), each
 the standard key it is: Esperanto `Titolo`, `Aŭtoro`, `Dato de malneto`;
 German `Titel`, `Drehbuch`, `Fassung`; Chinese `片名`, `编剧`; Japanese
-`題名`, `脚本`; and so on. The standard keys (`Title`, `Credit`, `Author`,
+`題名`, `脚本`; Korean `제목`, `극본`; and so on. The Fountain writer writes
+the standard keys in every language: each is read in all of them, and a
+language has several of its own for one field (Chinese `片名`, `标题`,
+`標題`), so no one of them would be the right one for every script. The standard keys (`Title`, `Credit`, `Author`,
 `Source`, `Draft date`, `Contact`, `Notes`, `Copyright`…) are read in every
 language too, so a script may mix them. Arabic's are Hekaya's, Hindi's in
 its section above; the others

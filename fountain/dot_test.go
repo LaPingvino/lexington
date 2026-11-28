@@ -22,9 +22,12 @@ func rowType(s lex.Screenplay, text string) lex.ElementType {
 // The languages named more than once.
 const esperanto, german, hebrew = "eo", "de", "he"
 
+// langZh and langAr are named in the writer's tests.
+const langZh, langAr = "zh", "ar"
+
 // dotCases are, per language, sentences that start with one of its
 // scene words, each with a heading by that word with its dot; and a
-// heading by one of them without it, as scripts before 1.68 had them.
+// heading by one of them without it, as scripts before 1.67.3 had them.
 var dotCases = map[string]struct {
 	sentences [][2]string
 	old       string
@@ -83,7 +86,7 @@ func TestSceneWordNeedsItsDot(t *testing.T) {
 	}
 }
 
-// A heading by a word without its dot, as scripts before 1.68 had them:
+// A heading by a word without its dot, as scripts before 1.67.3 had them:
 // ParseLoose reads it as a heading still, KeepLoose forces it with ".",
 // and a word that always had its dot (EN.) needs it there too.
 func TestDotlessHeadingsOfOldScripts(t *testing.T) {

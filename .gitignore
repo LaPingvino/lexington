@@ -25,3 +25,6 @@ dist/
 # bundle samples: their text.md, info.json and README.md
 !bundle/testdata/**/*.md
 !bundle/testdata/**/*.json
+
+# test data READMEs (where a fixture came from)
+!**/testdata/**/README.md

@@ -173,7 +173,7 @@ func ParseLinesIn(lang rules.Language, file io.Reader) lex.Screenplay {
 // starting with a scene word is a heading wherever it is, a line in
 // capitals right after action a character cue, any line ending in " TO:"
 // (in any case) a transition, and a line of spaces ends a speech. A
-// scene word that needs its dot from 1.68 (ENE., INNEN.: rules.Undotted)
+// scene word that needs its dot from 1.67.3 (ENE., INNEN.: rules.Undotted)
 // starts a heading without it as well (ENE KUIREJO), as it did then.
 func ParseLoose(scenes []string, file io.Reader) lex.Screenplay {
 	return parse(rules.Words(scenes), file, false, true)
@@ -195,7 +195,7 @@ func ParseLines(scenes []string, file io.Reader) lex.Screenplay {
 
 func parse(lang rules.Language, file io.Reader, lines, loose bool) (out lex.Screenplay) {
 	toParse := readAllLines(file)
-	if loose { // the words that needed no dot before 1.68 need none here
+	if loose { // the words that needed no dot before 1.67.3 need none here
 		lang.Scenes = rules.Undotted(lang.Scenes)
 	}
 	d := NewDialect(lang)
@@ -652,6 +652,12 @@ func (state *ParseState) checkStructuralTypes(row string) lex.Line {
 
 // checkScene is checkSceneWith by the dialect: its words, its patterns.
 func (state *ParseState) checkScene(row string) (bool, string, string) {
+	// a forced heading's dot is the mark, whatever follows it: ".1. 厨房
+	// 晨 内" is the heading "1. 厨房 晨 内", which a pattern with a number
+	// would otherwise read with its dot
+	if strings.HasPrefix(row, ".") && !strings.HasPrefix(row, "..") {
+		return true, internal.ElementScene, row[1:]
+	}
 	if state.d.Heading(row) {
 		return true, internal.ElementScene, strings.ToUpper(row)
 	}
@@ -703,8 +709,7 @@ func (state *ParseState) checkInferredTypes(row, trimmedSpaceRow string) (lex.Li
 			isCurrentLineDualSpeakerCandidate = true
 			currentLine.Contents = strings.TrimRight(currentLine.Contents, " ^")
 		}
-	} else if len(trimmedSpaceRow) > 1 && strings.HasPrefix(trimmedSpaceRow, "(") &&
-		strings.HasSuffix(trimmedSpaceRow, ")") {
+	} else if paren(trimmedSpaceRow) {
 		// Parenthetical
 		if state.inDialogueContext {
 			currentLine.Type = lex.TypeParen

@@ -500,7 +500,7 @@ lexington -i download -o film.fountain                # no extension: told by it
   as Trelby's own Fountain import writes one: action indented with spaces by half of what the line leaves
   of the action's width (60 characters, Trelby's default), which Trelby shows and prints centred. Such a
   line reads back as centred (by the file's own width), and so does `> THE END <`, as Lexington wrote it
-  before 1.68; a line too wide to be indented by two spaces keeps those markers. Lyrics are dialogue. Trelby has no styles in its text (only for a
+  before 1.67.3; a line too wide to be indented by two spaces keeps those markers. Lyrics are dialogue. Trelby has no styles in its text (only for a
   whole element type, or a whole title string) and no dual dialogue, so they are kept as Trelby's own
   Fountain import keeps them with "Remove unsupported formatting markup" off: Fountain's markers in the
   text (`**bold**`, `*italics*`, `_underline_`, `\*` for a plain asterisk) and a caret after the second

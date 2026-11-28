@@ -24,6 +24,9 @@ func typeOf(t *testing.T, lang, text, want string) string {
 	return ""
 }
 
+// The languages the tests below name more than twice.
+const korean, russian, dutch = "ko", "ru", "nl"
+
 func TestCueRules(t *testing.T) {
 	list := "\n\n/* Characters\n张三: 主角\n  age: 30\nبيتر\n*/\n"
 	for _, c := range []struct {
@@ -43,6 +46,16 @@ func TestCueRules(t *testing.T) {
 		{"zh", "下雨。\n\n王五（画外音）\n你好。\n", "王五", lex.TypeSpeaker},
 		{"zh", "下雨。\n\n王五（大笑）\n你好。\n", "王五", lex.TypeAction},
 		{"ja", "雨。\n\n太郎（ＯＦＦ）\nこんにちは。\n", "太郎", lex.TypeSpeaker},
+		// a full-width parenthetical is one (Chinese, Japanese, Korean)
+		{"zh", "下雨。\n\n@李四\n（轻声）\n你好。\n", "轻声", lex.TypeParen},
+		{"zh", "下雨。\n\n@李四\n﹙轻声﹚\n你好。\n", "轻声", lex.TypeParen},
+		{"ja", "雨。\n\n太郎\n（小声で）\nこんにちは。\n", "太郎", lex.TypeSpeaker},
+		{"ja", "雨。\n\n太郎\n（小声で）\nこんにちは。\n", "小声で", lex.TypeParen},
+		{korean, "비.\n\n민호\n(작게)\n안녕.\n", "민호", lex.TypeSpeaker},
+		{korean, "비.\n\n민호\n（작게）\n안녕.\n", "작게", lex.TypeParen},
+		{korean, "비.\n\n상연 (E)\n안녕.\n", "상연", lex.TypeSpeaker},
+		{korean, "비.\n\n상연\n안녕.\n", "상연", lex.TypeAction},
+		{"en", "Rain.\n\nANNA\n（quietly）\nHello.\n", "quietly", lex.TypeParen},
 		// repeat: twice shaped like a name
 		{"zh", "下雨。\n\n赵六\n你好。\n\n赵六\n再见。\n", "赵六", lex.TypeSpeaker},
 		// shape alone is not one of zh's rules, and a sentence is no name
@@ -80,6 +93,16 @@ func TestTransitionRules(t *testing.T) {
 		{"de", "SCHNITT AUF:", lex.TypeTrans},
 		{"it", "STACCO SU:", lex.TypeTrans},
 		{"zh", "淡出", lex.TypeTrans},
+		{russian, "СМЕНА КАДРА:", lex.TypeTrans},
+		{russian, "ЗАТЕМНЕНИЕ.", lex.TypeTrans},
+		{russian, "ИЗ ЗАТЕМНЕНИЯ:", lex.TypeTrans},
+		{russian, "НАПЛЫВ:", lex.TypeTrans},
+		{russian, "ПЕРЕХОД К:", lex.TypeTrans},
+		{russian, "СМЕНА", lex.TypeAction},
+		{dutch, "OVERVLOEI NAAR:", lex.TypeTrans},
+		{esperanto, "TRANĈO AL:", lex.TypeTrans},
+		{korean, "F.O.", lex.TypeTrans},
+		{korean, "디졸브", lex.TypeTrans},
 	} {
 		if got := typeOf(t, c.lang, "Rain.\n\n"+c.line+"\n\nMore.\n", c.line); got != c.want {
 			t.Errorf("%s %q: %s, want %s", c.lang, c.line, got, c.want)
@@ -97,6 +120,10 @@ func TestHeadingPatterns(t *testing.T) {
 		heading    bool
 	}{
 		{"zh", "场景1 小区楼下 日 外", true},
+		{korean, "S#14. 지훈의 집 거실 (밤)", true},
+		{korean, "#3. 카페 (낮)", true},
+		{korean, "지훈이 웃는다.", false},
+		{korean, "1. 지훈이 웃는다", false},
 		{"zh", "13. 街道  黄昏  外  夏", true},
 		{"zh", "1.日  外  清晨的田野间", true},
 		{"zh", "1. 內景 阿強家客廳 夜", true},

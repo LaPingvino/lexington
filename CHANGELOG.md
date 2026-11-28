@@ -23,9 +23,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`celtx.ParseTags`, as `fdx.ParseTags`; `CeltxWriter.Tags` writes them). The writer makes a project of one screenplay as Celtx makes one (stored files, the
   project's tree, a Master Catalog, the scenes; Cast, Props and Sound tags); `lexington IN OUT` and
   `cli.ReadScreenplay` take `.celtx` by its name or its content. Dual dialogue, centred lines, lyrics and the
-  outline are kept as Fountain's markers, as through Trelby; scene numbers and page breaks are not. What is
-  written has not yet been opened in Celtx itself.
-- `rules.Undotted`: a language's scene words with the ones that needed no dot before 1.68 without it, as
+  outline are kept as Fountain's markers, as through Trelby; scene numbers and page breaks are not. Checked in
+  Celtx 2.x itself: it opens what Lexington writes, builds its catalogue from the tags, and saves it so
+  that Lexington reads it back the same (`celtx/testdata`).
+- **Korean** (`ko`): headings `S#14. 지훈의 집 거실 (밤)` (also `#3. 카페 (낮)`), cues by the rules of a
+  language without capitals (`(E)`, `(F)`, `(NA)` extensions), `F.I.`/`F.O.` transitions and title keys
+  (`제목`, `극본`): Lexington's own, after what a search showed of Korean drama scripts, not yet checked
+  against one (docs/LANGUAGES.md).
+- **Transitions in Russian, Dutch and Esperanto**: `СМЕНА КАДРА:`, `ЗАТЕМНЕНИЕ.`, `ИЗ ЗАТЕМНЕНИЯ:`,
+  `НАПЛЫВ:` and ` К:` (`ПЕРЕХОД К:`); ` NAAR:`; ` AL:`. Such a line was action before.
+- **Real Celtx and KIT Scenarist files as tests.** `celtx/testdata` holds two projects Lexington wrote and
+  Celtx 2.x opened and saved (A Chameleon, with its 25 notes, an OMITTED scene and its Cast and Props
+  catalogue; BISCUITS), `kitsp/testdata/real-kit` five KIT Scenarist 0.7.2 saved (English, Russian, Hebrew,
+  Chinese and Hekaya's Arabic, with their Fountain): they read with their scenes, notes, emphasis, dual
+  dialogue, sections, lyrics and title pages, and go through Fountain and back.
+- `rules.Undotted`: a language's scene words with the ones that needed no dot before 1.67.3 without it, as
   `fountain.ParseLoose` reads them.
 - `lex.Paragraph.Sources` (the rows' Fountain lines) and `lex.Builder.Len`/`Rows`, for a paragraph format's
   breakdown tags.
@@ -52,6 +64,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`trelby/testdata/lexington-check.trelby`). A line too wide for an indent of two spaces keeps the markers.
 
 ### Fixed
+- **No needless force marks in Fountain written.** `script.back.fountain` was written in a language named
+  `back`, which has no scene words, so every heading got a dot (`.INT. OFFICE KITCHEN - DAY`): the part of
+  a file's name before its extension is its language only when the configuration knows one by it
+  (`script.zh.fountain`, `script.de-CH.fountain`, a language of one's own), else it is English. So too a
+  `fountain.FountainWriter` with neither scene words nor a language (a program's
+  `&fountain.FountainWriter{}`): it writes English Fountain. A forced heading's dot before a numbered heading (`.1. 厨房 晨 内`) was read
+  as part of it, so the writer kept the dot on Chinese, Hebrew and Russian numbered headings: the dot is
+  the mark, and such a heading is written plain where it reads so.
+- **Every cue in a script without capitals keeps its `@`.** Through another format and back, a Hebrew,
+  Arabic, Chinese, Japanese or Korean cue lost its `@` where the reading took it as a cue by its context
+  (`玛丽亚` before `（轻声）`), while others kept theirs; now all have it, so no edit loses a cue.
+- **Full-width parentheticals.** `（轻声）` (and `﹙…﹚`, `｟…｠`) under a cue is a parenthetical in every
+  language, as Chinese, Japanese and Korean scripts write it; it was dialogue, also in a KIT project.
+- A heading pattern with a number reads a heading before a scene word does (Korean's `S#14.`: scene 14).
 - The Fountain writer's check for action that starts with a scene word is in any case, as the parser's:
   `Ext. the pipe bursts.` after a blank line gets its `!`.
 - CI: the lint findings since 1.67.2's changes (long lines, repeated strings, an unchecked error); the

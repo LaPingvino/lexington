@@ -31,7 +31,7 @@
 // characters, Trelby's default, as the writer writes no config), which
 // Trelby shows and prints centred. The reader reads such an action, each
 // line indented just so by the file's own width, as centred, and still
-// reads Fountain's markers (as Lexington wrote them before 1.68). A line
+// reads Fountain's markers (as Lexington wrote them before 1.67.3). A line
 // too wide to be indented by two spaces at least keeps the markers, so as
 // not to be read as action. Lyrics are dialogue. A first-level section is Trelby's act break; a deeper one
 // ("## …") and a synopsis ("= …") are notes, which read back as what

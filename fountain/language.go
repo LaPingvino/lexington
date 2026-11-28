@@ -191,6 +191,20 @@ func (d *Dialect) Heading(row string) bool {
 	return false
 }
 
+// numberedPattern tells whether a heading pattern with a number reads
+// upper: such a pattern's parts go before a scene word's (Korean's
+// "S#14. 거실 (밤)" is scene 14, not the place "14. 거실" after S#).
+func (d *Dialect) numberedPattern(upper string) bool {
+	for _, re := range d.headings {
+		if m := re.FindStringSubmatch(upper); m != nil {
+			if i := re.SubexpIndex(rules.SlotNumber); i >= 0 && strings.TrimSpace(m[i]) != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // HeadingParts are a scene heading's parts by the slot they are in
 // (rules.Slots: "io", "place", "time", "n", "any"), in capitals, and
 // whether the line is a heading (Heading). A heading by a scene word
@@ -214,7 +228,7 @@ func (d *Dialect) HeadingParts(row string) (map[string]string, bool) {
 			word = w
 		}
 	}
-	if word != "" {
+	if word != "" && !d.numberedPattern(upper) {
 		w := strings.ToUpper(strings.TrimSuffix(word, "."))
 		rest := strings.TrimPrefix(upper[len(w):], ".")
 		out[rules.SlotIO] = strings.TrimSpace(upper[:len(upper)-len(rest)])
@@ -364,9 +378,18 @@ func (d *Dialect) shaped(row string) bool {
 // full width.
 func paren(row string) bool {
 	t := strings.TrimSpace(row)
-	return len(t) > 1 && (strings.HasPrefix(t, "(") && strings.HasSuffix(t, ")") ||
-		strings.HasPrefix(t, "（") && strings.HasSuffix(t, "）"))
+	for _, p := range parenPairs {
+		if len(t) > len(p[0]) && strings.HasPrefix(t, p[0]) && strings.HasSuffix(t, p[1]) {
+			return true
+		}
+	}
+	return false
 }
+
+// parenPairs are the brackets a parenthetical is in: ASCII's, and the
+// full-width forms Chinese and Japanese scripts write (（轻声）), the
+// small and the white ones among them.
+var parenPairs = [][2]string{{"(", ")"}, {"（", "）"}, {"﹙", "﹚"}, {"⦅", "⦆"}, {"｟", "｠"}}
 
 // A Cast are the names a script's cues are read by: its character list
 // (the names in its /* Characters */ block, ListedNames) and the names

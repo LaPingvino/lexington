@@ -22,7 +22,7 @@ import (
 //   - another line that reads otherwise is forced where Fountain has a
 //     mark for it ("!" action, "." heading, "@" character).
 //
-// So too a heading by a scene word that needs its dot from 1.68 (ENE.,
+// So too a heading by a scene word that needs its dot from 1.67.3 (ENE.,
 // INNEN.; rules.Undotted) written without it: "ENE KUIREJO" is forced,
 // ".ENE KUIREJO", as is a line the old reading took for one ("Ene de la
 // domo…" after a blank line, which the old reading made a heading).
