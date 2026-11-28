@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.67.3] - 2026-11-28
+
 ### Added
 - **The format matrix.** `cli/matrix_test.go` writes each format Lexington reads and writes from Fountain
   and reads it back over the rich test scripts, and records per format and feature (emphasis, dual
