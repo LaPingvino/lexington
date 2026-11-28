@@ -6,7 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/LaPingvino/lexington/internal"
 )
+
+// flagIn and flagOut are the input's and the output's flags.
+const flagIn, flagOut = "-i", "-o"
 
 // Fountain through each other program's format and back to Fountain: a
 // line of notes before a centred line, a transition and a heading comes
@@ -49,18 +54,26 @@ FADE OUT.
 	if err := os.WriteFile(in, []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, ext := range []string{"fadein", "osf", "fdx", "kitsp", "trelby", "celtx"} {
+	for _, f := range Inputs { // the other programs' formats
+		ext := f.Key
+		if ext == internal.FormatFountain || ext == internal.FormatPDF || ext == internal.FormatLex {
+			continue
+		}
 		t.Run(ext, func(t *testing.T) {
 			mid := filepath.Join(dir, "script."+ext)
 			back := filepath.Join(dir, ext+".fountain")
-			if code := Main(context.Background(), []string{"-i", in, "-o", mid}); code != 0 {
+			if code := Main(context.Background(), []string{flagIn, in, flagOut, mid}); code != 0 {
 				t.Fatalf("-o %s: exit %d", ext, code)
 			}
-			if code := Main(context.Background(), []string{"-i", mid, "-o", back}); code != 0 {
+			if code := Main(context.Background(), []string{flagIn, mid, flagOut, back}); code != 0 {
 				t.Fatalf("-i %s: exit %d", ext, code)
 			}
 			if ext == "osf" {
-				if doc, _ := os.ReadFile(mid); !strings.Contains(string(doc), `<document type="Open Screenplay Format document" version="50">`) {
+				doc, err := os.ReadFile(mid)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !strings.Contains(string(doc), `<document type="Open Screenplay Format document" version="50">`) {
 					t.Errorf("not OSF 5.0:\n%.300s", doc)
 				}
 			}

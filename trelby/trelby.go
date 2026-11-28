@@ -25,10 +25,15 @@
 // Trelby keeps less than Fountain says, and the writer leaves out what
 // else it has no place for: scene numbers (Trelby numbers scenes
 // itself), page breaks, boneyards. Trelby cannot centre a line: no
-// element type or setting of its does (its own Fountain import indents
-// one with spaces), so a centred line is action with Fountain's markers
-// kept ("> THE END <"), as emphasis is, and reads back as centred; lyrics
-// are dialogue. A first-level section is Trelby's act break; a deeper one
+// element type or setting of its does. So a centred line is written as
+// Trelby's own Fountain import writes "> THE END <": action indented
+// with spaces by half of what the line leaves of the action's width (60
+// characters, Trelby's default, as the writer writes no config), which
+// Trelby shows and prints centred. The reader reads such an action, each
+// line indented just so by the file's own width, as centred, and still
+// reads Fountain's markers (as Lexington wrote them before 1.68). A line
+// too wide to be indented by two spaces at least keeps the markers, so as
+// not to be read as action. Lyrics are dialogue. A first-level section is Trelby's act break; a deeper one
 // ("## …") and a synopsis ("= …") are notes, which read back as what
 // they were. Notes, sections and synopses are plain text.
 package trelby
@@ -41,6 +46,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/LaPingvino/lexington/lex"
 )
@@ -181,6 +187,7 @@ func Parse(r io.Reader) (lex.Screenplay, error) {
 type reader struct {
 	paras  []lex.Paragraph
 	styles map[byte]string // the b, i, u an element type is exported in
+	width  int             // the config's action width; 0: Trelby's default
 }
 
 // configTypes are the config's names of the element types that are
@@ -193,7 +200,16 @@ var configTypes = map[string]byte{
 // configStyle is a config line on an element type's exported style.
 var configStyle = regexp.MustCompile(`^Element/([^/]+)/Export/(Bold|Italic|Underlined):True\s*$`)
 
+// configWidth is the config line of the action's width.
+var configWidth = regexp.MustCompile(`^Element/Action/Width:\s*(\d+)\s*$`)
+
 func (r *reader) config(l string) {
+	if m := configWidth.FindStringSubmatch(l); m != nil {
+		if w, err := strconv.Atoi(m[1]); err == nil {
+			r.width = w
+		}
+		return
+	}
 	m := configStyle.FindStringSubmatch(l)
 	if m == nil {
 		return
@@ -215,6 +231,7 @@ var centred = regexp.MustCompile(`^>\s*([^\n]*?)\s*<$`)
 // Fountain markers read as emphasis, a speaker's caret as dual dialogue.
 func (r *reader) add(typ byte, text string) {
 	t, caps := elementType(typ)
+	padded := t == lex.TypeAction && r.centred(text)
 	text = strings.TrimSpace(text)
 	if caps {
 		text = strings.ToUpper(text)
@@ -235,6 +252,14 @@ func (r *reader) add(typ byte, text string) {
 		}
 		p = lex.Paragraph{Type: lex.TypeAction, Notes: []string{text}}
 	case lex.TypeAction:
+		if padded {
+			lines := strings.Split(text, "\n")
+			for i, l := range lines {
+				lines[i] = strings.TrimSpace(l)
+			}
+			p = lex.Paragraph{Type: lex.TypeCenter, Text: strings.Join(lines, "\n")}
+			break
+		}
 		lines := strings.Split(text, "\n")
 		for i, l := range lines {
 			m := centred.FindStringSubmatch(strings.TrimSpace(l))
@@ -258,6 +283,26 @@ func (r *reader) add(typ byte, text string) {
 		p.Text = styled(p.Text, f)
 	}
 	r.paras = append(r.paras, p)
+}
+
+// centred tells whether an action's text is centred as Trelby's
+// Fountain import centres a line (centre): each of its lines indented by
+// just half of what it leaves of the action's width. A line almost as
+// wide as the width (an indent of a space or none) is not told apart
+// from action so, and reads as action.
+func (r *reader) centred(text string) bool {
+	width := r.width
+	if width <= 0 {
+		width = defaultActionWidth
+	}
+	for _, l := range strings.Split(strings.TrimRight(text, " \n"), "\n") {
+		body := strings.TrimLeft(l, " ")
+		n := utf8.RuneCountInString(strings.TrimRight(body, " "))
+		if want := (width - n) / 2; n == 0 || want < 2 || len(l)-len(body) != want {
+			return false
+		}
+	}
+	return true
 }
 
 // dualFirst is the speaker of the speech just before, if it is not in

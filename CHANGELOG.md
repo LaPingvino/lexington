@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The format matrix.** `cli/matrix_test.go` writes each format Lexington reads and writes from Fountain
+  and reads it back over the rich test scripts, and records per format and feature (emphasis, dual
+  dialogue, notes, centred text, the title page, transitions, sections and synopses, act breaks) whether it
+  survives, degrades (with a note: Trelby's emphasis as Fountain's markers) or is lost, in
+  `web/formats.json`; the README's table is made from it, and the test fails when either is stale
+  (`go test ./cli -run TestFormatMatrix -update-formats` rewrites them). The web version has a Formats page
+  that shows it, with a short overview.
 - **Celtx projects (`.celtx`), read and written.** The desktop Celtx (2.x, on Mozilla's XUL, given up around
   2012) saves a zip of `project.rdf`, an RDF catalogue, and each script as HTML. The new `celtx` package reads
   a project's first script in its tree, or the one `-script` names (its number or title; `-scripts` lists
@@ -18,8 +25,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `cli.ReadScreenplay` take `.celtx` by its name or its content. Dual dialogue, centred lines, lyrics and the
   outline are kept as Fountain's markers, as through Trelby; scene numbers and page breaks are not. What is
   written has not yet been opened in Celtx itself.
+- `rules.Undotted`: a language's scene words with the ones that needed no dot before 1.68 without it, as
+  `fountain.ParseLoose` reads them.
 - `lex.Paragraph.Sources` (the rows' Fountain lines) and `lex.Builder.Len`/`Rows`, for a paragraph format's
   breakdown tags.
+
+### Changed
+- **A scene word of a language's own needs its dot.** Esperanto's `ENE`, `EKST`, `EK`, German's `INNEN`,
+  `AUSSEN`, `ETABL`, Dutch `BIN`, `BUI`, `BI`, `BU`, `OPEN`, toki pona's `INSA`, `KON` and Hebrew's `פנים`,
+  `חוץ` start a heading only with their dot after them (`ENE. KUIREJO`, `INNEN. KÜCHE - TAG`), as `EN.` and
+  Hindi's `अंदर.` did already and as the tree-sitter grammar reads the Latin ones (Hebrew goes beyond it,
+  as real Hebrew scripts write the dot): they are ordinary words, and
+  `Ene de la domo…`, `Innen ist es still.`, `Open de deur.` or `insa tomo la…` after a blank line read as a
+  heading. Fountain's own words (`INT`, `EXT`, `EST`, `I/E`) and those with a slash (`EN/EKST`, `BIN/BUI`)
+  are as before; so are German's place-first headings (`GERICHTSSAAL INNEN/TAG`), Hebrew's numbered ones
+  (`1. פנים משרד`), Arabic (Hekaya's), Russian, Chinese and Japanese. A heading written without the dot
+  (`ENE KUIREJO`) now reads as action; `-loose` (`fountain.ParseLoose`) still reads it as a heading, and
+  `-keeploose` (`fountain.KeepLoose`) converts such a script by forcing each with `.` (`.ENE KUIREJO`),
+  along with the rest of the reading before 1.19 it keeps.
+  Hebrew's matchup writes `פנים.` and `חוץ.`. A settings file's own `Scenes` are kept as they are
+  (docs/LANGUAGES.md, "A scene word of its own needs its dot").
+- **Trelby: centred lines as Trelby centres them.** Written as Trelby's own Fountain import writes
+  `> THE END <`: action indented by half of what the line leaves of the action's width (60, Trelby's
+  default), which Trelby shows centred, in place of the markers; read back, such an action is centred (by
+  the file's own `Element/Action/Width`), and `> … <` still is. Checked against a script Trelby imported
+  (`trelby/testdata/lexington-check.trelby`). A line too wide for an indent of two spaces keeps the markers.
+
+### Fixed
+- The Fountain writer's check for action that starts with a scene word is in any case, as the parser's:
+  `Ext. the pipe bursts.` after a blank line gets its `!`.
+- CI: the lint findings since 1.67.2's changes (long lines, repeated strings, an unchecked error); the
+  OSF writer's settings and styles are the same bytes, split over lines.
 
 ## [1.67.2] - 2026-11-28
 
@@ -33,8 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fade In: OSF 5.0 by default.** `.fadein` and `.osf` are written as Fade In 5 writes them (`version="50"`,
   its settings, styles and a draft uuid): written again, a script Fade In 5.0.15 saved
   (`osf/testdata/fadein5.fadein`) has the same settings, styles, paragraphs and title page. Fade In's own
-  state (`<fadein_settings>`, the page count) is left to Fade In; whether Fade In still warns of an older
-  version is not yet checked in Fade In itself. `-osfversion 4.0`, `2.0` and `1.2` still write the older
+  state (`<fadein_settings>`, the page count) is left to Fade In. Checked in Fade In itself: it opens the
+  file with no warning, and the script looks right. `-osfversion 4.0`, `2.0` and `1.2` still write the older
   ones; every version reads as before.
 - **Notes stay on their own line through Fade In and Final Draft.** A line of notes before a centred line, a
   transition or a heading came back inside that paragraph's text (`>THE END [[note]]<`). Fade In keeps a

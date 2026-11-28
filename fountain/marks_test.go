@@ -25,11 +25,14 @@ func TestWriterMinimalMarks(t *testing.T) {
 		act("FADE OUT."),
 	}
 	var b strings.Builder
-	if err := (&FountainWriter{SceneConfig: []string{"INT", "EXT"}}).Write(&b, s); err != nil {
+	if err := (&FountainWriter{SceneConfig: Scene[:2]}).Write(&b, s); err != nil {
 		t.Fatal(err)
 	}
 	out := b.String()
-	for _, want := range []string{"\nFADE IN:\n", "\n!BOB\nwalks in.\n", "\n!CUT TO:\nthe hall.\n", "\n!!Bang.\n", "\nTHE END\n", "\n> SMASH CUT:\n", "\nFADE OUT.\n"} {
+	for _, want := range []string{
+		"\nFADE IN:\n", "\n!BOB\nwalks in.\n", "\n!CUT TO:\nthe hall.\n", "\n!!Bang.\n", "\nTHE END\n",
+		"\n> SMASH CUT:\n", "\nFADE OUT.\n",
+	} {
 		if !strings.Contains("\n"+out, want) {
 			t.Errorf("no %q in\n%s", want, out)
 		}
@@ -38,7 +41,7 @@ func TestWriterMinimalMarks(t *testing.T) {
 	for _, l := range s {
 		wantRows = append(wantRows, string(l.Type)+": "+l.Contents)
 	}
-	for _, l := range Parse([]string{"INT", "EXT"}, strings.NewReader(out)) {
+	for _, l := range Parse(Scene[:2], strings.NewReader(out)) {
 		got = append(got, string(l.Type)+": "+l.Contents)
 	}
 	got = got[:len(got)-1] // the blank line the parser ends with

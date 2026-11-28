@@ -6,6 +6,7 @@ import (
 	"io"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/LaPingvino/lexington/lex"
 )
@@ -25,13 +26,17 @@ func (w *TrelbyWriter) Write(out io.Writer, s lex.Screenplay) error {
 	n := 0
 	// element writes an element's text as it is: Fountain's emphasis
 	// markers in it, as Trelby has no styles in its text.
-	element := func(typ byte, text string) {
+	// A centred element's lines are padded after the trim (centre).
+	element := func(typ byte, text string, centred ...bool) {
 		text = strings.TrimSpace(text)
 		lines := strings.Split(text, "\n")
 		for i, l := range lines {
 			end := byte(endForced)
 			if i == len(lines)-1 {
 				end = endLast
+			}
+			if len(centred) > 0 && centred[0] {
+				l = centre(strings.TrimSpace(l), defaultActionWidth)
 			}
 			bw.WriteString(string([]byte{end, typ}) + strings.ReplaceAll(strings.TrimRight(l, " \t"), "\t", " ") + "\n")
 		}
@@ -86,17 +91,10 @@ func (w *TrelbyWriter) Write(out io.Writer, s lex.Screenplay) error {
 			if strings.TrimSpace(text) == "" {
 				break
 			}
-			if p.Type == lex.TypeCenter { // Trelby centres nothing: Fountain's markers
-				lines := strings.Split(strings.TrimSpace(text), "\n")
-				for i, l := range lines {
-					lines[i] = "> " + strings.TrimSpace(l) + " <"
-				}
-				text = strings.Join(lines, "\n")
-			}
 			if p.Type == lex.TypeSpeaker && p.Dual == lex.DualSecond {
 				text = strings.TrimSpace(text) + " ^" // as Fountain marks dual dialogue
 			}
-			element(typeOf(p.Type), needlessEscapes(text))
+			element(typeOf(p.Type), needlessEscapes(text), p.Type == lex.TypeCenter)
 		}
 		notes(p.Notes)
 		for _, syn := range p.Synopses {
@@ -241,4 +239,27 @@ func needlessEscapes(text string) string {
 		}
 	}
 	return text
+}
+
+// defaultActionWidth is Trelby's action width (Element/Action/Width) in
+// its default config, which a file without a config of its own, as the
+// writer's, is shown with.
+const defaultActionWidth = 60
+
+// centre is a centred line as Trelby's own Fountain import writes one,
+// it having no centring: action, indented by half of what the line
+// leaves of the width (in characters), "> THE END <" becoming
+// "                        THE END". A line as wide as the width or
+// wider cannot be centred so: it keeps Fountain's markers, and reads
+// back as centred by them, as does one nearly so wide, whose indent of a
+// space or none would not tell it from action.
+func centre(line string, width int) string {
+	n := utf8.RuneCountInString(line)
+	if n == 0 {
+		return line
+	}
+	if (width-n)/2 < 2 {
+		return "> " + line + " <"
+	}
+	return strings.Repeat(" ", (width-n)/2) + line
 }

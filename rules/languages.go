@@ -3,6 +3,7 @@ package rules
 import (
 	"maps"
 	"slices"
+	"strings"
 )
 
 // The default configuration's languages, each in full. Where each word
@@ -234,12 +235,13 @@ func defaultLanguages() map[string]Language {
 			[]string{"INT.", "EST.", "INT./EST.", "EST./INT.", ""}, nil, nil).with( // EST. is esterno
 			[]string{"{n}. {io} {any}"}, none, []string{"GIORNO", "NOTTE"},
 			[]string{"VOCE FUORI CAMPO", "CONTINUA", "SEGUE", "V.O.", "O.S.", "CONT'D"}, nil, []string{" TO:", " SU:", " SU"}),
-		"nl": latin([]string{"BIN", "BUI", "BI", "BU", "OPEN", "BIN./BUI", "BUI./BIN", "BIN/BUI", "BI/BU"},
+		"nl": latin([]string{"BIN.", "BUI.", "BI.", "BU.", "OPEN.", "BIN./BUI", "BUI./BIN", "BIN/BUI", "BI/BU"},
 			[]string{"BIN.", "BUI.", "BIN./BUI.", "BUI./BIN.", ""}, nil, nil).with(
 			none, none, []string{"DAG", "NACHT", "SCHEMER"},
 			[]string{"OFF", "O.S.", "V.O.", "VERVOLGT", "VERVOLG", "CONT'D"}, nil, nil),
 		// "18. GERICHTSSAAL INNEN/TAG" (MURER), SCHNITT AUF: (de.wikibooks)
-		"de": latin([]string{"INT", "EXT", "ETABL", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E", "INNEN", "AUSSEN"},
+		"de": latin([]string{"INT", "EXT", "ETABL.", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E",
+			"INNEN.", "AUSSEN."},
 			[]string{"INT.", "EXT.", "INT./EXT.", "EXT./INT.", "ETABL."}, nil, nil).with(
 			[]string{"{n}. {place} {io}/{time}", "{place} {io}/{time}"}, []string{"INNEN", "AUSSEN", "AUßEN", "INNEN/AUSSEN"},
 			[]string{"TAG", "NACHT", "ABEND", "MORGEN"},
@@ -250,14 +252,14 @@ func defaultLanguages() map[string]Language {
 			[]string{"{n} - {place} - {io}/{time}", "SÉQUENCE {n} - {io}. {time}"}, []string{"INT", "EXT", "EXT+INT", "INT+EXT"},
 			[]string{"JOUR", "NUIT", "SOIR", "MATIN", "FIN DE JOURNÉE"},
 			[]string{"OFF", "V.O.", "O.S.", "SUITE", "CONT'D"}, []string{"FONDU AU NOIR", "FONDU AU NOIR."}, nil),
-		"eo": latin([]string{"EN.", "ENE", "EKST", "EK", "EN/EKST", "EKST/EN", "EKST./EN", "EN./EKST"},
+		"eo": latin([]string{"EN.", "ENE.", "EKST.", "EK.", "EN/EKST", "EKST/EN", "EKST./EN", "EN./EKST"},
 			[]string{"EN.", "EKST.", "EN./EKST.", "EKST./EN.", ""}, nil, nil).with(none, none, none, nil, nil, nil),
 		// "1. НАТ. ГОРОДСКАЯ ПЛОЩАДЬ. НОЧЬ" (kinodramaturg)
 		"ru": latin([]string{"ИНТ", "НАТ", "ИНТ/НАТ", "ИНТ./НАТ", "НАТ/ИНТ", "НАТ./ИНТ", "ЭКСТ", "И/Н", "Н/И"},
 			[]string{"ИНТ.", "НАТ.", "ИНТ./НАТ.", "НАТ./ИНТ.", ""}, nil, nil).with(
 			[]string{"{n}. {io} {any}"}, none, []string{"ДЕНЬ", "НОЧЬ"},
 			[]string{"ЗА КАДРОМ", "ПРОДОЛЖАЕТ", "V.O.", "O.S.", "CONT'D"}, nil, nil),
-		"tok": latin([]string{"INSA", "KON", "INSA/KON", "I./K", "I/K", "KON/INSA", "K./I", "K/I"},
+		"tok": latin([]string{"INSA.", "KON.", "INSA/KON", "I./K", "I/K", "KON/INSA", "K./I", "K/I"},
 			[]string{"INSA.", "KON.", "INSA/KON.", "KON/INSA.", ""}, nil, nil).with(none, none, none, nil, nil, nil),
 		"ar":      ar,
 		"hi-Latn": hindiLatin(),
@@ -265,11 +267,11 @@ func defaultLanguages() map[string]Language {
 		"hi":      hindi(),
 		// "1. פנים. משרד דפנה – יום." (dlg.co.il), דיזולב ל: / קאט ל (akolnoa)
 		"he": {
-			Scenes:          []string{"פנים", "חוץ", "פנים/חוץ", "חוץ/פנים"},
+			Scenes:          []string{"פנים.", "חוץ.", "פנים/חוץ", "חוץ/פנים"},
 			Headings:        []string{"{n}. {io} {any}"},
 			Settings:        none,
 			Times:           []string{"יום", "לילה"},
-			Matchup:         []string{"פנים", "חוץ", "פנים/חוץ", "חוץ/פנים", ""},
+			Matchup:         []string{"פנים.", "חוץ.", "פנים/חוץ", "חוץ/פנים", ""},
 			Direction:       "rtl",
 			Cues:            noCaps,
 			Extensions:      []string{"V.O.", "O.S.", "CONT'D", "MORE"},
@@ -370,3 +372,26 @@ var titleKeys = map[string]map[string]string{
 // DefaultLanguages are the default configuration's languages, each in
 // full (a copy).
 func DefaultLanguages() map[string]Language { return maps.Clone(defaultLanguages()) }
+
+// formerlyBare are the default configuration's scene words that started
+// a heading without their dot before 1.68 (ENE KUIREJO): ordinary words
+// or a sentence's start, which now need it (docs/LANGUAGES.md, "A scene
+// word of its own needs its dot").
+var formerlyBare = []string{"ENE", "EKST", "EK", "INNEN", "AUSSEN", "ETABL", "BIN", "BUI", "BI", "BU", "OPEN",
+	"INSA", "KON", "פנים", "חוץ"}
+
+// Undotted is scenes with each of them that before 1.68 started a
+// heading without its dot (ENE. of ENE) there without it too, as the
+// reading before 1.19 (fountain.ParseLoose) reads them: an old script's
+// "ENE KUIREJO" a heading there still. A word that always had its dot
+// (EN., अंदर.) keeps it.
+func Undotted(scenes []string) []string {
+	out := slices.Clone(scenes)
+	for _, w := range scenes {
+		if bare, ok := strings.CutSuffix(w, "."); ok && slices.Contains(formerlyBare, strings.ToUpper(bare)) &&
+			!slices.Contains(out, bare) {
+			out = append(out, bare)
+		}
+	}
+	return out
+}

@@ -60,6 +60,36 @@ TitleKeys = {}
 | `TransitionMarks` | signs that may stand around one of those (`-` for `- قطع -`, `:`) |
 | `TitleKeys` | the language's title page keys and the standard key each is (`العنوان = "Title"`); the standard keys work in every language |
 
+### A scene word of its own needs its dot
+
+A scene word that is also an ordinary word, or that could start a
+sentence, is written with its dot in `Scenes` (`ENE.`, `INNEN.`, `BIN.`,
+`INSA.`, `פנים.`, `अंदर.`): then only the word with its dot after it
+starts a heading (`ENE. KUIREJO`), and an action line starting with the
+word itself (`Ene de la domo…`, `Innen ist es still.`, `Open de deur.`,
+`insa tomo la…`) stays action. For the words in Latin letters this is the
+tree-sitter grammar's rule (a bare foreign scene word needs a dot);
+Hebrew's two go beyond it (the grammar reads `פנים` bare), as real Hebrew
+scripts write the dot (`1. פנים. משרד`, `חוץ. יום.`). Fountain's own words (`INT`, `EXT`,
+`EST`, `I/E`) and words with a slash or a dot inside (`EN./EKST`,
+`BIN/BUI`, `פנים/חוץ`) start a heading followed by a dot or a space, as
+before. Left as they were: Hekaya's Arabic (its spec), Russian
+(`ИНТ`, `НАТ`, `ЭКСТ` are no ordinary words), Chinese (`内景`, `外景`)
+and Japanese (`○`); Italian's `EST` is Fountain's own word.
+
+Before 1.68 these words started a heading without their dot as well
+(`ENE KUIREJO`, `INNEN KÜCHE`, `BIN KEUKEN`, `פנים משרד`). Such a heading
+now reads as action, as it would in Fountain; `ParseLoose` (`-loose`)
+still reads it as a heading, and `KeepLoose` (`-keeploose`) converts a
+script that has them by forcing each with Fountain's `.`
+(`.ENE KUIREJO`). It keeps the whole reading from before 1.19, not only
+the dot: in a script written since, it may force other lines too (capitals
+right below action get `@`), and a line the old reading took for a
+heading by mistake (`Ene de la domo…` after a blank line) gets the `.`,
+as it was a heading there. Look over what it changed (it reports how many
+lines). A settings file with its own `Scenes` keeps
+its words as they are.
+
 ### Cue rules
 
 A line after a blank line, with text right under it, is a character's cue
@@ -196,7 +226,8 @@ two-column). So the default table has Hekaya only.
   `… AUF:`, French `FONDU AU NOIR`, Italian `… SU:`.
 - Headings by the patterns: numbered Chinese, Arabic, Italian, Russian and
   Hebrew headings, German and French place-first ones; German lines
-  starting with `INNEN` or `AUSSEN` after a blank line are headings.
+  starting with `INNEN.` or `AUSSEN.` after a blank line are headings
+  (before 1.68 without the dot too: see above).
 - Arabic title keys (`العنوان` is the title).
 
 ## How real scripts write scene headings

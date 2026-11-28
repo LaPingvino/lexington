@@ -419,7 +419,8 @@ func newFlagSet(st *flagState) *flag.FlagSet {
 	fs.StringVar(&st.o.Script, "script", "",
 		"The script to read of a Celtx project with several (a screenplay and its stage play): its number from 1 or its title (default: the first; -scripts lists them).")
 	fs.BoolVar(&st.scripts, "scripts", false, "List the scripts of the Celtx project IN, for -script.")
-	fs.StringVar(&st.o.OSFVersion, "osfversion", "", "The Open Screenplay Format version osf and fadein are written in: 5.0 (the default, Fade In 5's), 4.0, 2.0 or 1.2.")
+	fs.StringVar(&st.o.OSFVersion, "osfversion", "",
+		"The Open Screenplay Format version osf and fadein are written in: 5.0 (the default, Fade In 5's), 4.0, 2.0 or 1.2.")
 	fs.StringVar(&st.o.To, "to", "",
 		"Output file type. Choose from "+formatKeys(false)+", or external formats requiring other programs: "+
 			formatKeys(true)+".")

@@ -53,7 +53,11 @@ func TestDirectionsTravel(t *testing.T) {
 		t.Error("With changed the machine's configuration")
 	}
 	// an old bundle's language reads the same as the machine's default
-	old, _ := Decode([]byte("[Scenes]\nhe = [\"פנים\", \"חוץ\", \"פנים/חוץ\", \"חוץ/פנים\"]\n[Matchups]\nhe = [\"פנים\", \"חוץ\", \"פנים/חוץ\", \"חוץ/פנים\", \"\"]\n"))
+	old, err := Decode([]byte("[Scenes]\nhe = [\"פנים.\", \"חוץ.\", \"פנים/חוץ\", \"חוץ/פנים\"]\n" +
+		"[Matchups]\nhe = [\"פנים.\", \"חוץ.\", \"פנים/חוץ\", \"חוץ/פנים\", \"\"]\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	it := Item{"language", "he"}
 	a, _ := old.Of(it)
 	b, _ := DefaultConf().Of(it)

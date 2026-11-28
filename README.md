@@ -417,6 +417,47 @@ lexington check film.accolade                   # is it whole and readable?
 The layout is described roughly, as a draft that will change, in
 [Accolade's docs/FORMAT.md](https://github.com/LaPingvino/accolade/blob/main/docs/FORMAT.md).
 
+### What each format keeps
+
+Lexington is Pandoc for screenplays: any format it reads to any it writes, PDFs included (scanned ones
+through OCR). Each format it both reads and writes is written from Fountain and read back over the test
+scripts, and this table is what came back (made by `cli/matrix_test.go` from
+[`web/formats.json`](web/formats.json), which CI checks is current; the web version shows it on its
+[Formats page](https://lapingvino.github.io/lexington/formats.html)):
+
+<!-- formats:start -->
+| Format | Read | Write | Emphasis | Dual dialogue | Notes | Centred text | Title page | Transitions | Sections and synopses | Act breaks |
+|---|---|---|---|---|---|---|---|---|---|---|
+| PDF | ✓ | ✓ | ✗ | ✓ | ✗ | ✓ | ~<sup>1</sup> | ✓ | ✗ | ✗ |
+| Final Draft (FDX) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ~<sup>2</sup> | ✓ | ✗ | ✗ |
+| Fade In | ✓ | ✓ | ✓ | ✓ | ✓<sup>3</sup> | ✓ | ✓ | ✓ | ~<sup>4</sup> | ✗<sup>5</sup> |
+| Open Screenplay Format (OSF) | ✓ | ✓ | ✓ | ✓ | ✓<sup>3</sup> | ✓ | ✓ | ✓ | ~<sup>4</sup> | ✗<sup>5</sup> |
+| Trelby | ✓ | ✓ | ~<sup>6</sup> | ~<sup>7</sup> | ✓ | ~<sup>8</sup> | ✓ | ✓ | ~<sup>9</sup> | ~<sup>10</sup> |
+| KIT Scenarist | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Celtx | ✓ | ✓ | ✓ | ~<sup>11</sup> | ✓ | ~<sup>12</sup> | ~<sup>13</sup> | ✓ | ~<sup>14</sup> | ✓ |
+| Fountain | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Lexington's own (lex) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+✓ survives the round trip, ~ degrades, ✗ is lost; an empty cell: the format is not tried with it.
+
+1. 5 of 7 come back as they were (in the synthetic script).
+2. 7 of 9 come back as they were (in testdata/input/complex_screenplay.fountain).
+3. the outline comes back in notes as well.
+4. a section, and a synopsis not on a heading, go in the next paragraph's note: OSF has no outline.
+5. in the next paragraph's note.
+6. as Fountain's markers in the text (`**bold**`): Trelby styles only whole element types.
+7. a caret after the second speaker (`BOB ^`), the speeches one after the other.
+8. action indented to the centre, as Trelby's own Fountain import does; a line nearly as wide as the page keeps `> <`.
+9. a deeper section and a synopsis are notes (`## …`, `= …`).
+10. Trelby's act break, in capitals.
+11. a caret after the second speaker (`BOB ^`), as through Trelby.
+12. as Fountain's markers (`> THE END <`).
+13. 8 of 9 come back as they were (in testdata/input/complex_screenplay.fountain).
+14. sections and synopses not on a heading as notes (`# …`, `= …`).
+
+Written only: HTML, Word (DOCX), OpenDocument (ODT), LaTeX, PDF through HTML (wkhtmltopdf), PDF through LaTeX (LaTeX), EPUB (pandoc), Kindle (AZW3) (Calibre), Mobipocket (MOBI) (Calibre), Mobipocket (PRC) (Calibre), FictionBook (FB2) (Calibre), eReader (PDB) (Calibre), Sony Reader (LRF) (Calibre), Microsoft Reader (LIT) (Calibre), Rich Text (RTF) (pandoc), Markdown (pandoc), reStructuredText (pandoc), Pandoc JSON (pandoc), Pandoc native (pandoc), Manual page (pandoc), Textile (pandoc), MediaWiki (pandoc), Org mode (pandoc), AsciiDoc (pandoc).
+<!-- formats:end -->
+
 ### Other programs' formats: Fade In, Trelby, KIT Scenarist, Celtx
 
 `lexington IN OUT` (or `-i IN -o OUT`) converts any format Lexington reads into any it writes, each told
@@ -439,7 +480,7 @@ lexington -i download -o film.fountain                # no extension: told by it
 | Program | Read | Written | What it keeps |
 |---|---|---|---|
 | Fade In (`.fadein`, zipped or a folder; `.osf`) | OSF 1.2, 2.x, 3.0, 4.0, 5.0 | OSF 5.0, Fade In 5's (`-osfversion 4.0`, `2.0`, `1.2`) | all printed elements and emphasis, dual dialogue, scene numbers, page breaks, notes, a scene's synopsis; the title page |
-| Trelby (`.trelby`) | formats 1–3 | format 3 | the text of each element and its type, emphasis and dual dialogue as Fountain's markers in the text, notes, the title page; no scene numbers or page breaks |
+| Trelby (`.trelby`) | formats 1–3 | format 3 | the text of each element and its type, emphasis and dual dialogue as Fountain's markers in the text, centred lines indented as Trelby's own import indents them, notes, the title page; no scene numbers or page breaks |
 | KIT Scenarist (`.kitsp`) | its projects (0.7) | a new project, as KIT 0.7.2 makes one | all elements and emphasis, dual dialogue, scene numbers and colours, folders as sections, notes as review comments, the title page's fields; no page breaks |
 | Celtx (`.celtx`, desktop 2.x) | its projects: the first script, or `-script` | a project of one screenplay (*unverified* in Celtx) | all elements and emphasis, notes, a scene's index card as its synopsis, the title page Celtx has, and for programs the breakdown tags (Cast, Props, Sound written); dual dialogue, centred lines, lyrics and the outline as Fountain's markers; no scene numbers or page breaks |
 
@@ -455,9 +496,11 @@ lexington -i download -o film.fountain                # no extension: told by it
   `&lt;`, a guess: no 1.2 file seen has one.
 - **Trelby:** as Trelby's own `fileformat.txt` and loader describe it. Its act break is a first-level
   section; deeper sections and synopses are notes that start with `##` and `=`, which read back as what
-  they were. Trelby cannot centre a line (no element type or setting does; its own Fountain import indents
-  one with spaces), so a centred line is action with Fountain's markers kept, `> THE END <`, and reads
-  back as centred. Lyrics are dialogue. Trelby has no styles in its text (only for a
+  they were. Trelby cannot centre a line (no element type or setting does), so a centred line is written
+  as Trelby's own Fountain import writes one: action indented with spaces by half of what the line leaves
+  of the action's width (60 characters, Trelby's default), which Trelby shows and prints centred. Such a
+  line reads back as centred (by the file's own width), and so does `> THE END <`, as Lexington wrote it
+  before 1.68; a line too wide to be indented by two spaces keeps those markers. Lyrics are dialogue. Trelby has no styles in its text (only for a
   whole element type, or a whole title string) and no dual dialogue, so they are kept as Trelby's own
   Fountain import keeps them with "Remove unsupported formatting markup" off: Fountain's markers in the
   text (`**bold**`, `*italics*`, `_underline_`, `\*` for a plain asterisk) and a caret after the second

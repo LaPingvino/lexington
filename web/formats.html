@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lexington formats</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1e3a5f">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="wide">
+<nav class="nav"><a href="./">Convert</a> · <strong>Formats</strong></nav>
+<h1>Formats</h1>
+<p><strong>Lexington is Pandoc for screenplays.</strong> It converts any format it reads into any it writes: Fountain, Final Draft, Fade In, Trelby, KIT Scenarist, Celtx and PDF, to those and to Word, OpenDocument, HTML, LaTeX, EPUB and more. It reads screenplay PDFs, scanned ones too (with OCR, in the <a href="https://github.com/LaPingvino/lexington">lexington command</a>). It is free software (MIT), a command line tool and a Go library, and this page's converter runs it in your browser.</p>
+<h2>What a round trip keeps</h2>
+<p class="about">Each format Lexington both reads and writes, written from Fountain and read back over its test scripts: ✓ survives, ~ degrades, ✗ is lost. The table is made by Lexington's tests, which check it is current.</p>
+<div class="scroll"><table id="matrix"><caption class="about">Loading…</caption></table></div>
+<ol id="notes" class="notes"></ol>
+<h2>Written only</h2>
+<p id="only" class="about"></p>
+</main>
+<script src="formats.js"></script>
+</body>
+</html>

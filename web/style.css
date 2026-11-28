@@ -16,3 +16,15 @@ summary { cursor: pointer; font-weight: bold; }
 textarea { width: 100%; box-sizing: border-box; font: 14px/1.4 monospace; color: inherit; background: transparent; border: 1px solid var(--muted); border-radius: 4px; padding: .5rem; }
 .buttons { margin-top: .5rem; }
 button.plain { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+main.wide { max-width: 64rem; }
+.nav { font-size: .9rem; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; font-size: .85rem; }
+th, td { border: 1px solid var(--muted); padding: .3rem .45rem; text-align: center; }
+tbody th { text-align: left; font-weight: normal; }
+td.survives { color: #2e7d32; }
+td.degrades { color: #b26a00; }
+td.lost { color: #c62828; }
+@media (prefers-color-scheme: dark) { td.survives { color: #81c784; } td.degrades { color: #ffb74d; } td.lost { color: #ef9a9a; } }
+.notes { font-size: .85rem; }
+code { font: .85em monospace; }

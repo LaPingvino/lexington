@@ -289,9 +289,12 @@ func (state *WriteState) afterBlank() bool {
 	return !ok || len(t.tail) == 0 || t.blank()
 }
 
+// isSceneSupported tells whether contents start with a scene word, in
+// any case, as the parser reads them (Dialect.Heading).
 func (state *WriteState) isSceneSupported(contents string) bool {
+	upper := strings.ToUpper(strings.TrimSpace(contents))
 	for _, prefix := range state.config {
-		if StartsScene(contents, prefix) {
+		if StartsScene(upper, strings.ToUpper(prefix)) {
 			return true
 		}
 	}

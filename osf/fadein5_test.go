@@ -29,7 +29,8 @@ func TestReadFadeIn5(t *testing.T) {
 		"Contact: example@example.org",
 		"action: FADE IN:\nscene: INT. KITCHEN - MORNING",
 		"action: A small kitchen. Sunlight. **Bold action**, *italic action*, _underlined action_ and ***bold italic***.",
-		"dualspeaker_open: \nspeaker: MARIA\ndialog: The one on the table.\ndualspeaker_next: \nspeaker: JONAS\ndialog: Oh. That one.\ndualspeaker_close: ",
+		"dualspeaker_open: \nspeaker: MARIA\ndialog: The one on the table.\n" +
+			"dualspeaker_next: \nspeaker: JONAS\ndialog: Oh. That one.\ndualspeaker_close: ",
 		"note: [[A note for the writer: this note should survive or be dropped cleanly.]]\ncenter: THE END OF THE BEGINNING",
 		"trans: CUT TO:\nscene: INT. KITCHEN - LATER",
 		"action: FADE OUT.",
@@ -50,7 +51,9 @@ func TestWriteFadeIn5(t *testing.T) {
 	if v := attrOf([]byte(out), "version"); v != "50" {
 		t.Errorf("version %q, want 50", v)
 	}
-	if !regexp.MustCompile(`<info uuid="[0-9A-F-]+" draft_uuid="[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"/>`).MatchString(out) {
+	info := regexp.MustCompile(`<info uuid="[0-9A-F-]+" ` +
+		`draft_uuid="[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"/>`)
+	if !info.MatchString(out) {
 		t.Errorf("no Fade In 5 info in\n%s", out)
 	}
 	part := func(doc, from, to string) string {
@@ -58,7 +61,9 @@ func TestWriteFadeIn5(t *testing.T) {
 		in, _, _ := strings.Cut(rest, to)
 		return in
 	}
-	for _, p := range [][2]string{{"<settings", "/>"}, {"<styles>", "</styles>"}, {"<paragraphs>", "</paragraphs>"}, {"<titlepage>", "</titlepage>"}} {
+	for _, p := range [][2]string{
+		{"<settings", "/>"}, {"<styles>", "</styles>"}, {"<paragraphs>", "</paragraphs>"}, {"<titlepage>", "</titlepage>"},
+	} {
 		if a, b := part(orig, p[0], p[1]), part(out, p[0], p[1]); a != b {
 			t.Errorf("%s differs from Fade In's:\n%s\n---\n%s", p[0], b, a)
 		}

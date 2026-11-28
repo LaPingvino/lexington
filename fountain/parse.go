@@ -172,7 +172,9 @@ func ParseLinesIn(lang rules.Language, file io.Reader) lex.Screenplay {
 // ParseLoose is Parse as Lexington read Fountain before 1.19: a line
 // starting with a scene word is a heading wherever it is, a line in
 // capitals right after action a character cue, any line ending in " TO:"
-// (in any case) a transition, and a line of spaces ends a speech.
+// (in any case) a transition, and a line of spaces ends a speech. A
+// scene word that needs its dot from 1.68 (ENE., INNEN.: rules.Undotted)
+// starts a heading without it as well (ENE KUIREJO), as it did then.
 func ParseLoose(scenes []string, file io.Reader) lex.Screenplay {
 	return parse(rules.Words(scenes), file, false, true)
 }
@@ -193,6 +195,9 @@ func ParseLines(scenes []string, file io.Reader) lex.Screenplay {
 
 func parse(lang rules.Language, file io.Reader, lines, loose bool) (out lex.Screenplay) {
 	toParse := readAllLines(file)
+	if loose { // the words that needed no dot before 1.68 need none here
+		lang.Scenes = rules.Undotted(lang.Scenes)
+	}
 	d := NewDialect(lang)
 	var cast *Cast
 	if d.Lang.Has(rules.CueList) || d.Lang.Has(rules.CueRepeat) { // the whole text read for its names only then

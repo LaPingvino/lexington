@@ -1,0 +1,522 @@
+{
+  "about": "What each format keeps of a screenplay, made by cli/matrix_test.go (TestFormatMatrix): each format Lexington both reads and writes, written from Fountain and read back, over its rich test scripts.",
+  "features": [
+    {
+      "key": "emphasis",
+      "name": "Emphasis"
+    },
+    {
+      "key": "dual",
+      "name": "Dual dialogue"
+    },
+    {
+      "key": "notes",
+      "name": "Notes"
+    },
+    {
+      "key": "centred",
+      "name": "Centred text"
+    },
+    {
+      "key": "titlepage",
+      "name": "Title page"
+    },
+    {
+      "key": "transitions",
+      "name": "Transitions"
+    },
+    {
+      "key": "outline",
+      "name": "Sections and synopses"
+    },
+    {
+      "key": "acts",
+      "name": "Act breaks"
+    }
+  ],
+  "formats": [
+    {
+      "key": "pdf",
+      "name": "PDF",
+      "read": true,
+      "write": true,
+      "features": {
+        "acts": {
+          "status": "lost"
+        },
+        "centred": {
+          "status": "survives"
+        },
+        "dual": {
+          "status": "survives"
+        },
+        "emphasis": {
+          "status": "lost"
+        },
+        "notes": {
+          "status": "lost"
+        },
+        "outline": {
+          "status": "lost"
+        },
+        "titlepage": {
+          "status": "degrades",
+          "note": "5 of 7 come back as they were (in the synthetic script)"
+        },
+        "transitions": {
+          "status": "survives"
+        }
+      }
+    },
+    {
+      "key": "html",
+      "name": "HTML",
+      "read": false,
+      "write": true
+    },
+    {
+      "key": "docx",
+      "name": "Word (DOCX)",
+      "read": false,
+      "write": true
+    },
+    {
+      "key": "odt",
+      "name": "OpenDocument (ODT)",
+      "read": false,
+      "write": true
+    },
+    {
+      "key": "fdx",
+      "name": "Final Draft (FDX)",
+      "read": true,
+      "write": true,
+      "features": {
+        "acts": {
+          "status": "lost"
+        },
+        "centred": {
+          "status": "survives"
+        },
+        "dual": {
+          "status": "survives"
+        },
+        "emphasis": {
+          "status": "survives"
+        },
+        "notes": {
+          "status": "survives"
+        },
+        "outline": {
+          "status": "lost"
+        },
+        "titlepage": {
+          "status": "degrades",
+          "note": "7 of 9 come back as they were (in testdata/input/complex_screenplay.fountain)"
+        },
+        "transitions": {
+          "status": "survives"
+        }
+      }
+    },
+    {
+      "key": "fadein",
+      "name": "Fade In",
+      "read": true,
+      "write": true,
+      "features": {
+        "acts": {
+          "status": "lost",
+          "note": "in the next paragraph's note",
+          "measured": "lost"
+        },
+        "centred": {
+          "status": "survives"
+        },
+        "dual": {
+          "status": "survives"
+        },
+        "emphasis": {
+          "status": "survives"
+        },
+        "notes": {
+          "status": "survives",
+          "note": "the outline comes back in notes as well",
+          "measured": "degrades: all come back, with more beside them (in the synthetic script)"
+        },
+        "outline": {
+          "status": "degrades",
+          "note": "a section, and a synopsis not on a heading, go in the next paragraph's note: OSF has no outline",
+          "measured": "degrades: 1 of 2 come back as they were (in the synthetic script)"
+        },
+        "titlepage": {
+          "status": "survives"
+        },
+        "transitions": {
+          "status": "survives"
+        }
+      }
+    },
+    {
+      "key": "osf",
+      "name": "Open Screenplay Format (OSF)",
+      "read": true,
+      "write": true,
+      "features": {
+        "acts": {
+          "status": "lost",
+          "note": "in the next paragraph's note",
+          "measured": "lost"
+        },
+        "centred": {
+          "status": "survives"
+        },
+        "dual": {
+          "status": "survives"
+        },
+        "emphasis": {
+          "status": "survives"
+        },
+        "notes": {
+          "status": "survives",
+          "note": "the outline comes back in notes as well",
+          "measured": "degrades: all come back, with more beside them (in the synthetic script)"
+        },
+        "outline": {
+          "status": "degrades",
+          "note": "a section, and a synopsis not on a heading, go in the next paragraph's note: OSF has no outline",
+          "measured": "degrades: 1 of 2 come back as they were (in the synthetic script)"
+        },
+        "titlepage": {
+          "status": "survives"
+        },
+        "transitions": {
+          "status": "survives"
+        }
+      }
+    },
+    {
+      "key": "trelby",
+      "name": "Trelby",
+      "read": true,
+      "write": true,
+      "features": {
+        "acts": {
+          "status": "degrades",
+          "note": "Trelby's act break, in capitals",
+          "measured": "degrades: in capitals (in the synthetic script)"
+        },
+        "centred": {
+          "status": "degrades",
+          "note": "action indented to the centre, as Trelby's own Fountain import does; a line nearly as wide as the page keeps `\u003e \u003c`",
+          "measured": "survives"
+        },
+        "dual": {
+          "status": "degrades",
+          "note": "a caret after the second speaker (`BOB ^`), the speeches one after the other",
+          "measured": "survives"
+        },
+        "emphasis": {
+          "status": "degrades",
+          "note": "as Fountain's markers in the text (`**bold**`): Trelby styles only whole element types",
+          "measured": "survives"
+        },
+        "notes": {
+          "status": "survives"
+        },
+        "outline": {
+          "status": "degrades",
+          "note": "a deeper section and a synopsis are notes (`## …`, `= …`)",
+          "measured": "survives"
+        },
+        "titlepage": {
+          "status": "survives"
+        },
+        "transitions": {
+          "status": "survives"
+        }
+      }
+    },
+    {
+      "key": "kitsp",
+      "name": "KIT Scenarist",
+      "read": true,
+      "write": true,
+      "features": {
+        "acts": {
+          "status": "survives"
+        },
+        "centred": {
+          "status": "survives"
+        },
+        "dual": {
+          "status": "survives"
+        },
+        "emphasis": {
+          "status": "survives"
+        },
+        "notes": {
+          "status": "survives"
+        },
+        "outline": {
+          "status": "survives"
+        },
+        "titlepage": {
+          "status": "survives"
+        },
+        "transitions": {
+          "status": "survives"
+        }
+      }
+    },
+    {
+      "key": "celtx",
+      "name": "Celtx",
+      "read": true,
+      "write": true,
+      "features": {
+        "acts": {
+          "status": "survives"
+        },
+        "centred": {
+          "status": "degrades",
+          "note": "as Fountain's markers (`\u003e THE END \u003c`)",
+          "measured": "survives"
+        },
+        "dual": {
+          "status": "degrades",
+          "note": "a caret after the second speaker (`BOB ^`), as through Trelby",
+          "measured": "survives"
+        },
+        "emphasis": {
+          "status": "survives"
+        },
+        "notes": {
+          "status": "survives"
+        },
+        "outline": {
+          "status": "degrades",
+          "note": "sections and synopses not on a heading as notes (`# …`, `= …`)",
+          "measured": "survives"
+        },
+        "titlepage": {
+          "status": "degrades",
+          "note": "8 of 9 come back as they were (in testdata/input/complex_screenplay.fountain)"
+        },
+        "transitions": {
+          "status": "survives"
+        }
+      }
+    },
+    {
+      "key": "fountain",
+      "name": "Fountain",
+      "read": true,
+      "write": true,
+      "features": {
+        "acts": {
+          "status": "survives"
+        },
+        "centred": {
+          "status": "survives"
+        },
+        "dual": {
+          "status": "survives"
+        },
+        "emphasis": {
+          "status": "survives"
+        },
+        "notes": {
+          "status": "survives"
+        },
+        "outline": {
+          "status": "survives"
+        },
+        "titlepage": {
+          "status": "survives"
+        },
+        "transitions": {
+          "status": "survives"
+        }
+      }
+    },
+    {
+      "key": "latex",
+      "name": "LaTeX",
+      "read": false,
+      "write": true
+    },
+    {
+      "key": "lex",
+      "name": "Lexington's own (lex)",
+      "read": true,
+      "write": true,
+      "features": {
+        "acts": {
+          "status": "survives"
+        },
+        "centred": {
+          "status": "survives"
+        },
+        "dual": {
+          "status": "survives"
+        },
+        "emphasis": {
+          "status": "survives"
+        },
+        "notes": {
+          "status": "survives"
+        },
+        "outline": {
+          "status": "survives"
+        },
+        "titlepage": {
+          "status": "survives"
+        },
+        "transitions": {
+          "status": "survives"
+        }
+      }
+    },
+    {
+      "key": "htmlpdf",
+      "name": "PDF through HTML",
+      "read": false,
+      "write": true,
+      "needs": "wkhtmltopdf"
+    },
+    {
+      "key": "latexpdf",
+      "name": "PDF through LaTeX",
+      "read": false,
+      "write": true,
+      "needs": "LaTeX"
+    },
+    {
+      "key": "epub",
+      "name": "EPUB",
+      "read": false,
+      "write": true,
+      "needs": "pandoc"
+    },
+    {
+      "key": "azw3",
+      "name": "Kindle (AZW3)",
+      "read": false,
+      "write": true,
+      "needs": "Calibre"
+    },
+    {
+      "key": "mobi",
+      "name": "Mobipocket (MOBI)",
+      "read": false,
+      "write": true,
+      "needs": "Calibre"
+    },
+    {
+      "key": "prc",
+      "name": "Mobipocket (PRC)",
+      "read": false,
+      "write": true,
+      "needs": "Calibre"
+    },
+    {
+      "key": "fb2",
+      "name": "FictionBook (FB2)",
+      "read": false,
+      "write": true,
+      "needs": "Calibre"
+    },
+    {
+      "key": "pdb",
+      "name": "eReader (PDB)",
+      "read": false,
+      "write": true,
+      "needs": "Calibre"
+    },
+    {
+      "key": "lrf",
+      "name": "Sony Reader (LRF)",
+      "read": false,
+      "write": true,
+      "needs": "Calibre"
+    },
+    {
+      "key": "lit",
+      "name": "Microsoft Reader (LIT)",
+      "read": false,
+      "write": true,
+      "needs": "Calibre"
+    },
+    {
+      "key": "rtf",
+      "name": "Rich Text (RTF)",
+      "read": false,
+      "write": true,
+      "needs": "pandoc"
+    },
+    {
+      "key": "markdown",
+      "name": "Markdown",
+      "read": false,
+      "write": true,
+      "needs": "pandoc"
+    },
+    {
+      "key": "rst",
+      "name": "reStructuredText",
+      "read": false,
+      "write": true,
+      "needs": "pandoc"
+    },
+    {
+      "key": "json",
+      "name": "Pandoc JSON",
+      "read": false,
+      "write": true,
+      "needs": "pandoc"
+    },
+    {
+      "key": "native",
+      "name": "Pandoc native",
+      "read": false,
+      "write": true,
+      "needs": "pandoc"
+    },
+    {
+      "key": "man",
+      "name": "Manual page",
+      "read": false,
+      "write": true,
+      "needs": "pandoc"
+    },
+    {
+      "key": "textile",
+      "name": "Textile",
+      "read": false,
+      "write": true,
+      "needs": "pandoc"
+    },
+    {
+      "key": "mediawiki",
+      "name": "MediaWiki",
+      "read": false,
+      "write": true,
+      "needs": "pandoc"
+    },
+    {
+      "key": "org",
+      "name": "Org mode",
+      "read": false,
+      "write": true,
+      "needs": "pandoc"
+    },
+    {
+      "key": "asciidoc",
+      "name": "AsciiDoc",
+      "read": false,
+      "write": true,
+      "needs": "pandoc"
+    }
+  ]
+}
