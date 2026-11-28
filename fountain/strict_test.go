@@ -61,9 +61,31 @@ func TestStrictReading(t *testing.T) {
 			[]string{"action", "empty", "trans", "empty", "scene"}},
 		{"transition at the end of action", "INT. HOUSE\n\nBob waits and DISSOLVE TO:\n\nINT. GARDEN\n",
 			[]string{"scene", "empty", "action", "empty", "scene"}, []string{"scene", "empty", "trans", "empty", "scene"}},
+		// (the leniency: one ending in TO: needs no blank line after it;
+		// the heading right below it still needs its blank line before)
 		{"transition without a blank line after", "Bob waits.\n\nCUT TO:\nINT. HOUSE\n",
-			[]string{"action", "empty", "speaker", "dialog"},
+			[]string{"action", "empty", "trans", "action"},
 			[]string{"action", "empty", "trans", "scene"}},
+		{"transition right above action", "INT. HOUSE\n\nCUT TO:\nJonas alone, holding the letter.\n",
+			[]string{"scene", "empty", "trans", "action"}, nil},
+		{"transition without a blank line before", "Bob waits.\nCUT TO:\n\nINT. HOUSE\n",
+			[]string{"action", "action", "empty", "scene"},
+			[]string{"action", "trans", "empty", "scene"}},
+		{"cue below a transition", "Bob waits.\n\nCUT TO:\nBOB\nHello.\n",
+			[]string{"action", "empty", "trans", "action", "action"},
+			[]string{"action", "empty", "trans", "speaker", "dialog"}},
+		{"TO: in a speech", "BOB\nHello.\nCUT TO:\nGoodbye.\n",
+			[]string{"speaker", "dialog", "dialog", "dialog"},
+			[]string{"speaker", "dialog", "trans", "action"}},
+		// cues the leniency leaves alone
+		{"cue TOBIAS", "Bob waits.\n\nTOBIAS\nHello.\n",
+			[]string{"action", "empty", "speaker", "dialog"}, nil},
+		{"cue with an extension", "Bob waits.\n\nAMOS (CONT'D)\nHello.\n",
+			[]string{"action", "empty", "speaker", "dialog"}, nil},
+		{"cue ending in TO", "Bob waits.\n\nOTTO\nHello.\n",
+			[]string{"action", "empty", "speaker", "dialog"}, nil},
+		{"dialogue under a cue", "BOB\nHello.\nWHERE TO?\n",
+			[]string{"speaker", "dialog", "dialog"}, nil},
 		{"transition at the end", "Bob waits.\n\nCUT TO:", []string{"action", "empty", "trans"}, nil},
 		{"forced transition anywhere", "Bob waits.\n> fade out.\nINT. HOUSE\n",
 			[]string{"action", "trans", "action"}, []string{"action", "trans", "scene"}},
@@ -208,5 +230,22 @@ func TestWriteSpecValid(t *testing.T) {
 		if again[i].Type != r.Type || again[i].Contents != r.Contents {
 			t.Errorf("row %d read again as %v, was %v", i, again[i], r)
 		}
+	}
+}
+
+// The leniency is for a line ending in TO: only: a transition of the
+// language's word list (SMASH CUT here) with blank lines around is none
+// without the one after it, as before, nor is FADE TO TITLE:.
+func TestTransitionLeniencyOnlyTO(t *testing.T) {
+	lang := rules.Words(Scene)
+	lang.Transitions = append(lang.Transitions, "SMASH CUT")
+	if got := elementsOf("Bob waits.\n\nSMASH CUT\n", lang, false); got[3] != lex.TypeTrans {
+		t.Fatalf("SMASH CUT with blank lines around: %v, want a transition", got)
+	}
+	if got := elementsOf("Bob waits.\n\nSMASH CUT\nThe end.\n", lang, false); got[3] == lex.TypeTrans {
+		t.Errorf("SMASH CUT with no blank line after: %v, want no transition", got)
+	}
+	if got := elementsOf("Bob waits.\n\nFADE TO TITLE:\nHOPE TALKS\n", lang, false); got[3] == lex.TypeTrans {
+		t.Errorf("FADE TO TITLE: with no blank line after: %v, want no transition", got)
 	}
 }

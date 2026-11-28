@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **A transition ending in `TO:` needs no blank line after it.** Since 1.19 the spec's reading wanted blank
+  lines around a transition, so `CUT TO:` right above the next scene's text became a character cue and the
+  text its speech. Now a line that is a transition in all but the blank line after it, and ends in `TO:`,
+  is one (the blank line before it is still needed, and a heading right below it still needs its own).
+  Other transitions (`FADE OUT.`, a language's word list) and every cue (`TOBIAS`, `AMOS (CONT'D)`) read as
+  before, and so do `ParseLoose` and `KeepLoose`.
+
+### Added
+- **FDX: notes, centred text and dual dialogue checked through and back.** Tests take Fountain through FDX
+  and back to Fountain for each: a note `[[…]]` is a Final Draft ScriptNote on its paragraph (on the next one
+  for a line of notes, the last one at the end), never printed text; `> … <` an Action paragraph with
+  `Alignment="Center"`, read back as centred; `NAME ^` and the speech before it one `<DualDialogue>`, read
+  back as such. The writer did all three already; the tests hold it to them, by both readers.
+
 ## [1.67.0] - 2026-11-27
 
 ### Changed

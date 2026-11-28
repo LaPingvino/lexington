@@ -83,3 +83,93 @@ func TestFountainFDXRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+// fdxThere is Fountain text through FDX and back to Fountain text,
+// read again: what an FDX export brings back, by both of the readers
+// (ParseWithError, and ParseRevisions as Accolade's import has it).
+func fdxThere(t *testing.T, src string) (doc string, back []lex.Screenplay) {
+	t.Helper()
+	var b bytes.Buffer
+	if err := (&FDXWriter{}).Write(&b, fountain.Parse(scenes, strings.NewReader(src))); err != nil {
+		t.Fatal(err)
+	}
+	doc = b.String()
+	read := []func() (lex.Screenplay, error){
+		func() (lex.Screenplay, error) { return ParseWithError(strings.NewReader(doc)) },
+		func() (lex.Screenplay, error) {
+			s, _, err := ParseRevisions(strings.NewReader(doc))
+			return s, err
+		},
+	}
+	for _, r := range read {
+		s, err := r()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var text bytes.Buffer
+		if err := (&fountain.FountainWriter{SceneConfig: scenes}).Write(&text, s); err != nil {
+			t.Fatal(err)
+		}
+		back = append(back, fountain.Parse(scenes, &text))
+	}
+	return doc, back
+}
+
+// A note is Final Draft's ScriptNote on a paragraph, never printed
+// text; a centred line an Action centred; NAME ^ and the speech before
+// it one DualDialogue: and so they come back to Fountain.
+func TestNotesCentredDualThroughFDX(t *testing.T) {
+	const note = "A note for the writer"
+	cases := map[string]string{
+		"own line, before centred": "INT. KITCHEN - DAY\n\nMaria waits.\n\n[[" + note + "]]\n\n> THE END OF THE BEGINNING <\n",
+		"inline":                   "INT. KITCHEN - DAY\n\nMaria waits. [[" + note + "]] She sits.\n\n> THE END OF THE BEGINNING <\n",
+		"at the end":               "INT. KITCHEN - DAY\n\n> THE END OF THE BEGINNING <\n\nMaria waits.\n\n[[" + note + "]]\n",
+		"before dual dialogue":     "INT. KITCHEN - DAY\n\n> THE END OF THE BEGINNING <\n\n[[" + note + "]]\n\nMARIA\nThe one on the table.\n\nJONAS ^\nOh. That one.\n",
+		"after dual dialogue":      "INT. KITCHEN - DAY\n\nMARIA\nThe one on the table.\n\nJONAS ^\nOh. That one.\n\n[[" + note + "]]\n\n> THE END OF THE BEGINNING <\n",
+	}
+	for name, src := range cases {
+		t.Run(name, func(t *testing.T) {
+			doc, backs := fdxThere(t, src)
+			for _, want := range []string{"<ScriptNote", `<Paragraph Type="Action" Alignment="Center">`} {
+				if !strings.Contains(doc, want) {
+					t.Errorf("FDX lacks %s:\n%s", want, doc)
+				}
+			}
+			if strings.Contains(src, "^") && !strings.Contains(doc, "<DualDialogue>") {
+				t.Errorf("FDX lacks <DualDialogue>:\n%s", doc)
+			}
+			for _, back := range backs {
+				noted, centred := false, false
+				var dual []string
+				inDual := false
+				for _, l := range back {
+					if strings.Contains(lex.StripNotes(l.Contents), note) {
+						t.Errorf("the note is printed, as %s: %q", l.Type, l.Contents)
+					}
+					for _, n := range lex.Notes(l.Contents) {
+						noted = noted || strings.TrimSpace(n) == note
+					}
+					switch {
+					case l.Type == lex.TypeCenter && strings.TrimSpace(lex.StripNotes(l.Contents)) == "THE END OF THE BEGINNING":
+						centred = true
+					case l.Type == lex.TypeDualOpen:
+						inDual = true
+					case l.Type == lex.TypeDualClose:
+						inDual = false
+					case inDual && l.Type == lex.TypeSpeaker:
+						dual = append(dual, strings.TrimSpace(lex.StripNotes(l.Contents)))
+					}
+				}
+				if !noted {
+					t.Errorf("the note is lost: %v", back)
+				}
+				if !centred {
+					t.Errorf("the centred line is not centred: %v", back)
+				}
+				if strings.Contains(src, "^") && strings.Join(dual, ",") != "MARIA,JONAS" {
+					t.Errorf("dual dialogue's speakers %v, want MARIA, JONAS: %v", dual, back)
+				}
+			}
+		})
+	}
+}

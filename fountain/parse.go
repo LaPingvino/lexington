@@ -148,9 +148,11 @@ const TypeBoneyard = lex.TypeBoneyard
 // It follows the Fountain spec (fountain.io/syntax) where Lexington
 // before 1.19 read more loosely: a scene heading and a character cue need
 // a blank line before them; a transition is in capitals, ends in TO: and
-// has blank lines around it; a line of two spaces (or more) within a
-// speech keeps it going, as a blank line of dialogue. Forced elements
-// (. @ > ! ~) are what they say anywhere. ParseLoose is the old reading,
+// has a blank line before it (the spec wants one after it as well;
+// Lexington lets that one go, as "CUT TO:" right above text is hardly a
+// cue); a line of two spaces (or more) within a speech keeps it going,
+// as a blank line of dialogue. Forced elements (. @ > ! ~) are what they
+// say anywhere. ParseLoose is the old reading,
 // KeepLoose writes a script that relied on it so that it reads the same.
 func Parse(scenes []string, file io.Reader) (out lex.Screenplay) {
 	return parse(rules.Words(scenes), file, false, false)
@@ -653,13 +655,20 @@ func (state *ParseState) checkScene(row string) (bool, string, string) {
 
 // checkCrow is CheckCrow, where a transition not forced with > is one by
 // the language's rules (Dialect.Transition: in capitals, ending in " TO:"
-// in English) and has blank lines around it.
+// in English) and has blank lines around it, but for one leniency: one
+// ending in TO: needs none after it.
 func (state *ParseState) checkCrow(row string) (bool, string, string) {
 	bare := strings.TrimSpace(row)
 	if strings.HasPrefix(bare, ">") || state.loose {
 		return CheckCrow(row)
 	}
-	if !state.prevBlank || !state.nextBlank || !state.d.Transition(bare) {
+	if !state.prevBlank || !state.d.Transition(bare) {
+		return false, "", ""
+	}
+	// the one leniency: a line ending in TO: is a transition without the
+	// blank line after it too ("CUT TO:" right above the next scene's
+	// text); otherwise it would be a cue nobody meant
+	if !state.nextBlank && !strings.HasSuffix(bare, "TO:") {
 		return false, "", ""
 	}
 	return true, lex.TypeTrans, strings.ToUpper(bare)
