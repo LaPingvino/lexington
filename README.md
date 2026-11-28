@@ -417,7 +417,7 @@ lexington check film.accolade                   # is it whole and readable?
 The layout is described roughly, as a draft that will change, in
 [Accolade's docs/FORMAT.md](https://github.com/LaPingvino/accolade/blob/main/docs/FORMAT.md).
 
-### Other programs' formats: Fade In, Trelby, KIT Scenarist
+### Other programs' formats: Fade In, Trelby, KIT Scenarist, Celtx
 
 `lexington IN OUT` (or `-i IN -o OUT`) converts any format Lexington reads into any it writes, each told
 by its name, else (the input) by its content; the other flags go before, between or after the files, and
@@ -428,6 +428,9 @@ lexington script.pdf script.fountain                 # the shortest form
 lexington -i script.pdf -o script.fountain           # any screenplay PDF, read back to Fountain
 lexington -i film.fadein -o film.fdx                  # Fade In to Final Draft
 lexington -i film.trelby -o film.kitsp                # Trelby to KIT Scenarist
+lexington script.pdf script.celtx                     # a screenplay PDF, to keep writing in Celtx 2.9
+lexington -scripts film.celtx                         # a Celtx project's scripts
+lexington film.celtx -script 2 stage.fountain         # its second script (by number or title)
 lexington -i film.fountain -o film.fadein -form folder    # an unzipped .fadein
 lexington -i film.fountain -o film.osf -osfversion 1.2    # an older Fade In's OSF
 lexington -i download -o film.fountain                # no extension: told by its content
@@ -438,6 +441,7 @@ lexington -i download -o film.fountain                # no extension: told by it
 | Fade In (`.fadein`, zipped or a folder; `.osf`) | OSF 1.2, 2.x, 3.0, 4.0, 5.0 | OSF 5.0, Fade In 5's (`-osfversion 4.0`, `2.0`, `1.2`) | all printed elements and emphasis, dual dialogue, scene numbers, page breaks, notes, a scene's synopsis; the title page |
 | Trelby (`.trelby`) | formats 1–3 | format 3 | the text of each element and its type, emphasis and dual dialogue as Fountain's markers in the text, notes, the title page; no scene numbers or page breaks |
 | KIT Scenarist (`.kitsp`) | its projects (0.7) | a new project, as KIT 0.7.2 makes one | all elements and emphasis, dual dialogue, scene numbers and colours, folders as sections, notes as review comments, the title page's fields; no page breaks |
+| Celtx (`.celtx`, desktop 2.x) | its projects: the first script, or `-script` | a project of one screenplay (*unverified* in Celtx) | all elements and emphasis, notes, a scene's index card as its synopsis, breakdown tags (Cast, Props, Sound written), the title page Celtx has; dual dialogue, centred lines, lyrics and the outline as Fountain's markers; no scene numbers or page breaks |
 
 - **Fade In:** a `.fadein` is a zip holding the script as `document.xml`, in Fade In's Open Screenplay
   Format; like a `.highland` it can be a folder, and is written back in the form it has, what else is in it
@@ -466,9 +470,25 @@ lexington -i download -o film.fountain                # no extension: told by it
   library, so it works in the browser too). Written projects pass `sqlite3`'s integrity check; none has
   been opened in KIT itself yet. The title page maps as KIT's own Fountain import maps it (Credit is its
   genre, Draft date its year).
+- **Celtx:** the desktop Celtx (2.x, given up around 2012) saves a project as a zip: `project.rdf`, an RDF
+  catalogue of its documents, and each script as HTML, a paragraph a `<p>` whose class is its element
+  (`sceneheading`, `action`, `character`, `dialog`, `parenthetical`, `transition`, `shot`, a stage play's
+  `act`). A project can hold several scripts (a screenplay and its stage adaptation): the first in the
+  project's tree is read, `-script N` (or its title) reads another, `-scripts` lists them. Emphasis is
+  `<b>`, `<i>`, `<u>`; a note is Celtx's note at the end of its line; the title page is the script's title,
+  author, credit ("By"), source, copyright and contact (Draft date and Notes have no place). A scene's
+  index card text is its synopsis. Breakdown tags (`<span class="cast" ref="…">`) are read as Lexington's
+  breakdown (`celtx.ParseTags`, as `fdx.ParseTags`), the item's name and department from the catalogue;
+  the writer writes Cast, Props and Sound, the departments seen in a project Celtx saved, and leaves other
+  categories' words plain. Celtx numbers scenes itself, so its numbers are not read and none are written;
+  attachments (media) are passed over; the storyboard, schedule and other documents are not read. What
+  Celtx lacks is kept as Trelby's is: a caret on dual dialogue's second speaker, `> THE END <`, `~` before
+  lyrics, sections and synopses as notes (`# Act One`, `= …`). The writer follows what Celtx itself writes
+  (the files stored, the catalogue's tree, a Master Catalog, the scenes by their headings' ids); no Celtx
+  has opened one yet.
 - **For programs:** `cli.ReadScreenplay` reads a file in any of these formats as the command line does;
-  `cli.Inputs` and `cli.Formats` list what is read and written; the `osf`, `trelby` and `kitsp` packages do
-  each format alone.
+  `cli.Inputs` and `cli.Formats` list what is read and written; the `osf`, `trelby`, `kitsp` and `celtx`
+  packages do each format alone.
 
 ### Word and LibreOffice (DOCX, ODT)
 

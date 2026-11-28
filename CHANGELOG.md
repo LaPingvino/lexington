@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Celtx projects (`.celtx`), read and written.** The desktop Celtx (2.x, on Mozilla's XUL, given up around
+  2012) saves a zip of `project.rdf`, an RDF catalogue, and each script as HTML. The new `celtx` package reads
+  a project's first script in its tree, or the one `-script` names (its number or title; `-scripts` lists
+  them): every element, `<b>`/`<i>`/`<u>` emphasis, notes, a stage play's acts as sections, a scene's index
+  card as its synopsis, the title page from the script's head, and the breakdown tags (`celtx.ParseTags`, as
+  `fdx.ParseTags`). The writer makes a project of one screenplay as Celtx makes one (stored files, the
+  project's tree, a Master Catalog, the scenes; Cast, Props and Sound tags); `lexington IN OUT` and
+  `cli.ReadScreenplay` take `.celtx` by its name or its content. Dual dialogue, centred lines, lyrics and the
+  outline are kept as Fountain's markers, as through Trelby; scene numbers and page breaks are not. What is
+  written has not yet been opened in Celtx itself.
+- `lex.Paragraph.Sources` (the rows' Fountain lines) and `lex.Builder.Len`/`Rows`, for a paragraph format's
+  breakdown tags.
+
 ## [1.67.2] - 2026-11-28
 
 ### Changed

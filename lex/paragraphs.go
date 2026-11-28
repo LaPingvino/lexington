@@ -45,6 +45,10 @@ type Paragraph struct {
 	Dual Dual
 	// Revision is the line's revision set (Line.Revision).
 	Revision string
+	// Sources are the Fountain lines (Line.Source) of the rows the
+	// paragraph was, one a line of its Text when they are rows of their
+	// own (a speech's lines), for the tags kept by them (LineTag).
+	Sources []int
 }
 
 // TitleField is a title page's field: its key and value, a value over
@@ -104,9 +108,11 @@ func Paragraphs(s Screenplay) (title []TitleField, out []Paragraph) {
 			// the speech's next line: one paragraph, its lines apart
 			out[n-1].Text += "\n" + strings.TrimSpace(StripNotes(l.Contents))
 			out[n-1].Notes = append(out[n-1].Notes, Notes(l.Contents)...)
+			out[n-1].Sources = append(out[n-1].Sources, l.Source)
 			continue
 		}
-		p := Paragraph{Type: l.Type, Notes: Notes(l.Contents), Before: notes, NewPage: newPage, Revision: l.Revision}
+		p := Paragraph{Type: l.Type, Notes: Notes(l.Contents), Before: notes, NewPage: newPage, Revision: l.Revision,
+			Sources: []int{l.Source}}
 		notes, newPage = nil, false
 		p.Text = strings.TrimSpace(StripNotes(l.Contents))
 		switch l.Type {
@@ -250,6 +256,13 @@ func NoteLineBefore(p Paragraph) bool {
 	}
 	return strings.TrimSpace(p.Text) != ""
 }
+
+// Len is the number of rows built so far: the rows of a paragraph Add
+// adds are those between Len before and after it.
+func (b *Builder) Len() int { return len(b.out) }
+
+// Rows are the rows built so far (not to be changed).
+func (b *Builder) Rows() Screenplay { return b.out }
 
 // DualClose ends dual dialogue, if it is open.
 func (b *Builder) DualClose() {

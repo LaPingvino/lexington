@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/LaPingvino/lexington/bundle"
+	"github.com/LaPingvino/lexington/celtx"
 	"github.com/LaPingvino/lexington/fdx"
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/html"
@@ -86,6 +87,7 @@ var Formats = []Format{
 	{Key: "osf", Name: "Open Screenplay Format (OSF)"},
 	{Key: "trelby", Name: "Trelby"},
 	{Key: "kitsp", Name: "KIT Scenarist"},
+	{Key: "celtx", Name: "Celtx"},
 	{Key: "fountain", Name: "Fountain"},
 	{Key: "latex", Name: "LaTeX", Ext: "tex"},
 	{Key: "lex", Name: "Lexington's own (lex)"},
@@ -166,10 +168,13 @@ type Options struct {
 	Page         string          // paper for pdf, docx and odt: letter, a4, a5; "" for the preset's
 	Input        string          // file name, "-" for standard input
 	Output       string          // file name, "-" for standard output
-	From         string          // input format (Inputs' keys: fountain, fdx, pdf, fadein, osf, trelby, kitsp, lex)
+	From         string          // input format (Inputs' keys: fountain, fdx, pdf, fadein, osf, trelby, kitsp, celtx, lex)
 	To           string          // output format (Formats)
 	TemplatePath string          // a template for HTML, FDX or LaTeX
 	Lint         bool            // run the Fountain linter
+	// Script is the script to read of a project with several (a Celtx
+	// project): its number from 1 or its title; "" the first.
+	Script string
 	// Loose reads Fountain input as Lexington did before 1.19
 	// (fountain.ParseLoose), not as the spec has it.
 	Loose bool
@@ -376,6 +381,7 @@ func Main(ctx context.Context, args []string) int {
 type flagState struct {
 	o                                        Options
 	dump, help, presets, titlePages, version bool
+	scripts                                  bool
 }
 
 // newFlagSet is the command line's flags, set into st.
@@ -410,6 +416,9 @@ func newFlagSet(st *flagState) *flag.FlagSet {
 	fs.StringVar(&st.o.BundleForm, "form", "",
 		"The form of a bundle written: zip or folder (default: the bundle's own when rewritten, else zip, a .textbundle a folder).")
 	fs.StringVar(&st.o.From, "from", "", "Input file type: "+inputKeys()+" (default: as the input's name, else its content, says).")
+	fs.StringVar(&st.o.Script, "script", "",
+		"The script to read of a Celtx project with several (a screenplay and its stage play): its number from 1 or its title (default: the first; -scripts lists them).")
+	fs.BoolVar(&st.scripts, "scripts", false, "List the scripts of the Celtx project IN, for -script.")
 	fs.StringVar(&st.o.OSFVersion, "osfversion", "", "The Open Screenplay Format version osf and fadein are written in: 5.0 (the default, Fade In 5's), 4.0, 2.0 or 1.2.")
 	fs.StringVar(&st.o.To, "to", "",
 		"Output file type. Choose from "+formatKeys(false)+", or external formats requiring other programs: "+
@@ -517,6 +526,10 @@ func (st *flagState) after(fs *flag.FlagSet) (Options, bool, error) {
 		for _, k := range conf.TitlePageNames() {
 			t, _ := conf.TitlePage(k)
 			fmt.Printf("%-12s %s\n%-12s %s\n\n", k, cmp.Or(t.Name, k), "", t.Description)
+		}
+	case st.scripts:
+		if err := listScripts(o.Input); err != nil {
+			return o, false, err
 		}
 	case st.version:
 		log.Printf("Lexington version %s (commit: %s, built: %s)", Version, Commit, Date)
@@ -1132,6 +1145,8 @@ func parseInput(o Options, conf rules.TOMLConf, input io.Reader) (lex.Screenplay
 			return nil, fmt.Errorf("could not read the KIT Scenarist project: %w", err)
 		}
 		return s, nil
+	case "celtx":
+		return readCeltx(o, input)
 	case internal.FormatPDF:
 		// a PDF is read at random places, so it is read whole first
 		data, err := io.ReadAll(input)
@@ -1245,6 +1260,8 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 		return &trelby.TrelbyWriter{}, nil
 	case "kitsp":
 		return &kitsp.KITWriter{}, nil
+	case "celtx":
+		return &celtx.CeltxWriter{Tags: o.Breakdown, LineTags: o.LineTags}, nil
 	case "docx":
 		return &office.DOCXWriter{Elements: elements, Page: pageFor(o), TitlePage: o.tpl, TitlePictures: o.TitlePictures}, nil
 	case "odt":

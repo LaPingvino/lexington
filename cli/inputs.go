@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/LaPingvino/lexington/bundle"
+	"github.com/LaPingvino/lexington/celtx"
 	"github.com/LaPingvino/lexington/internal"
 	"github.com/LaPingvino/lexington/kitsp"
 	"github.com/LaPingvino/lexington/lex"
@@ -39,6 +42,7 @@ var Inputs = []InputFormat{
 	{Key: "osf", Name: "Open Screenplay Format (OSF)", Exts: []string{".osf"}},
 	{Key: "trelby", Name: "Trelby", Exts: []string{".trelby"}},
 	{Key: "kitsp", Name: "KIT Scenarist", Exts: []string{".kitsp"}},
+	{Key: "celtx", Name: "Celtx", Exts: []string{".celtx"}},
 	{Key: internal.FormatLex, Name: "Lexington's own (lex)", Exts: []string{".lex"}},
 }
 
@@ -65,7 +69,7 @@ func inputKey(key string) bool {
 }
 
 // Sniff is the input format a file's first bytes say it is in: a KIT
-// project's database, a Fade In zip, Trelby's #Version line, a PDF, Final
+// project's database, a Fade In zip, a Celtx project's, Trelby's #Version line, a PDF, Final
 // Draft's or OSF's XML; "" for none of them (Fountain, or a bundle).
 func Sniff(head []byte) string {
 	switch {
@@ -76,6 +80,9 @@ func Sniff(head []byte) string {
 	case bytes.HasPrefix(head, []byte("PK\x03\x04")):
 		if _, err := osf.FadeInDocument(head); err == nil {
 			return "fadein"
+		}
+		if celtx.IsProject(head) {
+			return "celtx"
 		}
 		return ""
 	}
@@ -191,4 +198,49 @@ func ReadScreenplay(ctx context.Context, path string, o Options) (lex.Screenplay
 	}
 	defer closeIn()
 	return parseInput(o, conf, in)
+}
+
+// readCeltx reads a Celtx project's script, o.Script's (else the first:
+// the others are named, for -script).
+func readCeltx(o Options, input io.Reader) (lex.Screenplay, error) {
+	data, err := io.ReadAll(input) // a zip is read at random places
+	if err != nil {
+		return nil, fmt.Errorf("could not read the Celtx project: %w", err)
+	}
+	p, err := celtx.ReadProject(data)
+	if err != nil {
+		return nil, err
+	}
+	sc, err := p.Script(o.Script)
+	if err != nil {
+		return nil, err
+	}
+	if len(p.Scripts) > 1 && o.Script == "" {
+		log.Printf("The Celtx project holds %d scripts: read the first, %q (-script picks another, -scripts lists them)",
+			len(p.Scripts), sc.Title)
+	}
+	s, _, _, err := p.Read(sc)
+	if err != nil {
+		return nil, fmt.Errorf("could not read the Celtx script: %w", err)
+	}
+	return s, nil
+}
+
+// listScripts prints the scripts of a Celtx project, for -script.
+func listScripts(name string) error {
+	if name == "" || name == "-" {
+		return errors.New("-scripts lists the scripts of a Celtx project: give its file")
+	}
+	data, err := os.ReadFile(name)
+	if err != nil {
+		return err
+	}
+	p, err := celtx.ReadProject(data)
+	if err != nil {
+		return err
+	}
+	for i, s := range p.Scripts {
+		fmt.Printf("%d  %s (%s, %s)\n", i+1, s.Title, s.Kind, s.File)
+	}
+	return nil
 }

@@ -49,7 +49,7 @@ FADE OUT.
 	if err := os.WriteFile(in, []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, ext := range []string{"fadein", "osf", "fdx", "kitsp", "trelby"} {
+	for _, ext := range []string{"fadein", "osf", "fdx", "kitsp", "trelby", "celtx"} {
 		t.Run(ext, func(t *testing.T) {
 			mid := filepath.Join(dir, "script."+ext)
 			back := filepath.Join(dir, ext+".fountain")

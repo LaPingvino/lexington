@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -23,7 +25,7 @@ func TestOtherProgramsFormats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, ext := range []string{"fadein", "osf", "trelby", "kitsp", "fdx"} {
+	for _, ext := range []string{"fadein", "osf", "trelby", "kitsp", "fdx", "celtx"} {
 		t.Run(ext, func(t *testing.T) {
 			out := filepath.Join(dir, "script."+ext)
 			if code := Main(context.Background(), []string{"-i", src, "-o", out}); code != 0 {
@@ -164,7 +166,7 @@ func TestSniff(t *testing.T) {
 }
 
 func TestInputs(t *testing.T) {
-	for name, key := range map[string]string{"a.fadein": "fadein", "a.FadeIn/": "fadein", "b.kitsp": "kitsp", "c.trelby": "trelby", "d.osf": "osf", "e.fdx": "fdx"} {
+	for name, key := range map[string]string{"a.fadein": "fadein", "a.FadeIn/": "fadein", "b.kitsp": "kitsp", "c.trelby": "trelby", "d.osf": "osf", "e.fdx": "fdx", "f.celtx": "celtx"} {
 		if f, ok := InputFor(name); !ok || f.Key != key {
 			t.Errorf("InputFor(%q) = %v, %v", name, f, ok)
 		}
@@ -176,5 +178,50 @@ func TestInputs(t *testing.T) {
 		if _, ok := FormatFor(f.Key); !ok {
 			t.Errorf("%s is read but not written", f.Key)
 		}
+	}
+}
+
+// TestCeltxScript: -script picks a Celtx project's other script, and a
+// project is known by its content.
+func TestCeltxScript(t *testing.T) {
+	const rdf = `<?xml version="1.0"?>
+<RDF:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cx="http://celtx.com/NS/v1/" xmlns:RDF="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <cx:Document RDF:about="http://celtx.com/res/a" dc:title="Film" cx:localFile="script-a.html"/>
+  <cx:Document RDF:about="http://celtx.com/res/b" dc:title="Stage" cx:localFile="script-b.html"/>
+</RDF:RDF>
+`
+	page := func(heading string) string {
+		return "<html><head><title></title></head><body>\n<p class=\"sceneheading\">" + heading + "</p>\n</body></html>\n"
+	}
+	var buf bytes.Buffer
+	z := zip.NewWriter(&buf)
+	for name, data := range map[string]string{"project.rdf": rdf, "script-a.html": page("INT. FILM - DAY"), "script-b.html": page("INT. STAGE - NIGHT")} {
+		w, _ := z.Create(name)
+		w.Write([]byte(data))
+	}
+	z.Close()
+	if Sniff(buf.Bytes()) != "celtx" {
+		t.Errorf("a Celtx project not sniffed as one")
+	}
+	dir := t.TempDir()
+	in := filepath.Join(dir, "two.celtx")
+	if err := os.WriteFile(in, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for pick, want := range map[string]string{"": "INT. FILM - DAY", "2": "INT. STAGE - NIGHT", "Stage": "INT. STAGE - NIGHT"} {
+		out := filepath.Join(dir, "out"+pick+".fountain")
+		args := []string{in, out}
+		if pick != "" {
+			args = append(args, "-script", pick)
+		}
+		if code := Main(context.Background(), args); code != 0 {
+			t.Fatalf("%q: exit %d", args, code)
+		}
+		if data, _ := os.ReadFile(out); !strings.Contains(string(data), want) {
+			t.Errorf("-script %q: %s", pick, data)
+		}
+	}
+	if code := Main(context.Background(), []string{in, filepath.Join(dir, "x.fountain"), "-script", "Radio"}); code == 0 {
+		t.Error("-script of no script: exit 0")
 	}
 }
