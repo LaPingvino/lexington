@@ -190,7 +190,8 @@ func buildRevised(screenplay lex.Screenplay, revs *lex.Revisions, lock *lex.Page
 	}
 	b.closeDual()
 	if ps := doc.Content.Paragraphs; len(b.notes) > 0 && len(ps) > 0 {
-		ps[len(ps)-1].ScriptNotes = append(ps[len(ps)-1].ScriptNotes, scriptNotes(b.notes)...)
+		// notes after the last paragraph: after its text
+		ps[len(ps)-1].TrailingNotes = append(ps[len(ps)-1].TrailingNotes, trailing(b.notes)...)
 	}
 	doc.LockedPages = buildLockedPages(&doc, screenplay, lock, b.seqOf)
 	doc.TagData = b.tags.tagData()
@@ -218,6 +219,15 @@ func scriptNotes(notes []string) []FdxScriptNote {
 			sn.Paragraphs = append(sn.Paragraphs, FdxParagraph{Texts: []FdxText{{Content: strings.TrimSpace(l)}}})
 		}
 		out = append(out, sn)
+	}
+	return out
+}
+
+// trailing are notes as script notes after a paragraph's text.
+func trailing(notes []string) []trailingNote {
+	var out []trailingNote
+	for _, n := range scriptNotes(notes) {
+		out = append(out, trailingNote{FdxScriptNote: n})
 	}
 	return out
 }
@@ -270,9 +280,12 @@ func (b *docBuilder) add(line lex.Line, notes []string) {
 	if line.Type == lex.TypeCenter {
 		p.Alignment = alignCenter
 	}
-	if notes = append(b.notes, notes...); len(notes) > 0 {
-		p.ScriptNotes, b.notes = scriptNotes(notes), nil
+	// a line of notes before the paragraph, before its text; the notes
+	// in its text after it
+	if len(b.notes) > 0 {
+		p.ScriptNotes, b.notes = scriptNotes(b.notes), nil
 	}
+	p.TrailingNotes = trailing(notes)
 	b.seqOf[b.row] = b.seq
 	b.seq++
 	if b.dual != nil {

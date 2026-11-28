@@ -218,9 +218,9 @@ func TestWriteFDXFeatures(t *testing.T) {
 	}
 	// a heading as it was, its color in Final Draft's way ([[blue]], as
 	// Beat reads it); the other notes at the end of their paragraph, the
-	// line of notes on the next one
+	// line of notes a line of notes again, before the next one
 	check(t, got, "scene=INT. HOUSE - DAY #12A# [[blue]]", "action=Rain falls. [[or snow]]",
-		"center=_**THE END**_ [[A note\n  \nover lines]]")
+		"note=[[A note\n  \nover lines]]", "center=_**THE END**_")
 	if c := lex.NoteColor(got[0]); c != "blue" {
 		t.Errorf("color %q", c)
 	}

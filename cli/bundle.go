@@ -311,7 +311,8 @@ func writeToBundle(ctx context.Context, screenplay lex.Screenplay, o Options) er
 		return err
 	}
 	var buf bytes.Buffer
-	w := &fountain.FountainWriter{SceneConfig: conf.Scenes(o.SceneOut)}
+	lang := conf.Language(o.SceneOut)
+	w := &fountain.FountainWriter{SceneConfig: conf.Scenes(o.SceneOut), Language: &lang}
 	if err := w.Write(&buf, filtered); err != nil {
 		return err
 	}

@@ -235,6 +235,22 @@ func (b *Builder) Add(p Paragraph) {
 	}
 }
 
+// NoteLineBefore tells whether a note on p (a format's note on a
+// paragraph: OSF's, Final Draft's) can be a line of notes before it
+// (Before), where Fountain has a note of a paragraph of its own. Not in a
+// speech, which a line of notes would end, nor on dual dialogue's second
+// speaker, which a line would part from the first: those keep it in the
+// paragraph (Notes).
+func NoteLineBefore(p Paragraph) bool {
+	switch p.Type {
+	case TypeParen, TypeDialog, TypeLyrics:
+		return false
+	case TypeSpeaker:
+		return p.Dual != DualSecond
+	}
+	return strings.TrimSpace(p.Text) != ""
+}
+
 // DualClose ends dual dialogue, if it is open.
 func (b *Builder) DualClose() {
 	if b.dual == NotDual {

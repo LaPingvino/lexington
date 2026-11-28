@@ -1,16 +1,21 @@
 package fountain
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // FountainWriter implements the writer.Writer interface for Fountain output.
 type FountainWriter struct {
 	SceneConfig []string // Configuration for scene headers
+	// Language is what the text written is read with (its scene words,
+	// cue and transition rules); nil: rules.Words(SceneConfig).
+	Language *rules.Language
 }
 
 // WriteState holds the state needed during writing
@@ -21,7 +26,12 @@ type WriteState struct {
 	dualNext  bool   // the next speaker is the second of dual dialogue (^)
 	titleKey  string // the title page field written last
 	nextBlank bool   // the row after this one is a blank line, or there is none
+	marks     []forceMark
 }
+
+// forceMark is a force mark the writer put before a line (from 0) of
+// what it wrote: n bytes ("!", "> ").
+type forceMark struct{ line, n int }
 
 // Write converts the internal lex.Screenplay format to a Fountain file.
 // It implements the writer.Writer interface.
@@ -29,9 +39,10 @@ func (f *FountainWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 	// Remove trailing empty line if present
 	screenplay = f.trimTrailingEmpty(screenplay)
 
+	var buf bytes.Buffer
 	state := &WriteState{
 		titlepage: "start",
-		writer:    &tailWriter{w: w},
+		writer:    &tailWriter{w: &buf},
 		config:    f.SceneConfig,
 	}
 
@@ -42,7 +53,106 @@ func (f *FountainWriter) Write(w io.Writer, screenplay lex.Screenplay) error {
 		}
 	}
 
-	return nil
+	lang := rules.Words(f.SceneConfig)
+	if f.Language != nil {
+		lang = *f.Language
+	}
+	_, err := io.WriteString(w, minimalMarks(buf.String(), state.marks, lang))
+	return err
+}
+
+// mark writes the force mark m before the line being started.
+func (state *WriteState) mark(m string) error {
+	if t, ok := state.writer.(*tailWriter); ok {
+		state.marks = append(state.marks, forceMark{t.lines, len(m)})
+	}
+	_, err := fmt.Fprint(state.writer, m)
+	return err
+}
+
+// minimalMarks is text, written with the force marks marks, with each
+// of them taken off that the reading lang does not need: text without it
+// reads, line by line, as the same rows (elements and contents). A mark
+// is needed where the line in its place would read otherwise ("!BOB"
+// with text below it, which would be a cue; "!CUT TO:" a transition);
+// "FADE IN:" before a blank line is action by itself. All are taken off
+// and the text read again; where a run of lines reads otherwise, the
+// mark nearest before its first line goes back on, until none does.
+func minimalMarks(text string, marks []forceMark, lang rules.Language) string {
+	if len(marks) == 0 {
+		return text
+	}
+	lines := strings.Split(text, "\n")
+	want := rowsByLine(text, lang)
+	off := make([]bool, len(marks)) // marks[k] taken off
+	for k := range off {
+		off[k] = true
+	}
+	for {
+		try := append([]string(nil), lines...)
+		for k, m := range marks {
+			if off[k] {
+				try[m.line] = try[m.line][m.n:]
+			}
+		}
+		joined := strings.Join(try, "\n")
+		got := rowsByLine(joined, lang)
+		restored, prevDiff := false, false
+		for i := 1; i <= len(lines); i++ {
+			diff := !sameRows(want[i], got[i])
+			if diff && !prevDiff {
+				if k := markFor(marks, off, i-1); k >= 0 {
+					off[k], restored = false, true
+				}
+			}
+			prevDiff = diff
+		}
+		if !restored {
+			return joined
+		}
+	}
+}
+
+// markFor is the mark taken off nearest at or before line (from 0), or
+// else nearest after it; -1 for none.
+func markFor(marks []forceMark, off []bool, line int) int {
+	best := -1
+	for k, m := range marks {
+		if !off[k] {
+			continue
+		}
+		if m.line <= line {
+			best = k
+		} else {
+			if best < 0 {
+				best = k
+			}
+			break
+		}
+	}
+	return best
+}
+
+// rowsByLine are the rows text is read as with lang, by the line (from
+// 1) they were read from.
+func rowsByLine(text string, lang rules.Language) map[int][]lex.Line {
+	out := map[int][]lex.Line{}
+	for _, row := range ParseLinesIn(lang, strings.NewReader(text)) {
+		out[row.Source] = append(out[row.Source], lex.Line{Type: row.Type, Contents: row.Contents})
+	}
+	return out
+}
+
+func sameRows(a, b []lex.Line) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func (f *FountainWriter) trimTrailingEmpty(screenplay lex.Screenplay) lex.Screenplay {
@@ -101,7 +211,9 @@ func (state *WriteState) writeLine(line lex.Line) error {
 		t := strings.TrimSpace(line.Contents)
 		if bare := strings.TrimSpace(lex.StripNotes(t)); !strings.HasPrefix(bare, ">") &&
 			(!strings.HasSuffix(bare, "TO:") || !AllCaps(bare) || !state.afterBlank() || !state.nextBlank) {
-			t = "> " + t
+			if err := state.mark("> "); err != nil {
+				return err
+			}
 		}
 		_, err := fmt.Fprintln(state.writer, t)
 		return err
@@ -146,7 +258,7 @@ func (state *WriteState) writeSpeaker(line lex.Line) error {
 	// the notes are no part of the name ("BOB [[note]]" is in capitals)
 	// a name is one by itself in capitals after a blank line
 	if name, _, _ := strings.Cut(lex.StripNotes(line.Contents), "("); !AllCaps(name) || !state.afterBlank() {
-		if _, err := fmt.Fprint(state.writer, "@"); err != nil {
+		if err := state.mark("@"); err != nil {
 			return err
 		}
 	}
@@ -162,7 +274,7 @@ func (state *WriteState) writeSpeaker(line lex.Line) error {
 func (state *WriteState) writeScene(line lex.Line) error {
 	// a heading is one by its word after a blank line
 	if !state.isSceneSupported(lex.StripNotes(line.Contents)) || !state.afterBlank() {
-		if _, err := fmt.Fprint(state.writer, "."); err != nil {
+		if err := state.mark("."); err != nil {
 			return err
 		}
 	}
@@ -194,7 +306,7 @@ func (state *WriteState) writeLyrics(line lex.Line) error {
 func (state *WriteState) writeAction(line lex.Line) error {
 	// action that would read as a name, a transition or a heading
 	if bare := lex.StripNotes(line.Contents); AllCaps(bare) || (state.afterBlank() && state.isSceneSupported(bare)) || markStart(bare) {
-		if _, err := fmt.Fprint(state.writer, "!"); err != nil {
+		if err := state.mark("!"); err != nil {
 			return err
 		}
 	}
@@ -228,11 +340,13 @@ func (state *WriteState) writeDefault(line lex.Line) error {
 // tailWriter remembers the end of what was written, to tell whether it
 // ends with a blank line.
 type tailWriter struct {
-	w    io.Writer
-	tail []byte
+	w     io.Writer
+	tail  []byte
+	lines int // the newlines written
 }
 
 func (t *tailWriter) Write(p []byte) (int, error) {
+	t.lines += bytes.Count(p, []byte("\n"))
 	t.tail = append(t.tail, p...)
 	if len(t.tail) > 2 {
 		t.tail = t.tail[len(t.tail)-2:]

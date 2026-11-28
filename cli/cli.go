@@ -410,7 +410,7 @@ func newFlagSet(st *flagState) *flag.FlagSet {
 	fs.StringVar(&st.o.BundleForm, "form", "",
 		"The form of a bundle written: zip or folder (default: the bundle's own when rewritten, else zip, a .textbundle a folder).")
 	fs.StringVar(&st.o.From, "from", "", "Input file type: "+inputKeys()+" (default: as the input's name, else its content, says).")
-	fs.StringVar(&st.o.OSFVersion, "osfversion", "", "The Open Screenplay Format version osf and fadein are written in: 4.0 (the default, Fade In 4's), 2.0 or 1.2.")
+	fs.StringVar(&st.o.OSFVersion, "osfversion", "", "The Open Screenplay Format version osf and fadein are written in: 5.0 (the default, Fade In 5's), 4.0, 2.0 or 1.2.")
 	fs.StringVar(&st.o.To, "to", "",
 		"Output file type. Choose from "+formatKeys(false)+", or external formats requiring other programs: "+
 			formatKeys(true)+".")
@@ -1227,7 +1227,8 @@ func createWriter(o Options, conf rules.TOMLConf) (writer.Writer, error) {
 	case internal.FormatLex:
 		return &lex.LexWriter{}, nil
 	case internal.FormatFountain:
-		return &fountain.FountainWriter{SceneConfig: conf.Scenes(o.SceneOut)}, nil
+		lang := conf.Language(o.SceneOut)
+		return &fountain.FountainWriter{SceneConfig: conf.Scenes(o.SceneOut), Language: &lang}, nil
 	case internal.FormatFDX:
 		return &fdx.FDXWriter{TemplatePath: o.TemplatePath, Revisions: o.Revisions, Lock: o.Lock,
 			Tags: o.Breakdown, LineTags: o.LineTags}, nil

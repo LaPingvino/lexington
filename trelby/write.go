@@ -86,6 +86,13 @@ func (w *TrelbyWriter) Write(out io.Writer, s lex.Screenplay) error {
 			if strings.TrimSpace(text) == "" {
 				break
 			}
+			if p.Type == lex.TypeCenter { // Trelby centres nothing: Fountain's markers
+				lines := strings.Split(strings.TrimSpace(text), "\n")
+				for i, l := range lines {
+					lines[i] = "> " + strings.TrimSpace(l) + " <"
+				}
+				text = strings.Join(lines, "\n")
+			}
 			if p.Type == lex.TypeSpeaker && p.Dual == lex.DualSecond {
 				text = strings.TrimSpace(text) + " ^" // as Fountain marks dual dialogue
 			}

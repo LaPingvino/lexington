@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **The Fountain writer forces only what needs forcing.** A force mark (`!`, `@`, `.`, `>`) is written only
+  where the strict reading of the written text, in its place, would read the line otherwise; the writer
+  checks each against the parser itself (its language's rules, `FountainWriter.Language`). `FADE IN:` and
+  `FADE OUT.` from an OSF, `.fadein` or FDX come back plain; capitals with text right below them (`!BOB`),
+  a line the `TO:` leniency would make a transition (`!CUT TO:`) and text starting with a mark keep theirs.
+  `KeepLoose` and the dialect forcing (`Force`) are as before. No golden file changed.
+- **Fade In: OSF 5.0 by default.** `.fadein` and `.osf` are written as Fade In 5 writes them (`version="50"`,
+  its settings, styles and a draft uuid): written again, a script Fade In 5.0.15 saved
+  (`osf/testdata/fadein5.fadein`) has the same settings, styles, paragraphs and title page. Fade In's own
+  state (`<fadein_settings>`, the page count) is left to Fade In; whether Fade In still warns of an older
+  version is not yet checked in Fade In itself. `-osfversion 4.0`, `2.0` and `1.2` still write the older
+  ones; every version reads as before.
+- **Notes stay on their own line through Fade In and Final Draft.** A line of notes before a centred line, a
+  transition or a heading came back inside that paragraph's text (`>THE END [[note]]<`). Fade In keeps a
+  note on the paragraph after it (as its own save shows), and that note now reads as a line of notes before
+  the paragraph; in a speech it stays at the speech's line, and so do a heading's colour and a link to the
+  story adapted (`[[from: …]]`). A note in a line's text through OSF also comes back as a line before it.
+  FDX writes a line of notes before the paragraph's text and a note in the text after it (not yet opened in
+  Final Draft) and reads them back so; notes before the text of an FDX (Final Draft's own place for them,
+  and earlier Lexington's) now read as a line of notes before the paragraph, not at the end of its text.
+- **Trelby: centred lines keep Fountain's markers.** Trelby can centre no line (no element type or setting
+  does), so a centred line is written as action `> THE END <` and reads back as centred, as emphasis is kept.
+
 ## [1.67.1] - 2026-11-28
 
 ### Changed

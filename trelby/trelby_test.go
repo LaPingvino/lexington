@@ -136,7 +136,7 @@ func TestFountain(t *testing.T) {
 }
 
 // trelbyRows are a script's rows as Trelby keeps them: no numbers, notes
-// or outline, centred lines and lyrics as action and dialogue, the title
+// or outline, lyrics as dialogue, the title
 // page's fields plain and in any order.
 func trelbyRows(s lex.Screenplay) []string {
 	var title, body []string
@@ -157,8 +157,6 @@ func trelbyRows(s lex.Screenplay) []string {
 		case lex.TypeDualOpen, lex.TypeDualNext, lex.TypeDualClose:
 			body = append(body, string(t))
 			continue
-		case lex.TypeCenter:
-			t = lex.TypeAction
 		case lex.TypeLyrics:
 			t = lex.TypeDialog
 		}

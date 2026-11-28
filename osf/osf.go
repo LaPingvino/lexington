@@ -5,9 +5,16 @@
 // Its versions are each read here: 1.2 (version="12", its emphasis as
 // tags in the text: <b>, <i>, <u>, <br>), 2.x and 3.0 (version="20",
 // "21", "30": text runs with attributes, the title page in <titlepage>)
-// and 4.0 (version="40": basestyle for basestylename, number for
-// scene_number).
-// The writer writes any of them (OSFWriter.Version), 4.0 unless told.
+// and 4.0 and 5.0 (version="40", "50": basestyle for basestylename,
+// number for scene_number; 5.0, Fade In 5's, adds settings and a draft's
+// uuid, which change nothing read here).
+// The writer writes any of them (OSFWriter.Version), 5.0 unless told.
+//
+// A note is on a paragraph (its note attribute), Fade In's only place
+// for one: it reads as a line of notes before the paragraph, never in
+// its text (in a speech, and a heading's colour or a link to the story
+// adapted, on the paragraph's line), and the writer puts a line of notes,
+// and a paragraph's own notes, on it.
 //
 // The format is known from the OSF SDK's sample documents
 // (github.com/OpenScreenplayFormat/osf-sdk, one per version) and from
@@ -22,6 +29,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/lex"
 )
 
@@ -126,9 +134,6 @@ func Parse(r io.Reader) (lex.Screenplay, error) {
 			par.Type = lex.TypeCenter
 		}
 		par.NewPage = p.Style.Attrs.on("pagebreakbefore")
-		if n := p.Attrs.get("note"); strings.TrimSpace(n) != "" {
-			par.Notes = []string{n}
-		}
 		if s := p.Attrs.get("synopsis"); strings.TrimSpace(s) != "" {
 			par.Synopses = strings.Split(s, "\n")
 		}
@@ -141,6 +146,28 @@ func Parse(r io.Reader) (lex.Screenplay, error) {
 				par.Dual, inDual = lex.DualFirst, true
 			case inDual:
 				par.Dual, inDual = lex.DualSecond, false
+			}
+		}
+		if n := p.Attrs.get("note"); strings.TrimSpace(n) != "" {
+			// on the paragraph: a line before it, not in its text; in a
+			// speech, which a line of notes would end, at its end. The
+			// writer's notes are a note's lines: a heading's colour and a
+			// link to the story adapted at their end mean something on
+			// the paragraph's line, and stay on it.
+			lines := strings.Split(n, "\n")
+			own := len(lines)
+			for own > 0 && (lex.NoteColor("[["+lines[own-1]+"]]") != "" || fountain.IsSourceLink(lines[own-1])) {
+				own--
+			}
+			if inline := lines[own:]; len(inline) > 0 {
+				par.Notes = inline
+			}
+			if before := strings.Join(lines[:own], "\n"); strings.TrimSpace(before) != "" {
+				if lex.NoteLineBefore(par) {
+					par.Before = []string{before}
+				} else {
+					par.Notes = append([]string{before}, par.Notes...)
+				}
 			}
 		}
 		b.Add(par)

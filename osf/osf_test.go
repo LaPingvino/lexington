@@ -140,7 +140,8 @@ var want = []string{
 	"newpage: ",
 	"scene: INT. HALL - DAY #4#",
 	"synopse: They meet.",
-	"action: John walks in, *slowly*, and **stops**. [[Check the light.]]",
+	"note: [[Check the light.]]",
+	"action: John walks in, *slowly*, and **stops**.",
 	"dualspeaker_open: ",
 	"speaker: JOHN",
 	"paren: (quietly)",
@@ -178,12 +179,12 @@ func TestReadVersions(t *testing.T) {
 func TestRoundTrip(t *testing.T) {
 	for name, doc := range map[string]string{"4.0": v40, "2.0": v20, "1.2": v12} {
 		first := parse(t, doc)
-		for _, v := range []string{"4.0", "2.0", "1.2"} {
+		for _, v := range []string{"5.0", "4.0", "2.0", "1.2"} {
 			out := (&OSFWriter{Version: v}).Document(first)
 			back := parse(t, string(out))
 			wantRows := formattest.Rows(first, nil)
 			formattest.Same(t, name+" as "+v, wantRows, formattest.Rows(back, nil))
-			if got := Version(attrOf(out, "version")); got != map[string]int{"4.0": 40, "2.0": 20, "1.2": 12}[v] {
+			if got := Version(attrOf(out, "version")); got != map[string]int{"5.0": 50, "4.0": 40, "2.0": 20, "1.2": 12}[v] {
 				t.Errorf("%s written as %s has version %d", name, v, got)
 			}
 		}
@@ -228,10 +229,10 @@ func TestScriptNotesAndOutline(t *testing.T) {
 	back := formattest.Rows(parse(t, string((&OSFWriter{}).Document(orig))), nil)
 	got := strings.Join(back, "\n")
 	for _, w := range []string{
-		"scene: INT. HALL - DAY #1# [[# Act One\n= The opening.]]",
+		"note: [[# Act One\n= The opening.]]\nscene: INT. HALL - DAY #1#",
 		"synopse: A synopsis.",
-		"action: John walks in, *slowly*, and **stops**. [[a note]]",
-		"speaker: JOHN [[a note of its own]]",
+		"note: [[a note]]\naction: John walks in, *slowly*, and **stops**.",
+		"note: [[a note of its own]]\ndualspeaker_open: \nspeaker: JOHN",
 		"lyrics: la la la\nlyrics: and on",
 		`action: Rain falls on "quotes" & <brackets>.`,
 		"Title: _**BRICK & STEEL**_",

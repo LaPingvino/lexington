@@ -104,11 +104,21 @@ type FdxParagraph struct {
 	ScriptNotes     []FdxScriptNote     `xml:"ScriptNote,omitempty"`
 	SceneProperties *FdxSceneProperties `xml:"SceneProperties,omitempty"`
 	Texts           []FdxText           `xml:"Text"`
-	DualDialogue    *FdxDualDialogue    `xml:"DualDialogue,omitempty"`
+	// TrailingNotes are script notes written after the text: the notes
+	// in a line's text (ScriptNotes, before it, are a line of notes
+	// before the paragraph). Read, every note is in ScriptNotes.
+	TrailingNotes []trailingNote   `xml:",any,omitempty"`
+	DualDialogue  *FdxDualDialogue `xml:"DualDialogue,omitempty"`
 
 	// noteAt is, for each of the ScriptNotes read, the number of Texts
 	// before it.
 	noteAt []int
+}
+
+// trailingNote is a script note after a paragraph's text.
+type trailingNote struct {
+	XMLName xml.Name `xml:"ScriptNote"`
+	FdxScriptNote
 }
 
 // FdxScriptNote is a note on a paragraph, in paragraphs of its own.
@@ -274,7 +284,18 @@ func parseFile(file io.Reader) (lex.Screenplay, fileRevisions, *FdxFile, map[*Fd
 			continue
 		}
 
+		// the notes before its text, as Final Draft writes a paragraph's: a
+		// line of notes before it, where Fountain can have one
+		before := ""
 		line := r.parseParagraph(p)
+		if lead := leadNotes(p); lead > 0 {
+			rest := p
+			rest.ScriptNotes, rest.noteAt = p.ScriptNotes[lead:], p.noteAt[lead:]
+			if l := r.parseParagraph(rest); lex.NoteLineBefore(lex.Paragraph{Type: l.Type, Text: lex.StripNotes(l.Contents)}) &&
+				!r.types[p.Type].hidden && l.Type != lex.TypeNote {
+				before, line = r.notes(p.ScriptNotes[:lead]), l
+			}
+		}
 		line.Revision = r.revisionOf(&fdxFile.Content.Paragraphs[i])
 		line.Contents = strings.TrimRightFunc(line.Contents, unicode.IsSpace)
 		if line.Type == lex.TypeEmpty {
@@ -287,6 +308,9 @@ func parseFile(file io.Reader) (lex.Screenplay, fileRevisions, *FdxFile, map[*Fd
 			// line before each scene heading, action, character and
 			// transition.
 			out = append(out, lex.Line{Type: lex.TypeEmpty})
+		}
+		if before != "" {
+			out = append(out, lex.Line{Type: lex.TypeNote, Contents: before}, lex.Line{Type: lex.TypeEmpty})
 		}
 		if line.Type == lex.TypeScene && p.SceneProperties != nil {
 			// its color as Beat reads it: a note at the end
@@ -412,6 +436,16 @@ func (r reader) parseParagraph(p FdxParagraph) lex.Line {
 		line.Type = lex.TypeCenter
 	}
 	return line
+}
+
+// leadNotes is how many of a paragraph's script notes are before its
+// first text.
+func leadNotes(p FdxParagraph) int {
+	n := 0
+	for n < len(p.noteAt) && p.noteAt[n] == 0 && len(p.Texts) > 0 {
+		n++
+	}
+	return n
 }
 
 // trailingNotes are the notes at the end of a text.
@@ -619,6 +653,11 @@ func (r reader) text(p FdxParagraph) string {
 			lead = append(lead, runs[0])
 		}
 		runs = runs[1:]
+	}
+	// the notes after the text, as the writer puts a line's, after a space
+	for len(runs) > 0 && runs[len(runs)-1].Note && lex.RunsText(runs[:len(runs)-1]) != "" {
+		lead = append([]run{runs[len(runs)-1]}, lead...)
+		runs = runs[:len(runs)-1]
 	}
 	text := lex.FountainRuns(runs)
 	for _, n := range lead {

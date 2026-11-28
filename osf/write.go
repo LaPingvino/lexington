@@ -17,15 +17,17 @@ import (
 // heading are notes on the paragraph after them, "# Act One" and "= …"; a
 // boneyard is left out. A scene heading's synopses are its synopsis.
 type OSFWriter struct {
-	// Version is the OSF version written: "4.0" (the default), "2.0"
-	// or "1.2".
+	// Version is the OSF version written: "5.0" (the default, Fade In
+	// 5's), "4.0", "2.0" or "1.2".
 	Version string
 }
 
-// version is the writer's version as a number: 40, 20 or 12.
+// version is the writer's version as a number: 50, 40, 20 or 12.
 func (w *OSFWriter) version() int {
 	switch v := Version(w.Version); {
-	case v == 0 || v >= 40:
+	case v == 0 || v >= 50:
+		return 50
+	case v >= 40:
 		return 40
 	case v >= 20:
 		return 20
@@ -52,12 +54,25 @@ func (w *OSFWriter) Document(s lex.Screenplay) []byte {
 	fmt.Fprintf(&b, `<document type="%s" version="%d">`+"\n", DocumentType, v)
 	sum := sha1.Sum([]byte(fmt.Sprint(s)))
 	uuid := fmt.Sprintf("%X-%X-%X-%X-%X", sum[0:4], sum[4:6], sum[6:8], sum[8:10], sum[10:16])
-	if v < 20 {
+	switch {
+	case v < 20:
 		b.WriteString("  <info" + infoAttrs(title) + ` uuid="` + uuid + `"/>` + "\n")
-	} else {
+	case v >= 50:
+		// a draft's uuid as well, in lower case, as Fade In 5 has it (its
+		// pagecount it counts itself)
+		d := sha1.Sum(append([]byte("draft"), sum[:]...))
+		d[6], d[8] = d[6]&0x0f|0x40, d[8]&0x3f|0x80 // a version 4 uuid's form
+		draft := fmt.Sprintf("%x-%x-%x-%x-%x", d[0:4], d[4:6], d[6:8], d[8:10], d[10:16])
+		b.WriteString(`  <info uuid="` + uuid + `" draft_uuid="` + draft + `"/>` + "\n")
+	default:
 		b.WriteString(`  <info uuid="` + uuid + `"/>` + "\n")
 	}
-	b.WriteString(`  <settings page_width="2159" page_height="2794" margin_top="317" margin_bottom="220" margin_left="317" margin_right="317" normal_linesperinch="6.0" dialogue_continues="true" cont_text="(cont'd)" more_text="(MORE)" continued_text="CONTINUED" omitted_text="OMITTED"/>` + "\n")
+	if v >= 50 {
+		// Fade In 5's settings for a new script
+		b.WriteString(`  <settings page_width="2159" page_height="2794" margin_top="317" margin_bottom="220" margin_left="317" margin_right="317" normal_linesperinch="6.0" element_spacing="1.00" break_on_sentences="false" dialogue_continues="true" dialogue_pagebreaks="true" cont_text="(cont'd)" more_text="(MORE)" scenes_continue="false" continued_text="CONTINUED" number_continued="true" scene_time_separator=" - " page_header="#." page_footer="" header_alignment="3" footer_alignment="3" header_first_page="false" footer_first_page="false" pages_locked="false" pages_combine="true" pagenumber_start="1" pagenumber_mode="1AB" revision="0" document_revision="-1" revision_mode="false" show_revisions="none" selected_revisions=""/>` + "\n")
+	} else {
+		b.WriteString(`  <settings page_width="2159" page_height="2794" margin_top="317" margin_bottom="220" margin_left="317" margin_right="317" normal_linesperinch="6.0" dialogue_continues="true" cont_text="(cont'd)" more_text="(MORE)" continued_text="CONTINUED" omitted_text="OMITTED"/>` + "\n")
+	}
 	writeStyles(&b, v, base)
 	b.WriteString("  <paragraphs>\n")
 	var pending []string // notes for the next paragraph
@@ -131,6 +146,22 @@ func writeStyles(b *strings.Builder, v int, base string) {
 	}
 	b.WriteString("  <styles>\n")
 	b.WriteString(`    <style name="Normal Text" builtin="1" builtin_index="0" font="Courier Screenplay" size="12"/>` + "\n")
+	if v >= 50 {
+		// as Fade In 5 writes them
+		b.WriteString(`    <style name="Scene Heading" builtin="1" builtin_index="1" basestyle="Normal Text" style_enter="Action" style_tab_after="Action" font="Courier Screenplay" size="12" spacebefore="2.0" keepwithnext="1" allcaps="1"/>
+    <style name="Action" builtin="1" builtin_index="2" basestyle="Normal Text" style_enter="Action" style_tab_before="Character" font="Courier Screenplay" size="12" spacebefore="1.0"/>
+    <style name="Character" builtin="1" builtin_index="3" basestyle="Normal Text" style_enter="Dialogue" style_tab_before="Action" style_tab_after="Parenthetical" font="Courier Screenplay" size="12" spacebefore="1.0" keepwithnext="1" leftindent="635" allcaps="1"/>
+    <style name="Parenthetical" builtin="1" builtin_index="4" basestyle="Normal Text" style_enter="Dialogue" style_tab_before="Dialogue" style_tab_after="Dialogue" font="Courier Screenplay" size="12" keepwithnext="1" leftindent="508" rightindent="508"/>
+    <style name="Dialogue" builtin="1" builtin_index="5" basestyle="Normal Text" style_enter="Action" style_tab_before="Parenthetical" style_tab_after="Parenthetical" font="Courier Screenplay" size="12" leftindent="330" rightindent="254"/>
+    <style name="Transition" builtin="1" builtin_index="6" basestyle="Normal Text" style_enter="Scene Heading" style_tab_after="Action" font="Courier Screenplay" size="12" spacebefore="1.0" align="right" leftindent="1016" rightindent="127" allcaps="1"/>
+    <style name="Shot" builtin="1" builtin_index="7" basestyle="Normal Text" style_enter="Action" style_tab_after="Action" font="Courier Screenplay" size="12" spacebefore="1.0" keepwithnext="1" allcaps="1"/>
+    <style name="Lyrics" basestyle="Dialogue" style_enter="Dialogue" font="Courier Screenplay" size="12" italic="1" leftindent="330" rightindent="254"/>
+    <header_style basestyle="Normal Text"/>
+    <footer_style basestyle="Normal Text"/>
+  </styles>
+`)
+		return
+	}
 	rows := []struct {
 		name, extra string
 		caps        bool

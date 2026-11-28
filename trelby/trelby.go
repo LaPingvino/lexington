@@ -24,8 +24,11 @@
 //
 // Trelby keeps less than Fountain says, and the writer leaves out what
 // else it has no place for: scene numbers (Trelby numbers scenes
-// itself), page breaks, boneyards. A centred line is action, lyrics are
-// dialogue. A first-level section is Trelby's act break; a deeper one
+// itself), page breaks, boneyards. Trelby cannot centre a line: no
+// element type or setting of its does (its own Fountain import indents
+// one with spaces), so a centred line is action with Fountain's markers
+// kept ("> THE END <"), as emphasis is, and reads back as centred; lyrics
+// are dialogue. A first-level section is Trelby's act break; a deeper one
 // ("## …") and a synopsis ("= …") are notes, which read back as what
 // they were. Notes, sections and synopses are plain text.
 package trelby
@@ -205,6 +208,9 @@ func (r *reader) config(l string) {
 	r.styles[typ] += strings.ToLower(m[2][:1])
 }
 
+// centred is a centred line as Fountain marks it: "> THE END <".
+var centred = regexp.MustCompile(`^>\s*([^\n]*?)\s*<$`)
+
 // add adds an element: in capitals for the types Trelby prints so, its
 // Fountain markers read as emphasis, a speaker's caret as dual dialogue.
 func (r *reader) add(typ byte, text string) {
@@ -228,6 +234,17 @@ func (r *reader) add(typ byte, text string) {
 			break
 		}
 		p = lex.Paragraph{Type: lex.TypeAction, Notes: []string{text}}
+	case lex.TypeAction:
+		lines := strings.Split(text, "\n")
+		for i, l := range lines {
+			m := centred.FindStringSubmatch(strings.TrimSpace(l))
+			if m == nil {
+				break
+			}
+			if lines[i] = m[1]; i == len(lines)-1 {
+				p = lex.Paragraph{Type: lex.TypeCenter, Text: strings.Join(lines, "\n")}
+			}
+		}
 	case lex.TypeSpeaker:
 		if cue, ok := strings.CutSuffix(text, "^"); ok {
 			p.Text = strings.TrimSpace(cue)

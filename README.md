@@ -435,20 +435,25 @@ lexington -i download -o film.fountain                # no extension: told by it
 
 | Program | Read | Written | What it keeps |
 |---|---|---|---|
-| Fade In (`.fadein`, zipped or a folder; `.osf`) | OSF 1.2, 2.x, 3.0, 4.0 | OSF 4.0 (`-osfversion 2.0`, `1.2`) | all printed elements and emphasis, dual dialogue, scene numbers, page breaks, notes, a scene's synopsis; the title page |
+| Fade In (`.fadein`, zipped or a folder; `.osf`) | OSF 1.2, 2.x, 3.0, 4.0, 5.0 | OSF 5.0, Fade In 5's (`-osfversion 4.0`, `2.0`, `1.2`) | all printed elements and emphasis, dual dialogue, scene numbers, page breaks, notes, a scene's synopsis; the title page |
 | Trelby (`.trelby`) | formats 1–3 | format 3 | the text of each element and its type, emphasis and dual dialogue as Fountain's markers in the text, notes, the title page; no scene numbers or page breaks |
 | KIT Scenarist (`.kitsp`) | its projects (0.7) | a new project, as KIT 0.7.2 makes one | all elements and emphasis, dual dialogue, scene numbers and colours, folders as sections, notes as review comments, the title page's fields; no page breaks |
 
 - **Fade In:** a `.fadein` is a zip holding the script as `document.xml`, in Fade In's Open Screenplay
   Format; like a `.highland` it can be a folder, and is written back in the form it has, what else is in it
   kept. OSF has no outline: a section (`# Act One`) and a synopsis not on a scene heading go in the next
-  paragraph's note, which Fade In does not print either. The format is known from the OSF SDK's samples
-  and checked on real `.fadein` files (OSF 3.0); no file Lexington wrote has been opened in Fade In itself
-  yet. In 1.2, whose emphasis is tags in the text (`<b>`), a `<` or `>` of the text's own is written
+  paragraph's note, which Fade In does not print either. A note is always on a paragraph, Fade In's only
+  place for one: a line of notes (`[[…]]` alone) goes on the paragraph after it and reads back as a line of
+  notes before it, so does a note inside a paragraph's text (in a speech it stays at the speech's line). The
+  format is known from the OSF SDK's samples and real `.fadein` files (OSF 3.0 and Fade In 5's 5.0): written
+  in 5.0, a script Fade In 5 saved comes out with its settings, styles, paragraphs and title page as Fade
+  In wrote them (Fade In's own state, such as `<fadein_settings>`, is left to it). In 1.2, whose emphasis is tags in the text (`<b>`), a `<` or `>` of the text's own is written
   `&lt;`, a guess: no 1.2 file seen has one.
 - **Trelby:** as Trelby's own `fileformat.txt` and loader describe it. Its act break is a first-level
   section; deeper sections and synopses are notes that start with `##` and `=`, which read back as what
-  they were. A centred line is action, lyrics are dialogue. Trelby has no styles in its text (only for a
+  they were. Trelby cannot centre a line (no element type or setting does; its own Fountain import indents
+  one with spaces), so a centred line is action with Fountain's markers kept, `> THE END <`, and reads
+  back as centred. Lyrics are dialogue. Trelby has no styles in its text (only for a
   whole element type, or a whole title string) and no dual dialogue, so they are kept as Trelby's own
   Fountain import keeps them with "Remove unsupported formatting markup" off: Fountain's markers in the
   text (`**bold**`, `*italics*`, `_underline_`, `\*` for a plain asterisk) and a caret after the second
