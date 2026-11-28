@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.67.1] - 2026-11-28
+
 ### Changed
 - **A transition ending in `TO:` needs no blank line after it.** Since 1.19 the spec's reading wanted blank
   lines around a transition, so `CUT TO:` right above the next scene's text became a character cue and the
